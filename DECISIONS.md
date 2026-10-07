@@ -1,0 +1,48 @@
+# StarLine — Decision Record
+
+Companion to `SPECIFICATION.md`. Every entry here was explicitly decided by the owner or is a
+pre-build audit resolution of an internal spec conflict. The spec remains the source of truth for
+everything not listed here; entries are folded back into the spec on owner request.
+
+## Owner decisions (2026-10-07, before M0)
+
+1. **Licence:** MPL-2.0 (file-level copyleft; a future paid/closed edition stays possible).
+2. **Repository:** private GitHub repo `daniilperkin/starline`, created and pushed when M0 is green.
+3. **Sequencing:** M0 Foundation is a hard gate (report, then continue); M1→M4 follow milestone by
+   milestone per §5.7.
+4. **Toolchain:** install VS 2022 Build Tools (C++ workload) so the MSVC Rust toolchain and Tauri
+   build work on this machine; the GNU toolchain stays a fallback for the headless storage CLI only.
+5. **File scope — library files:** one `.starline` file may contain **multiple books** (`project`
+   rows). This overrides the §3.3 rule "one `.starline` file = one `project` row". Exact v1.0 shape
+   (book switcher, export scope per book, whether cross-book sharing is pulled forward from the
+   v1.1 series plan) is pinned in the M0 report before M1 starts. M0 itself is unaffected: the
+   schema already supports N `project` rows per file.
+
+## Pre-build audit resolutions (spec conflicts/gaps)
+
+1. **`synchronous` pragma:** §3.1 lists `NORMAL`, §5.3 wants `FULL` as default for files ≤ 200 MB.
+   Implemented: `FULL` for files ≤ 200 MB, `NORMAL` above, user-toggleable in Settings → Reliability.
+2. **`series` table missing:** `project.series_id` references it and the TS interface exists, but no
+   `CREATE TABLE` is given. Added to migration 0001 following the §3.3 interface.
+3. **Snowflake step 6 structure:** spec text says "4 sections (one per ¼ of Step 4)" while its own
+   type (5-value `sourceKey` union) and validator ("fewer than 4 non-empty" = error) imply 5.
+   Implemented as 5 sections, 1:1 with the five step-4 paragraphs; "four-page" is a length target.
+   (Reconfirmed at M1.)
+4. **`custom_field_def` uniqueness:** `UNIQUE (project_id, target, lore_kind, label)` does not
+   enforce label uniqueness when `lore_kind IS NULL` (SQLite treats NULLs as distinct in UNIQUE).
+   Implemented as two partial unique indexes with the same intent.
+5. **Minor path drift:** export folder layout follows the normative §5.4.2 (part/chapter nesting);
+   snapshot sidecar folder is `.starline-snapshots/` (§4.5.3/§5.4.1), not `.snapshots/` (§3.9).
+6. **FTS coverage:** triggers per §3.10 on the five listed tables; `part`/`plotline` stay out of
+   command-palette search for v1.0 (extend later if wanted).
+
+## Engineering conventions (this repo)
+
+- pnpm workspace + TypeScript project references; Biome for lint/format.
+- Node 22.21 (`C:/Program Files/nodejs`) is the project Node; the Hermes-bundled Node v26 on PATH
+  differs and must not be used for gates.
+- Commit messages: plain-English imperatives, detailed rationale (per `../AGENTS.md`).
+- Spec version floors are minimums: latest stable versions are used where they satisfy the spec
+  (TypeScript 7.0, Vite 8.3, React 19.3, Zod 4.6, Kysely 0.29, Vitest 5, Biome 2.5, Tauri 2.12,
+  TipTap 3.31, Tailwind 4.3).
+- Chaos/fuzz harness: headless Rust storage CLI (`starline-storage-cli`), killable mid-command.
