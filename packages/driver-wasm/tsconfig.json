@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    "lib": ["ES2023", "DOM", "DOM.Iterable", "WebWorker"]
+  },
+  "include": ["src", "tests"],
+  "references": [{ "path": "../core" }, { "path": "../db" }, { "path": "../driver-tauri" }]
+}

@@ -1,6 +1,8 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { createInterface } from "node:readline";
+import type { SqlValue } from "@starline/core";
 import type { Transport } from "./transport";
+import { encodeParams } from "./wire";
 
 interface Pending {
   resolve: (value: unknown) => void;
@@ -69,7 +71,13 @@ export class StdioTransport implements Transport {
   request<T = unknown>(op: string, payload: Record<string, unknown> = {}): Promise<T> {
     if (this.exited) return Promise.reject(new Error("storage process is not running"));
     const id = this.nextId++;
-    const line = JSON.stringify({ id, op, ...payload });
+    // JSON cannot carry Uint8Array: blob parameters go over the wire as {"$b64": ...}
+    // (the driver turns `$b64` results back into Uint8Array on the way out).
+    const body: Record<string, unknown> = { id, op, ...payload };
+    if (Array.isArray(body.params)) {
+      body.params = encodeParams(body.params as readonly SqlValue[]);
+    }
+    const line = JSON.stringify(body);
     return new Promise<T>((resolve, reject) => {
       this.pending.set(id, { resolve: resolve as (value: unknown) => void, reject });
       this.child.stdin.write(`${line}\n`, (error) => {

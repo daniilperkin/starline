@@ -1,0 +1,23 @@
+{
+  "name": "@starline/driver-wasm",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MPL-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@sqlite.org/sqlite-wasm": "^3.53.4-build2",
+    "@starline/core": "workspace:*",
+    "@starline/db": "workspace:*",
+    "@starline/driver-tauri": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

@@ -80,7 +80,7 @@ async function countProjects(driver: StorageDriver): Promise<number> {
  */
 export function runStorageDriverContract(
   name: string,
-  capabilities: { locking: boolean; externalChange: boolean },
+  capabilities: { locking: boolean; externalChange: boolean; multiInstance: boolean },
   setup: () => Promise<ContractHarness>,
 ): void {
   describe(`StorageDriver contract — ${name}`, () => {
@@ -194,7 +194,9 @@ export function runStorageDriverContract(
       await openMigrated(h);
       await insertProject(h.driver, PROJECT_A, "Persist me");
       await h.driver.close();
-      const second = await h.newDriver();
+      // The OPFS sahpool VFS cannot share a file across pool instances (one worker owns its
+      // files), so single-instance backends reopen on the same driver instead.
+      const second = capabilities.multiInstance ? await h.newDriver() : h.driver;
       const info = await second.open({ path: h.path, create: false, readOnly: false });
       expect(info.schemaVersion).toBe(LATEST_SCHEMA_VERSION);
       expect(await countProjects(second)).toBe(1);
@@ -206,7 +208,8 @@ export function runStorageDriverContract(
       await insertProject(h.driver, PROJECT_A, "Snapshot me");
       const snap = await h.driver.snapshot(h.snapshotPath);
       expect(snap.byteSize).toBeGreaterThan(0);
-      const reader = await h.newDriver();
+      const reader = capabilities.multiInstance ? await h.newDriver() : h.driver;
+      if (reader === h.driver) await h.driver.close();
       await reader.open({ path: h.snapshotPath, create: false, readOnly: true });
       const integrity = await reader.integrityCheck();
       expect(integrity.ok).toBe(true);

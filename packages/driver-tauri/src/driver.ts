@@ -9,7 +9,7 @@ import type {
   Unsubscribe,
 } from "@starline/db";
 import type { Transport } from "./transport";
-import { decodeRows, encodeParams } from "./wire";
+import { decodeRows } from "./wire";
 
 interface WireOpenResult {
   schemaVersion: number;
@@ -75,7 +75,7 @@ export class TauriStorageDriver implements StorageDriver {
   ): Promise<T[]> {
     const rows = await this.transport.request<Record<string, unknown>[]>("query", {
       sql,
-      params: params ? encodeParams(params) : [],
+      params: params ?? [],
     });
     return decodeRows<T>(rows);
   }
@@ -86,7 +86,7 @@ export class TauriStorageDriver implements StorageDriver {
       query: async <T = Record<string, unknown>>(sql: string, params?: readonly SqlValue[]) => {
         const rows = await this.transport.request<Record<string, unknown>[]>("query", {
           sql,
-          params: params ? encodeParams(params) : [],
+          params: params ?? [],
         });
         return decodeRows<T>(rows);
       },

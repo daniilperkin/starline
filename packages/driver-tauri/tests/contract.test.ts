@@ -63,6 +63,6 @@ async function makeHarness(): Promise<ContractHarness> {
 
 runStorageDriverContract(
   "native (rusqlite via stdio)",
-  { locking: true, externalChange: true },
+  { locking: true, externalChange: true, multiInstance: true },
   makeHarness,
 );
