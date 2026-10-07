@@ -1,0 +1,23 @@
+{
+  "name": "@starline/driver-tauri",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MPL-2.0",
+  "exports": {
+    ".": "./src/index.ts",
+    "./stdio": "./src/stdio-transport.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@starline/core": "workspace:*",
+    "@starline/db": "workspace:*",
+    "@tauri-apps/api": "^2.12.1"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

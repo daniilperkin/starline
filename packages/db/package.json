@@ -1,0 +1,22 @@
+{
+  "name": "@starline/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MPL-2.0",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/contract.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@starline/core": "workspace:*",
+    "kysely": "^0.29.6"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

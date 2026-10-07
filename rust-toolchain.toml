@@ -1,0 +1,4 @@
+# Windows-first project: pin the MSVC toolchain so `cargo` never picks up the
+# GNU default toolchain on this machine (the Tauri build requires MSVC anyway).
+[toolchain]
+channel = "stable-x86_64-pc-windows-msvc"

@@ -1,0 +1,14 @@
+# Keep the repository LF-clean (working tree included); batch files stay CRLF for cmd.exe.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.pdf binary
+*.sqlite binary
+*.starline binary
+*.exe binary

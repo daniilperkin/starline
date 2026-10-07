@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = ["crates/starline-storage", "crates/starline-storage-cli"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2021"
+license = "MPL-2.0"
+
+[workspace.dependencies]
+base64 = "0.23.1"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
