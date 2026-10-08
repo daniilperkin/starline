@@ -43,3 +43,4 @@ pnpm --filter @starline/web preview    # http://localhost:5184
 - `pnpm chaos` — kill-9 durability harness
 - `node scripts/verify-web.mjs` — create/open/close E2E (serves its own dev build)
 - `node scripts/verify-pwa.mjs` — service worker + offline reopen (serves its own preview build)
+- `node scripts/check-contrast.mjs` — WCAG pin for the star-library palette (accent-is-decoration rule)
