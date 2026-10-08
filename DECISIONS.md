@@ -79,3 +79,15 @@ everything not listed here; entries are folded back into the spec on owner reque
     adb-reverse against the dev server remains the fast live-reload loop during development.
 13. **Sequencing — plan deeply first.** Feature build-out (characters/outliner/lore/timeline) only
     after a deep design pass; "everything, but plan deeply first".
+
+## Owner decisions — planning round (2026-10-08, before the deep plan)
+
+14. **UI language — English first, i18n-ready.** All v1 copy ships in English through a strings
+    module (no hardcoded literals scattered in components); de/uk/ru slot in later without
+    touching screens.
+15. **AI — plan the seams, ship none.** v1 keeps the static bundled prompt library and a clean
+    plugin point where an optional AI mode could attach later; zero AI code and zero network
+    paths in v1 (any future AI feature needs its own explicit owner decision).
+16. **Tempo and dogfooding — quality first, no schedule pressure.** Real-novel dogfooding begins
+    once StarLine can hold a plan end-to-end; correctness and feel outrank speed. Build still
+    proceeds in reviewable slices (each slice = a usable build).
