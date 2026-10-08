@@ -91,3 +91,17 @@ everything not listed here; entries are folded back into the spec on owner reque
 16. **Tempo and dogfooding — quality first, no schedule pressure.** Real-novel dogfooding begins
     once StarLine can hold a plan end-to-end; correctness and feel outrank speed. Build still
     proceeds in reviewable slices (each slice = a usable build).
+
+## Owner decisions — plan review (2026-10-08)
+
+17. **Plan review resolved.** All nine open items of `docs/PLAN.md` §8 are **accepted as
+    recommended**: five tabs (Plan/Scenes/People/World/Notes); list-first Scenes view;
+    row-based Step 8; matrix-first relationships; phone search budget ≤ 50 ms p95; SAF mirror
+    backups on Android; cold-open ≤ 1.5 s incl. wasm; prompt set written during Slice 1; one
+    page per wizard step. These are defaults now — deviations would be a new decision.
+18. **Optional cloud backup (Firebase) — analysed, not scheduled.** Owner intent: a
+    CatBookTracker-style optional cloud backup, local-only when not configured. Analysis in
+    `docs/CLOUD-BACKUP.md`: immutable **snapshot mirroring** (never live DB sync), Google
+    sign-in, off by default, module disabled entirely without build config. v1 core keeps the
+    zero-network stance; implementing this requires its own go-ahead and amends the
+    no-network invariant wording (default build = no network; the module is opt-in).

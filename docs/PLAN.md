@@ -337,8 +337,13 @@ written end-to-end; all gates green; PWA + APK rebuilt.
   generation (decision 15), Fabula import (no export exists on their side), live sync of
   the database file through cloud folders (snapshot mirroring only, §4.5.3), Tauri desktop
   shell beyond internal test duty.
+- Optional **cloud backup** (Firebase snapshot mirroring) — analysed in
+  `docs/CLOUD-BACKUP.md` per owner request (decision 18); candidate after v1 core, requires
+  its own go-ahead and an invariant-wording revision.
 
-## 8. Open items for review (owner)
+## 8. Open items — resolved 2026-10-08 (all nine accepted as recommended, decision 17)
+
+*Provenance only — every recommendation below is now the shipped default.*
 
 1. **Tab set**: Plan / Scenes / People / World / Notes — or merge World into People?
    (recommendation: keep five)
