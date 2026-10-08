@@ -26,13 +26,15 @@ function themeVars(selector) {
   if (start === -1) throw new Error(`theme block not found in styles.css: ${selector}`);
   const block = css.slice(start, css.indexOf("}", start));
   const vars = {};
-  for (const match of block.matchAll(/--sl-([\w-]+):\s*([^;]+);/g)) vars[match[1]] = match[2].trim();
+  for (const match of block.matchAll(/--sl-([\w-]+):\s*([^;]+);/g))
+    vars[match[1]] = match[2].trim();
   return vars;
 }
 
 function toRgb(value) {
   const hex = value.startsWith("#") ? value.slice(1) : value;
-  if (!/^[0-9a-fA-F]{6}$/.test(hex)) throw new Error(`expected a 6-digit hex colour, got: ${value}`);
+  if (!/^[0-9a-fA-F]{6}$/.test(hex))
+    throw new Error(`expected a 6-digit hex colour, got: ${value}`);
   return [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
 }
 
@@ -71,11 +73,15 @@ for (const [theme, label, fg, bg, operator, threshold] of rules) {
   const ratio = contrast(fg, bg);
   const ok = operator === ">=" ? ratio >= threshold : ratio < threshold;
   if (!ok) failed++;
-  console.log(`${ok ? "PASS" : "FAIL"}  ${theme.padEnd(5)} ${label.padEnd(40)} ${ratio.toFixed(2)} (${operator} ${threshold})`);
+  console.log(
+    `${ok ? "PASS" : "FAIL"}  ${theme.padEnd(5)} ${label.padEnd(40)} ${ratio.toFixed(2)} (${operator} ${threshold})`,
+  );
 }
 
 if (failed > 0) {
-  console.error(`CONTRAST FAIL — ${failed} rule(s) violated; see docs/DESIGN.md before changing tokens.`);
+  console.error(
+    `CONTRAST FAIL — ${failed} rule(s) violated; see docs/DESIGN.md before changing tokens.`,
+  );
   process.exit(1);
 }
 console.log("CONTRAST OK — star-library palette matches its design contract.");

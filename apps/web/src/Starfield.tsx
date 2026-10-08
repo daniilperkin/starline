@@ -122,5 +122,7 @@ export function Starfield() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="sl-starfield" role="presentation" />;
+  // Decorative backdrop (docs/DESIGN.md): nothing in it is focusable or readable.
+  // biome-ignore lint/a11y/noAriaHiddenOnFocusable: decorative starfield; no focusable content inside.
+  return <canvas ref={canvasRef} className="sl-starfield" aria-hidden="true" />;
 }
