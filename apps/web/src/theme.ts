@@ -5,7 +5,8 @@ const ORDER: ThemePreference[] = ["system", "light", "dark"];
 
 export function getThemePreference(): ThemePreference {
   const stored = localStorage.getItem(STORAGE_KEY);
-  return stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
+  // The star library is a night sky: dark is the default until the writer chooses otherwise.
+  return stored === "light" || stored === "dark" || stored === "system" ? stored : "dark";
 }
 
 export function applyTheme(preference: ThemePreference): void {
@@ -16,6 +17,9 @@ export function applyTheme(preference: ThemePreference): void {
         : "light"
       : preference;
   document.documentElement.dataset.theme = resolved;
+  document.documentElement.style.colorScheme = resolved;
+  // The starfield redraws itself for the new palette (Starfield.tsx).
+  window.dispatchEvent(new CustomEvent("starline:theme", { detail: { theme: resolved } }));
 }
 
 export function setThemePreference(preference: ThemePreference): ThemePreference {

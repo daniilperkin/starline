@@ -1,34 +1,57 @@
 @import "tailwindcss";
 
-/* Theme tokens (spec §4.9): light/dark via data-theme on <html>, accent per preference. */
+/* StarLine — star-library design tokens (docs/DESIGN.md).
+   Dark deep-space is the hero theme; light is the day-sky variant. */
 :root {
-  --sl-bg: #f6f6f8;
+  --sl-bg: #f4f5fb;
   --sl-surface: #ffffff;
-  --sl-text: #1b1b20;
-  --sl-muted: #63636e;
-  --sl-border: #e3e3e8;
-  --sl-accent: #6d28d9;
-  --sl-danger: #b91c1c;
+  --sl-surface-2: #eceefa;
+  --sl-text: #181a2b;
+  --sl-muted: #5d6390;
+  --sl-border: #dcdff2;
+  --sl-accent: #f0b429; /* starlight gold — decoration only in the day sky */
+  --sl-primary: #5b46d6; /* nebula violet — interactive text/fills */
+  --sl-on-primary: #ffffff;
+  --sl-danger: #b3261e;
+  --sl-star: #a6aede;
+  --sl-glow: rgba(91, 70, 214, 0.18);
+  --sl-wordmark-a: #5b46d6; /* day sky: the gold cannot carry text, so the mark turns violet */
+  --sl-wordmark-b: #2f6fd6;
 }
 
 [data-theme="dark"] {
-  --sl-bg: #101014;
-  --sl-surface: #18181f;
-  --sl-text: #ececf1;
-  --sl-muted: #a0a0ad;
-  --sl-border: #2b2b35;
-  --sl-accent: #a78bfa;
+  --sl-bg: #060714;
+  --sl-surface: #0e1023;
+  --sl-surface-2: #171a33;
+  --sl-text: #e9eaf6;
+  --sl-muted: #9aa0c0;
+  --sl-border: rgba(148, 163, 255, 0.16);
+  --sl-accent: #f6c760; /* starlight gold — clears AA on the dark sky */
+  --sl-primary: #f6c760;
+  --sl-on-primary: #211503;
   --sl-danger: #f87171;
+  --sl-star: #cdd5ff;
+  --sl-glow: rgba(139, 124, 246, 0.35);
+  --sl-wordmark-a: #f6c760; /* night sky: gold → starlight → gold */
+  --sl-wordmark-b: #cdd5ff;
 }
 
 @theme inline {
   --color-canvas: var(--sl-bg);
   --color-surface: var(--sl-surface);
+  --color-surface-2: var(--sl-surface-2);
   --color-ink: var(--sl-text);
   --color-muted: var(--sl-muted);
   --color-line: var(--sl-border);
   --color-accent: var(--sl-accent);
+  --color-primary: var(--sl-primary);
+  --color-on-primary: var(--sl-on-primary);
   --color-danger: var(--sl-danger);
+  --color-star: var(--sl-star);
+}
+
+html {
+  color-scheme: light dark;
 }
 
 body {
@@ -36,38 +59,98 @@ body {
   background: var(--sl-bg);
   color: var(--sl-text);
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  min-height: 100dvh;
+}
+
+/* The signature backdrop: a static seeded starfield behind everything (docs/DESIGN.md). */
+.sl-starfield {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.sl-shell {
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  padding-top: env(safe-area-inset-top);
+}
+
+.sl-wordmark {
+  background: linear-gradient(
+    100deg,
+    var(--sl-wordmark-a) 10%,
+    var(--sl-wordmark-b) 55%,
+    var(--sl-wordmark-a) 90%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .sl-btn {
+  min-height: 44px;
   border: 1px solid var(--sl-border);
   background: var(--sl-surface);
   color: var(--sl-text);
-  border-radius: 0.5rem;
-  padding: 0.45rem 0.9rem;
-  font-size: 0.875rem;
+  border-radius: 999px;
+  padding: 0.55rem 1.1rem;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: border-color 120ms ease;
+  transition:
+    border-color 120ms ease,
+    transform 120ms ease;
 }
 
 .sl-btn:hover:not(:disabled) {
-  border-color: var(--sl-accent);
+  border-color: var(--sl-primary);
+}
+
+.sl-btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .sl-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: default;
 }
 
+.sl-btn-primary {
+  background: var(--sl-primary);
+  color: var(--sl-on-primary);
+  border-color: transparent;
+}
+
 .sl-input {
+  min-height: 44px;
   border: 1px solid var(--sl-border);
   background: var(--sl-surface);
   color: var(--sl-text);
-  border-radius: 0.5rem;
-  padding: 0.45rem 0.75rem;
-  font-size: 0.875rem;
+  border-radius: 0.8rem;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.95rem;
   outline: none;
 }
 
 .sl-input:focus {
-  border-color: var(--sl-accent);
+  border-color: var(--sl-primary);
+}
+
+.sl-card {
+  background: var(--sl-surface);
+  border: 1px solid var(--sl-border);
+  border-radius: 1.1rem;
+  box-shadow: 0 12px 32px -20px var(--sl-glow);
+}
+
+.sl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--sl-border);
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.72rem;
+  color: var(--sl-muted);
 }

@@ -38,6 +38,10 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
       try {
         const info = await driver.open({ path: `${name}.starline`, create, readOnly: false });
         const report: MigrationReport = await runMigrations(driver);
+        if (create) {
+          // Spec §5.4.1: ask the browser to make this origin's storage persistent on first creation.
+          void navigator.storage?.persist?.();
+        }
         onOpen({ driver, transport, name, info, report });
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause));
@@ -53,20 +57,23 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
   const createName = newName.trim().replace(/\.starline$/i, "");
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col justify-center gap-8 p-8">
-      <header className="flex items-end justify-between">
+    <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col justify-center gap-6 px-5 py-10">
+      <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">StarLine</h1>
-          <p className="mt-1 text-sm text-muted">
-            Offline novel-planning workstation — libraries live in your browser storage.
-          </p>
+          <h1 className="sl-wordmark text-4xl font-semibold tracking-tight">✦ StarLine</h1>
+          <p className="mt-2 text-sm text-muted">Your story, among the stars.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="sl-chip">✦ offline</span>
+            <span className="sl-chip">on your device</span>
+            <span className="sl-chip">installable</span>
+          </div>
         </div>
         <button type="button" className="sl-btn" onClick={() => setTheme(cycleTheme())}>
           {THEME_LABEL[theme]}
         </button>
       </header>
 
-      <section className="rounded-xl border border-line bg-surface p-6">
+      <section className="sl-card p-5">
         <h2 className="text-sm font-medium text-muted">Create a library</h2>
         <div className="mt-3 flex gap-2">
           <input
@@ -80,7 +87,7 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
           />
           <button
             type="button"
-            className="sl-btn"
+            className="sl-btn sl-btn-primary"
             disabled={busy || createName.length === 0}
             onClick={() => void open(createName, true)}
           >
@@ -92,7 +99,7 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
         </p>
       </section>
 
-      <section className="rounded-xl border border-line bg-surface p-6">
+      <section className="sl-card p-5">
         <h2 className="text-sm font-medium text-muted">Your libraries</h2>
         {libraries.length === 0 ? (
           <p className="mt-3 text-sm text-muted">No libraries yet — create one above.</p>
@@ -103,9 +110,14 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
               return (
                 <li
                   key={library}
-                  className="flex items-center justify-between rounded-lg border border-line px-3 py-2"
+                  className="flex items-center justify-between rounded-2xl border border-line px-3 py-2"
                 >
-                  <span className="text-sm">{displayName}</span>
+                  <span className="text-sm">
+                    <span aria-hidden="true" className="mr-1 text-accent">
+                      ✦
+                    </span>
+                    {displayName}
+                  </span>
                   <button
                     type="button"
                     className="sl-btn"
@@ -122,8 +134,12 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
       </section>
 
       {error ? (
-        <p className="rounded-lg border border-danger px-4 py-3 text-sm text-danger">{error}</p>
+        <p className="rounded-2xl border border-danger px-4 py-3 text-sm text-danger">{error}</p>
       ) : null}
+
+      <footer className="text-center text-xs text-muted">
+        Install on your phone: open in Chrome → menu → “Add to Home screen”.
+      </footer>
     </div>
   );
 }
