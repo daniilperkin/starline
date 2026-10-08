@@ -2,6 +2,7 @@ import type { CharacterContextInfo } from "../characters/types";
 import type { Severity, SnowflakeStepNumber, ValidationIssue } from "../entities";
 import type { UUID } from "../primitives";
 import { countWords } from "../richtext";
+import type { SceneContextInfo } from "../scenes/types";
 import {
   EXPANSION_KEYS,
   type ExpansionKey,
@@ -13,6 +14,7 @@ import {
   type Step4Content,
   type Step5Content,
   type Step6Content,
+  type Step8Content,
 } from "./types";
 
 export interface ValidateContext {
@@ -22,6 +24,8 @@ export interface ValidateContext {
   characters?: readonly CharacterContextInfo[];
   /** Step 3's major-character selection, for the S5_* rules. */
   majorCharacterIds?: readonly UUID[];
+  /** The project's scenes (light slice), for the S8_* rules. */
+  scenes?: readonly SceneContextInfo[];
 }
 
 const QUOTED_RE = /"[^"]*"|“[^”]*”|‘[^’]*’|'[^']*'/g;
@@ -182,7 +186,29 @@ export function validateStep6(content: Step6Content): ValidationIssue[] {
   return [];
 }
 
-/** Dispatcher: validators for steps 7–9 arrive with their slices. */
+/**
+ * Spec §3.4.2 — S8_* rules: the step is about the scene list, so the checks read the
+ * `scene` table (via `ctx.scenes`), not the step content. Without scene context the
+ * validators stay silent rather than guessing.
+ */
+export function validateStep8(
+  _content: Step8Content,
+  ctx: ValidateContext = {},
+): ValidationIssue[] {
+  if (ctx.scenes === undefined) return [];
+  const scenes = ctx.scenes;
+  if (scenes.length === 0) return [issue("S8_NO_SCENES", "error", "/scenes")];
+  const issues: ValidationIssue[] = [];
+  if (scenes.some((scene) => scene.povCharacterId === null)) {
+    issues.push(issue("S8_SCENE_NO_POV", "warning", "/scenes"));
+  }
+  if (scenes.some((scene) => scene.chapterId === null)) {
+    issues.push(issue("S8_UNASSIGNED", "info", "/scenes"));
+  }
+  return issues;
+}
+
+/** Dispatcher: validators for steps 7 and 9 arrive with their slices. */
 export function validateStep(
   step: SnowflakeStepNumber,
   content: SnowflakeStepContent,
@@ -201,6 +227,8 @@ export function validateStep(
       return validateStep5(content as Step5Content, ctx);
     case 6:
       return validateStep6(content as Step6Content);
+    case 8:
+      return validateStep8(content as Step8Content, ctx);
     default:
       return [];
   }

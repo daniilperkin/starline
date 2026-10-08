@@ -3,14 +3,15 @@ import {
   format,
   messages,
   progressOf,
+  type SceneContextInfo,
   type SnowflakeStepNumber,
   type SnowflakeStepRow,
   STEP_NUMBERS,
   validateStep,
 } from "@starline/core";
 import { useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { useCreateProject, useProjects, useSteps } from "./data";
+import { useMemo, useState } from "react";
+import { useCreateProject, useProjects, useSceneTree, useSteps } from "./data";
 import { useSessionStore } from "./session";
 import { closeLibrary } from "./storage";
 import { ThemeButton } from "./ThemeButton";
@@ -22,8 +23,20 @@ export function PlanScreen() {
   const projects = useProjects();
   const createProject = useCreateProject();
   const steps = useSteps(projects.data?.[0]?.id ?? null);
+  const tree = useSceneTree(projects.data?.[0]?.id ?? null);
   const [title, setTitle] = useState("");
   const [closing, setClosing] = useState(false);
+
+  // Step 8's issues live in the scene table, so the plan list needs the light scene slice.
+  const sceneContext: SceneContextInfo[] = useMemo(
+    () =>
+      (tree.data?.scenes ?? []).map((scene) => ({
+        id: scene.id,
+        povCharacterId: scene.povCharacterId,
+        chapterId: scene.chapterId,
+      })),
+    [tree.data],
+  );
 
   if (!session) return null;
 
@@ -119,6 +132,7 @@ export function PlanScreen() {
                     stepNumber={stepNumber}
                     row={row}
                     stale={staleSteps.has(stepNumber)}
+                    sceneContext={sceneContext}
                     onOpen={() => openStep(stepNumber)}
                   />
                 </li>
@@ -135,17 +149,22 @@ function StepRow({
   stepNumber,
   row,
   stale,
+  sceneContext,
   onOpen,
 }: {
   stepNumber: SnowflakeStepNumber;
   row: SnowflakeStepRow | null;
   stale: boolean;
+  sceneContext: readonly SceneContextInfo[];
   onOpen: () => void;
 }) {
   const status = row?.status ?? "not_started";
   const glyph = status === "complete" ? "●" : status === "in_progress" ? "◐" : "○";
   // Issue counts only matter once a step has content — a not-started step is not "warned".
-  const issues = row && status !== "not_started" ? validateStep(stepNumber, row.content) : [];
+  const issues =
+    row && status !== "not_started"
+      ? validateStep(stepNumber, row.content, { scenes: sceneContext })
+      : [];
 
   return (
     <button type="button" className="sl-step-row" onClick={onOpen}>

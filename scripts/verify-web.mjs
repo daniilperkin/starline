@@ -1,8 +1,10 @@
 #!/usr/bin/env node
-// Headless E2E for the web shell (spec §5.7 exit criterion + slices 1–3): create a library,
+// Headless E2E for the web shell (spec §5.7 exit criterion + slices 1–4): create a library,
 // create a story, write and complete Snowflake steps 1–6 (character card, extraction, dossier
 // edit, step-4 seed, storylines, sections), prove the Stale badge fires when step 2 is edited
-// after step 4 completed, then reload/close/reopen and prove it persisted.
+// after step 4 completed, then run the slice-4 loop: paste 40 scenes in step 8, re-import to
+// prove the merge (no duplicates), reorder + reassign a scene in the Scenes tab, round-trip
+// the scene editor, and finally reload/close/reopen to prove everything persisted.
 // By default the script serves the dev build itself (vite dev, port 5183); pass --no-serve
 // with a URL to use an already-running server.
 // Usage: node scripts/verify-web.mjs [url] [--no-serve]
@@ -42,7 +44,9 @@ if (serve) {
 const browser = await chromium.launch();
 let page = null;
 try {
-  page = await browser.newPage({ viewport: { width: 420, height: 900 } });
+  // en-US locale keeps number formatting ("48,200") deterministic — the app formats with
+  // Intl against the device locale, and the assertions here are English-first.
+  page = await browser.newPage({ viewport: { width: 420, height: 900 }, locale: "en-US" });
   await page.goto(url);
 
   // Warm-up: on a cold dev server vite pre-bundles dependencies and reloads the page when the
@@ -155,20 +159,78 @@ try {
   await page.getByText("Stale").first().waitFor();
   await page.screenshot({ path: join(shotDir, "9-stale.png"), fullPage: true });
 
+  // 4h. Step 8 (slice-4 exit): paste 40 lines → 40 scenes.
+  const sceneLines = [];
+  for (let i = 1; i <= 40; i++) {
+    const chapter = `Chapter ${Math.floor((i - 1) / 10) + 1}`;
+    sceneLines.push(`${i}\tMira Holt\tScene ${i} pushes the story forward\t${1000 + i * 10}\t${chapter}`);
+  }
+  const pasteText = sceneLines.join("\n");
+  await page.getByRole("button", { name: /Scene list/ }).click();
+  await page.getByRole("button", { name: /Paste from clipboard/ }).click();
+  await page.getByRole("textbox", { name: "Paste a scene list" }).fill(pasteText);
+  await page.getByRole("button", { name: "Create scenes from list" }).click();
+  await page.getByText(/40 created/).waitFor();
+  await page.screenshot({ path: join(shotDir, "10-step8-import.png"), fullPage: true });
+
+  // 4i. Re-import the same list: merge by line — zero created, 40 updated, no duplicates.
+  await page.getByRole("textbox", { name: "Paste a scene list" }).fill(pasteText);
+  await page.getByRole("button", { name: "Create scenes from list" }).click();
+  await page.getByText(/40 updated/).waitFor();
+  await page.getByRole("button", { name: "Close" }).last().click();
+  await page.getByText("48,200 est. words").waitFor();
+  await page.getByRole("button", { name: "Mark step complete" }).click();
+  await page.getByText("7 of 9 steps complete").waitFor();
+
+  // 4j. Scenes tab: 40 rows, reorder via the row menu, reassign to another chapter.
+  await page.getByRole("link", { name: "Scenes" }).click();
+  await page.getByText(/40 scenes/).first().waitFor();
+  await page.getByRole("button", { name: "⋯ Scene 2 pushes the story forward" }).click();
+  await page.getByRole("button", { name: /Move up/ }).click();
+  await page
+    .locator(".sl-scene-line-main")
+    .first()
+    .getByText(/Scene 2 pushes/)
+    .waitFor();
+  await page.getByRole("button", { name: "⋯ Scene 2 pushes the story forward" }).click();
+  await page.getByRole("button", { name: /Move to chapter/ }).click();
+  await page.getByRole("button", { name: "Chapter 2", exact: true }).click();
+  await page.getByText("11 scenes").first().waitFor();
+  await page.screenshot({ path: join(shotDir, "11-scenes-tab.png"), fullPage: true });
+
+  // 4k. Scene editor round-trip: title, objective and outcome persist through a reopen.
+  await page.locator(".sl-scene-line-main").filter({ hasText: "Scene 3 pushes" }).click();
+  await page.getByLabel("Title").fill("The Ferry");
+  await page.getByLabel("Objective").fill("Reach the customs office before the tide");
+  await page.getByRole("button", { name: "Yes, but" }).click();
+  await page.waitForTimeout(900);
+  await page.getByRole("button", { name: "Close" }).last().click();
+  await page.locator(".sl-scene-line-main").filter({ hasText: "The Ferry" }).click();
+  const objective = await page.getByLabel("Objective").inputValue();
+  if (objective !== "Reach the customs office before the tide") {
+    throw new Error(`scene editor did not round-trip the objective: ${objective}`);
+  }
+  const outcomePressed = await page
+    .getByRole("button", { name: "Yes, but" })
+    .getAttribute("aria-pressed");
+  if (outcomePressed !== "true") throw new Error("scene editor did not round-trip the outcome");
+  await page.screenshot({ path: join(shotDir, "12-scene-sheet.png"), fullPage: true });
+  await page.getByRole("button", { name: "Close" }).last().click();
+
   // 5. Reload: back to the start screen; reopening restores the last route (hash history),
   // so tab over to Plan and check the persisted progress.
   await page.reload();
   await page.getByText("Your libraries").waitFor();
   await page.getByRole("button", { name: "Open" }).click();
   await page.getByRole("link", { name: "Plan" }).click();
-  await page.getByText("6 of 9 steps complete").waitFor();
+  await page.getByText("7 of 9 steps complete").waitFor();
 
-  // 6. Close → listed → reopen → still 6 of 9 (persistence across driver instances).
+  // 6. Close → listed → reopen → still 7 of 9 (persistence across driver instances).
   await page.getByRole("button", { name: "Close library" }).click();
   await page.getByText("Your libraries").waitFor();
   await page.getByText("Slice Demo").waitFor();
   await page.getByRole("button", { name: "Open" }).click();
-  await page.getByText("6 of 9 steps complete").waitFor();
+  await page.getByText("7 of 9 steps complete").waitFor();
   await page.screenshot({ path: join(shotDir, "5-reopened.png"), fullPage: true });
 
   console.log("WEB-VERIFY OK");

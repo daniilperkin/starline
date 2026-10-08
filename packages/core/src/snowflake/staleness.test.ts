@@ -50,4 +50,31 @@ describe("computeStaleSteps", () => {
   it("tolerates missing rows", () => {
     expect(computeStaleSteps([row(4, "complete", 100)]).size).toBe(0);
   });
+
+  it("marks step 8 stale when step 6 changed after the last scene extraction", () => {
+    const step8 = row(8, "complete", 100);
+    step8.content = { generatedSceneIds: ["a" as UUID], lastImportedAt: 150 };
+    const stale = computeStaleSteps([row(6, "complete", 200), step8]);
+    expect(stale.has(8)).toBe(true);
+  });
+
+  it("keeps step 8 fresh while step 6 predates the extraction", () => {
+    const step8 = row(8, "complete", 300);
+    step8.content = { generatedSceneIds: ["a" as UUID], lastImportedAt: 250 };
+    const stale = computeStaleSteps([row(6, "complete", 200), step8]);
+    expect(stale.has(8)).toBe(false);
+  });
+
+  it("falls back to the step-8 timestamp when no extraction was recorded", () => {
+    const step8 = row(8, "complete", 300);
+    step8.content = { generatedSceneIds: [], lastImportedAt: null };
+    expect(computeStaleSteps([row(6, "complete", 200), step8]).has(8)).toBe(false);
+    expect(computeStaleSteps([row(6, "complete", 400), step8]).has(8)).toBe(true);
+  });
+
+  it("does not badge step 8 before it is complete", () => {
+    const step8 = row(8, "in_progress", 100);
+    step8.content = { generatedSceneIds: [], lastImportedAt: null };
+    expect(computeStaleSteps([row(6, "complete", 500), step8]).has(8)).toBe(false);
+  });
 });

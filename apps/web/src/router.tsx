@@ -11,6 +11,7 @@ import { CharacterScreen } from "./CharacterScreen";
 import { ComingSoonScreen } from "./ComingSoonScreen";
 import { PeopleScreen } from "./PeopleScreen";
 import { PlanScreen } from "./PlanScreen";
+import { ScenesScreen } from "./ScenesScreen";
 import { StepScreen } from "./StepScreen";
 
 const rootRoute = createRootRoute({ component: AppLayout });
@@ -38,7 +39,7 @@ const stepRoute = createRoute({
 const scenesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/scenes",
-  component: () => <ComingSoonScreen label={messages.tabs.scenes} />,
+  component: ScenesScreen,
 });
 
 const peopleRoute = createRoute({

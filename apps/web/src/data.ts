@@ -1,21 +1,44 @@
 import {
   ChangeBus,
+  type ChapterSummary,
   type CharacterPatch,
   type CharacterRole,
   type Command,
+  createChapter,
   createCharacter,
+  createPlotline,
   createProject,
+  createScene,
+  createScenesFromList,
+  deleteChapter,
   deleteCharacter,
+  deleteScene,
   executeCommand,
+  getSceneDetail,
+  listChapters,
   listCharacters,
+  listParts,
+  listPlotlines,
   listProjects,
+  listScenes,
   listSteps,
+  listTags,
   markStepComplete,
+  moveChapter,
+  moveScene,
+  type PartSummary,
+  type SceneSummary,
   type SnowflakeStepContent,
   type SnowflakeStepNumber,
   saveStepContent,
+  setSceneCharacters,
+  setSceneLore,
+  setScenePlotline,
+  setSceneTags,
   type UUID,
+  updateChapter,
   updateCharacter,
+  updateScene,
 } from "@starline/core";
 import type { TauriStorageDriver } from "@starline/driver-wasm";
 import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
@@ -34,6 +57,10 @@ bus.subscribe(() => {
   void queryClient.invalidateQueries({ queryKey: ["projects"] });
   void queryClient.invalidateQueries({ queryKey: ["steps"] });
   void queryClient.invalidateQueries({ queryKey: ["characters"] });
+  void queryClient.invalidateQueries({ queryKey: ["scenes"] });
+  void queryClient.invalidateQueries({ queryKey: ["scene"] });
+  void queryClient.invalidateQueries({ queryKey: ["plotlines"] });
+  void queryClient.invalidateQueries({ queryKey: ["tags"] });
 });
 
 function runCommand<A, R>(driver: TauriStorageDriver, command: Command<A, R>, args: A): Promise<R> {
@@ -164,3 +191,88 @@ export function useCompleteStep() {
     },
   });
 }
+
+export interface SceneTree {
+  parts: PartSummary[];
+  chapters: ChapterSummary[];
+  scenes: SceneSummary[];
+}
+
+/** Parts + chapters + scenes in one shot; ordering helpers live in the core. */
+export function useSceneTree(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["scenes", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    queryFn: async (): Promise<SceneTree> => {
+      if (!session || !projectId) throw new Error("no project open");
+      // Sequential: the wasm driver funnels every statement through one worker.
+      const parts = await listParts(session.driver, projectId);
+      const chapters = await listChapters(session.driver, projectId);
+      const scenes = await listScenes(session.driver, projectId);
+      return { parts, chapters, scenes };
+    },
+  });
+}
+
+export function useSceneDetail(projectId: UUID | null, sceneId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["scene", session?.name ?? null, projectId, sceneId],
+    enabled: session !== null && projectId !== null && sceneId !== null,
+    queryFn: async () => {
+      if (!session || !projectId || !sceneId) throw new Error("no scene open");
+      return getSceneDetail(session.driver, projectId, sceneId);
+    },
+  });
+}
+
+export function usePlotlines(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["plotlines", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return listPlotlines(session.driver, projectId);
+    },
+  });
+}
+
+export function useTags(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["tags", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return listTags(session.driver, projectId);
+    },
+  });
+}
+
+/** One factory for the scene/chapter/plotline commands — they all take `{ projectId, … }`. */
+function useSceneCommand<A, R>(command: Command<A, R>) {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: A): Promise<R> => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, command, args);
+    },
+  });
+}
+
+export const useCreateScene = () => useSceneCommand(createScene);
+export const useUpdateScene = () => useSceneCommand(updateScene);
+export const useDeleteScene = () => useSceneCommand(deleteScene);
+export const useMoveScene = () => useSceneCommand(moveScene);
+export const useCreateScenesFromList = () => useSceneCommand(createScenesFromList);
+export const useCreateChapter = () => useSceneCommand(createChapter);
+export const useUpdateChapter = () => useSceneCommand(updateChapter);
+export const useMoveChapter = () => useSceneCommand(moveChapter);
+export const useDeleteChapter = () => useSceneCommand(deleteChapter);
+export const useCreatePlotline = () => useSceneCommand(createPlotline);
+export const useSetSceneCharacters = () => useSceneCommand(setSceneCharacters);
+export const useSetScenePlotline = () => useSceneCommand(setScenePlotline);
+export const useSetSceneTags = () => useSceneCommand(setSceneTags);
+export const useSetSceneLore = () => useSceneCommand(setSceneLore);

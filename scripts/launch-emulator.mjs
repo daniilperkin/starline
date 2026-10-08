@@ -95,7 +95,15 @@ if (emulatorRunning()) {
   console.log(`launching ${avd}…`);
   spawn(
     emulator,
-    [avd ? "-avd" : "-avd", avd, "-no-snapshot-save", "-gpu", "swiftshader_indirect", "-no-boot-anim", "-no-audio"],
+    [
+      avd ? "-avd" : "-avd",
+      avd,
+      "-no-snapshot-save",
+      "-gpu",
+      "swiftshader_indirect",
+      "-no-boot-anim",
+      "-no-audio",
+    ],
     { detached: true, stdio: "ignore" },
   ).unref();
   launched = true;
@@ -137,9 +145,7 @@ if (launched) {
   execFileSync(adb, ["wait-for-device"], { stdio: "ignore" });
   let booted = false;
   for (let attempt = 0; attempt < 90 && !booted; attempt++) {
-    const boot = execFileSync(adb, ["shell", "getprop", "sys.boot_completed"])
-      .toString()
-      .trim();
+    const boot = execFileSync(adb, ["shell", "getprop", "sys.boot_completed"]).toString().trim();
     booted = boot === "1";
     if (!booted) await sleep(2000);
   }

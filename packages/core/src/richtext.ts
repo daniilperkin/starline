@@ -86,3 +86,13 @@ export function makeRichText(json: PMDoc | null): RichText {
   const text = pmDocToPlainText(json);
   return { json, text, wordCount: countWords(text) };
 }
+
+/** RichText from one plain-text line (step-8 one-liners, paste import, quick edits). */
+export function richTextFromPlain(text: string): RichText {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return { ...EMPTY_RICH_TEXT };
+  return makeRichText({
+    type: "doc",
+    content: [{ type: "paragraph", content: [{ type: "text", text: trimmed }] }],
+  });
+}

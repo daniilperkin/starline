@@ -44,10 +44,10 @@ pnpm --filter @starline/web preview    # http://localhost:5184
 ## Gates (all green means shippable)
 
 - `pnpm typecheck` / `pnpm lint`
-- `pnpm test` — contract tests across both drivers + core domain unit tests (68 total)
+- `pnpm test` — contract tests across both drivers + core domain unit tests (86 total)
 - `pnpm chaos` — kill-9 durability harness
-- `node scripts/verify-web.mjs` — wizard E2E: library + story + steps 1–6 (character card, extraction, dossier edit, step-4 seed, storylines, sections, Stale badge) + persistence (serves its own dev build)
+- `node scripts/verify-web.mjs` — wizard E2E: library + story + steps 1–6 (character card, extraction, dossier edit, step-4 seed, storylines, sections, Stale badge) + step 8 (paste 40 scenes, merge re-import) + Scenes tab (reorder, reassign, editor round-trip) + persistence (serves its own dev build)
 - `node scripts/verify-pwa.mjs` — service worker + offline reopen with the plan intact (serves its own preview build)
 - `node scripts/check-contrast.mjs` — WCAG pin for the star-library palette (accent-is-decoration rule)
 - `node scripts/check-no-network.mjs` — offline-complete invariant: no network primitives in app source
-- `node scripts/verify-android.mjs` — scripted emulator QA: fresh APK install → wizard steps 1–4 (character card, step-4 seed, rich-text editors) → back-button/minimise → cold relaunch (needs a booted emulator)
+- `node scripts/verify-android.mjs` — scripted emulator QA: fresh APK install → wizard steps 1–4 (character card, step-4 seed, rich-text editors) → step-8 paste import → Scenes tab + scene-sheet round-trip → back-button/minimise → cold relaunch (needs a booted emulator)

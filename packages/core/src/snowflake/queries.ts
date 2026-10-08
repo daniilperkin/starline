@@ -16,12 +16,14 @@ export interface ProjectSummary {
   form: string;
   method: string;
   logline: string;
+  /** The writer's target length; the step-8 estimate reads it ("62,400 / 80,000 est."). */
+  targetWordCount: number | null;
   archived: boolean;
   createdAt: EpochMs;
   updatedAt: EpochMs;
 }
 
-const PROJECT_COLUMNS = `id, title, form, method, logline, archived, created_at, updated_at`;
+const PROJECT_COLUMNS = `id, title, form, method, logline, target_word_count, archived, created_at, updated_at`;
 
 interface ProjectRawRow {
   id: string;
@@ -29,6 +31,7 @@ interface ProjectRawRow {
   form: string;
   method: string;
   logline: string;
+  target_word_count: number | null;
   archived: number;
   created_at: number;
   updated_at: number;
@@ -41,6 +44,7 @@ function toProjectSummary(row: ProjectRawRow): ProjectSummary {
     form: row.form,
     method: row.method,
     logline: row.logline,
+    targetWordCount: row.target_word_count,
     archived: row.archived === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

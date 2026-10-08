@@ -3,6 +3,7 @@ import type { CharacterContextInfo } from "../characters/types";
 import { en } from "../i18n";
 import type { UUID } from "../primitives";
 import { makeRichText, type RichText } from "../richtext";
+import type { SceneContextInfo } from "../scenes/types";
 import {
   EXPANSION_KEYS,
   type ExpansionKey,
@@ -10,6 +11,7 @@ import {
   type Step2Content,
   type Step4Content,
   type Step6Content,
+  type Step8Content,
 } from "./types";
 import {
   blockingIssues,
@@ -21,6 +23,7 @@ import {
   validateStep4,
   validateStep5,
   validateStep6,
+  validateStep8,
 } from "./validators";
 
 const rich = (text: string): RichText =>
@@ -279,6 +282,43 @@ describe("validateStep6", () => {
   });
 });
 
+describe("validateStep8", () => {
+  const scene = (overrides: Partial<SceneContextInfo> = {}): SceneContextInfo => ({
+    id: "00000000-0000-7000-8000-0000000000aa" as UUID,
+    povCharacterId: "00000000-0000-7000-8000-0000000000bb" as UUID,
+    chapterId: "00000000-0000-7000-8000-0000000000cc" as UUID,
+    ...overrides,
+  });
+  const emptyStep8: Step8Content = { generatedSceneIds: [], lastImportedAt: null };
+
+  it("S8_NO_SCENES: error while the scene table is empty", () => {
+    const issues = validateStep8(emptyStep8, { scenes: [] });
+    expect(issues.map((i) => i.code)).toEqual(["S8_NO_SCENES"]);
+    expect(issues[0]?.severity).toBe("error");
+  });
+
+  it("S8_SCENE_NO_POV: warning for a scene without a POV", () => {
+    const issues = validateStep8(emptyStep8, {
+      scenes: [scene(), scene({ povCharacterId: null })],
+    });
+    expect(issues.map((i) => i.code)).toEqual(["S8_SCENE_NO_POV"]);
+  });
+
+  it("S8_UNASSIGNED: info for scenes outside any chapter", () => {
+    const issues = validateStep8(emptyStep8, { scenes: [scene({ chapterId: null })] });
+    expect(issues.map((i) => i.code)).toEqual(["S8_UNASSIGNED"]);
+    expect(issues[0]?.severity).toBe("info");
+  });
+
+  it("a fully assigned scene list passes", () => {
+    expect(validateStep8(emptyStep8, { scenes: [scene(), scene()] })).toEqual([]);
+  });
+
+  it("stays silent without scene context", () => {
+    expect(validateStep8(emptyStep8)).toEqual([]);
+  });
+});
+
 describe("issue catalogue coverage", () => {
   it("every emittable issue code has an English message", () => {
     const emitted = [
@@ -307,6 +347,11 @@ describe("issue catalogue coverage", () => {
         { characters: [s3Character()], majorCharacterIds: [S3_ID_A] },
       ),
       ...validateStep6({ sections: [] }),
+      ...validateStep8({ generatedSceneIds: [], lastImportedAt: null }, { scenes: [] }),
+      ...validateStep8(
+        { generatedSceneIds: [], lastImportedAt: null },
+        { scenes: [{ id: S3_ID_A, povCharacterId: null, chapterId: null }] },
+      ),
     ];
     const catalogue = en.issues as Record<string, string>;
     for (const issue of emitted) {

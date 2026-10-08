@@ -10,6 +10,8 @@ import type {
   ValidationIssue,
 } from "../entities";
 import { epochNow, newUuid, type UUID } from "../primitives";
+import { listSceneContext } from "../scenes/queries";
+import type { SceneContextInfo } from "../scenes/types";
 import { defaultProjectSettings } from "../settings";
 import { emptyStepContent, isStepContentEmpty } from "./defaults";
 import { type SnowflakeStepContent, STEP_NUMBERS } from "./types";
@@ -95,12 +97,10 @@ export const saveStepContent: Command<SaveStepContentArgs, SaveStepContentResult
     )[0];
     if (!row) throw new Error(`snowflake step ${args.step} not found for this project`);
     const now = epochNow();
-    const issues = validateStep(
-      args.step,
-      args.content,
-      await characterContext(ctx, args.projectId),
-    );
-    const status = nextStatus(row.status, args.step, args.content, issues);
+    const context = await validationContext(ctx, args.projectId);
+    const issues = validateStep(args.step, args.content, context);
+    const empty = isEffectivelyEmpty(args.step, args.content, context);
+    const status = nextStatus(row.status, empty, issues);
     await ctx.tx.query(
       `UPDATE snowflake_step
           SET content = ?, status = ?,
@@ -118,14 +118,26 @@ export const saveStepContent: Command<SaveStepContentArgs, SaveStepContentResult
 
 function nextStatus(
   current: StepStatus,
-  step: SnowflakeStepNumber,
-  content: SnowflakeStepContent,
+  empty: boolean,
   issues: readonly ValidationIssue[],
 ): StepStatus {
-  if (isStepContentEmpty(step, content)) return "not_started";
+  if (empty) return "not_started";
   if (current === "complete" && blockingIssues(issues).length > 0) return "in_progress";
   if (current === "complete") return "complete";
   return "in_progress";
+}
+
+/**
+ * Step 8's artifact is the `scene` table, so its bookkeeping content may still be empty
+ * while the step is clearly underway (scenes created from the Scenes tab or a single row).
+ */
+function isEffectivelyEmpty(
+  step: SnowflakeStepNumber,
+  content: SnowflakeStepContent,
+  context: { scenes: readonly SceneContextInfo[] },
+): boolean {
+  if (step === 8 && context.scenes.length > 0) return false;
+  return isStepContentEmpty(step, content);
 }
 
 export interface MarkStepCompleteArgs {
@@ -147,7 +159,8 @@ export const markStepComplete: Command<MarkStepCompleteArgs, { completedAt: numb
     )[0];
     if (!row) throw new Error(`snowflake step ${args.step} not found for this project`);
     const content = parseJson<SnowflakeStepContent>(row.content, emptyStepContent(args.step));
-    const issues = isStepContentEmpty(args.step, content)
+    const context = await validationContext(ctx, args.projectId);
+    const issues = isEffectivelyEmpty(args.step, content, context)
       ? [
           {
             code: "STEP_EMPTY",
@@ -155,7 +168,7 @@ export const markStepComplete: Command<MarkStepCompleteArgs, { completedAt: numb
             message: "issues.STEP_EMPTY",
           },
         ]
-      : validateStep(args.step, content, await characterContext(ctx, args.projectId));
+      : validateStep(args.step, content, context);
     const blocking = blockingIssues(issues);
     if (blocking.length > 0) throw new StepBlockedError(blocking);
     const now = epochNow();
@@ -172,14 +185,18 @@ export const markStepComplete: Command<MarkStepCompleteArgs, { completedAt: numb
   },
 };
 
-/** Character context for the validators: names+aliases (S1), quartet+storyline (S3/S5), step 3 majors. */
-async function characterContext(
+/**
+ * Validation context: names+aliases (S1), quartet+storyline (S3/S5), step-3 majors, and the
+ * light scene slice (S8 — its artifact is the `scene` table, not the step content).
+ */
+async function validationContext(
   ctx: CommandContext,
   projectId: UUID,
 ): Promise<{
   characterNames: string[];
   characters: CharacterContextInfo[];
   majorCharacterIds: UUID[];
+  scenes: SceneContextInfo[];
 }> {
   const rows = await ctx.tx.query<{
     id: string;
@@ -221,7 +238,8 @@ async function characterContext(
   )[0];
   const majorCharacterIds =
     parseJson<{ majorCharacterIds?: UUID[] }>(step3Row?.content ?? "", {}).majorCharacterIds ?? [];
-  return { characterNames, characters, majorCharacterIds };
+  const scenes = await listSceneContext(ctx.tx, projectId);
+  return { characterNames, characters, majorCharacterIds, scenes };
 }
 
 function parseJson<T>(value: string, fallback: T): T {

@@ -122,7 +122,7 @@ computed, never stored), `S4_*`/`S5_*`/`S6_*` validators.
 **Exit**: full one-page → four-page expansion on the phone; staleness badges appear when
 upstream text changes afterwards.
 
-### Slice 4 — Step 8 + Scenes tab (the outline)
+### Slice 4 — Step 8 + Scenes tab (the outline) (**shipped 2026-10-08**; long-press drag deferred to Slice 5 — the row-menu move/reassign alternative ships and satisfies the exit criterion)
 
 **Screens**: Step 8 scene list (phone: rows — #, POV chip, one-line, est. words; add/edit
 inline; paste-from-clipboard import (TSV/CSV/lines) → "Create scenes from list" with a
