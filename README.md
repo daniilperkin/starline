@@ -45,3 +45,4 @@ pnpm --filter @starline/web preview    # http://localhost:5184
 - `node scripts/verify-pwa.mjs` — service worker + offline reopen with the plan intact (serves its own preview build)
 - `node scripts/check-contrast.mjs` — WCAG pin for the star-library palette (accent-is-decoration rule)
 - `node scripts/check-no-network.mjs` — offline-complete invariant: no network primitives in app source
+- `node scripts/verify-android.mjs` — scripted emulator QA: fresh APK install → wizard step 1 → back-button/minimise → cold relaunch (needs a booted emulator)

@@ -317,8 +317,9 @@ written end-to-end; all gates green; PWA + APK rebuilt.
   rebuilt and smoke-tested. Each slice closes with a three-line "what you can do now" note.
 - **Gates**: the existing (`typecheck`, `biome`, `test`, `chaos`, `verify-web`,
   `verify-pwa`, `check-contrast`, `check-no-network`) plus:
-  - `scripts/verify-android.mjs` — scripted emulator flow: install → launch → create →
-    restart → reopen (the manual QA pass from the APK session, automated).
+  - ✅ `scripts/verify-android.mjs` — scripted emulator flow, shipped with Slice 1: fresh
+    install → wizard step 1 → hardware back/minimise → cold relaunch (drives the WebView
+    over CDP; needs a booted emulator and `artifacts/starline-debug.apk`).
   - export round-trip gate — arrives with Slice 12 and stays in CI.
   - no-network invariant check — shipped with Slice 1 (`scripts/check-no-network.mjs`, source grep).
 - **Strings**: `packages/core/src/i18n/` with typed keys and `en` as the base catalogue; a

@@ -48,4 +48,5 @@ refused with a clear error.
 - `node scripts/verify-pwa.mjs` — service-worker + offline reopen keeping the plan (serves its own preview build)
 - `node scripts/check-contrast.mjs` — WCAG pin for the star-library palette (accent-is-decoration rule)
 - `node scripts/check-no-network.mjs` — offline-complete invariant (no network primitives in apps/*/src or packages/*/src)
+- `node scripts/verify-android.mjs` — scripted emulator QA: fresh APK install → wizard step 1 → back-button/minimise → cold relaunch (booted emulator required)
 - `node scripts/cargo.mjs build` — native storage crate
