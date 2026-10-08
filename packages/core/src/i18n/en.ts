@@ -131,6 +131,31 @@ export const en = {
     conflict: "Conflict",
     epiphany: "Epiphany",
   },
+  step4: {
+    lead: "Expand each sentence of step 2 into a paragraph — one page in total.",
+    seedButton: "Break step 2 into step 4",
+    sourceLabel: "From step 2",
+    emptySource: "Step 2 is still empty — write it first.",
+  },
+  step5: {
+    lead: "Tell each character's story from their own point of view — one page per major character.",
+    reviewed: "Reviewed",
+    progress: "{done} of {total} reviewed",
+    empty: "No characters yet — add them in step 3 or the People tab.",
+    storylinePlaceholder: "From their point of view…",
+    majorChip: "Major",
+  },
+  step6: {
+    lead: "Expand each paragraph of step 4 into a full section — the four-page synopsis.",
+    sourceLabel: "From step 4",
+  },
+  editor: {
+    bold: "Bold",
+    italic: "Italic",
+    heading: "Heading",
+    undo: "Undo",
+    placeholder: "Start writing…",
+  },
   prompts: {
     heading: "Writing prompts",
     rule: "The method",
@@ -151,6 +176,10 @@ export const en = {
     S3_FIELD_MISSING:
       "A major character is missing part of the quartet (motivation, goal, conflict, epiphany).",
     S3_NO_ANTAGONISTIC_FORCE: "No antagonist yet — who or what works against your protagonist?",
+    S4_PARAGRAPH_EMPTY: "All five paragraphs are needed — expand every step-2 sentence.",
+    S4_DISASTER_ORDER: "Disaster 2 reads thin — raise the stakes before the next blow.",
+    S5_NOT_REVIEWED: "A major character has no storyline yet.",
+    S6_SECTION_EMPTY: "At least four sections are needed for the four-page synopsis.",
   },
 } as const;
 

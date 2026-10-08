@@ -108,7 +108,7 @@ pickers; step-5 `reviewedCharacterIds` bookkeeping stub.
 **Exit**: steps 1–3 complete; extraction proposes names from the step-2 text; dossiers
 editable; People list live. (Merge-duplicates deferred to M2 — needs the mention system.)
 
-### Slice 3 — Steps 4–6 (expansion)
+### Slice 3 — Steps 4–6 (expansion) (**shipped 2026-10-08**)
 
 **Screens**: Step 4 (five paragraph editors; source sentence pinned in a sticky header;
 "Break step 2 into step 4" seeds all five); Step 5 (per-character storyline from the

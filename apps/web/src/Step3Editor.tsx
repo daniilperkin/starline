@@ -1,7 +1,6 @@
 import {
   blockingIssues,
   CHARACTER_ROLES,
-  type CharacterContextInfo,
   type CharacterDraft,
   type CharacterSummary,
   extractNameCandidatesFromTexts,
@@ -18,7 +17,7 @@ import {
 } from "@starline/core";
 import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useMemo, useState } from "react";
-import { draftOf, patchOf } from "./characterDraft";
+import { draftOf, patchOf, toContextInfo } from "./characterDraft";
 import {
   useCharacters,
   useCompleteStep,
@@ -307,15 +306,4 @@ function CharacterCard({
       </div>
     </section>
   );
-}
-
-function toContextInfo(character: CharacterSummary): CharacterContextInfo {
-  return {
-    id: character.id,
-    role: character.role,
-    motivation: character.motivation,
-    goal: character.goal,
-    conflict: character.conflict,
-    epiphany: character.epiphany,
-  };
 }

@@ -295,3 +295,55 @@ body {
   border: 1px solid var(--sl-border);
   padding: 1rem 1.1rem calc(1rem + env(safe-area-inset-bottom));
 }
+
+/* Rich-text editor v1 (steps 4–6): TipTap body + the four-button toolbar. */
+.sl-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sl-editor-toolbar {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.sl-editor-toolbar .sl-btn {
+  padding: 0.25rem 0.65rem;
+  font-size: 0.8rem;
+}
+
+.sl-editor-body .ProseMirror {
+  min-height: 6rem;
+  padding: 0.75rem;
+  border: 1px solid var(--sl-border);
+  border-radius: 0.85rem;
+  outline: none;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.sl-editor-body .ProseMirror:focus {
+  border-color: var(--sl-primary);
+}
+
+.sl-editor-body .ProseMirror p + p {
+  margin-top: 0.5rem;
+}
+
+.sl-editor-body .ProseMirror h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0.35rem 0;
+}
+
+/* Collapsible source line above an expansion editor (spec §4.2 point 6). */
+.sl-source {
+  border: 1px solid var(--sl-border);
+  border-radius: 0.85rem;
+  padding: 0.55rem 0.8rem;
+}
+
+.sl-source summary {
+  cursor: pointer;
+}

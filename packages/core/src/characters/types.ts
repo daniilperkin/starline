@@ -1,5 +1,6 @@
 import type { ArcType, CharacterRole } from "../entities";
 import type { EpochMs, UUID } from "../primitives";
+import type { RichText } from "../richtext";
 
 export const CHARACTER_ROLES: readonly CharacterRole[] = [
   "protagonist",
@@ -51,11 +52,13 @@ export interface CharacterSummary extends CharacterDraft {
   id: UUID;
   projectId: UUID;
   aliases: string[];
+  /** Snowflake step 5 storyline, told from the character's point of view. */
+  storyline: RichText;
   orderKey: string;
   updatedAt: EpochMs;
 }
 
-/** The slice of a character the S3_* validators read. */
+/** The slice of a character the S3_* and S5_* validators read. */
 export interface CharacterContextInfo {
   id: UUID;
   role: CharacterRole;
@@ -63,4 +66,6 @@ export interface CharacterContextInfo {
   goal: string;
   conflict: string;
   epiphany: string;
+  /** Plain-text projection of the step 5 storyline. */
+  storyline: string;
 }

@@ -39,10 +39,10 @@ pnpm --filter @starline/web preview    # http://localhost:5184
 ## Gates (all green means shippable)
 
 - `pnpm typecheck` / `pnpm lint`
-- `pnpm test` — contract tests across both drivers + core domain unit tests (54 total)
+- `pnpm test` — contract tests across both drivers + core domain unit tests (68 total)
 - `pnpm chaos` — kill-9 durability harness
-- `node scripts/verify-web.mjs` — wizard E2E: library + story + steps 1–3 (character card, extraction sheet, People/dossier edit) + persistence (serves its own dev build)
+- `node scripts/verify-web.mjs` — wizard E2E: library + story + steps 1–6 (character card, extraction, dossier edit, step-4 seed, storylines, sections, Stale badge) + persistence (serves its own dev build)
 - `node scripts/verify-pwa.mjs` — service worker + offline reopen with the plan intact (serves its own preview build)
 - `node scripts/check-contrast.mjs` — WCAG pin for the star-library palette (accent-is-decoration rule)
 - `node scripts/check-no-network.mjs` — offline-complete invariant: no network primitives in app source
-- `node scripts/verify-android.mjs` — scripted emulator QA: fresh APK install → wizard steps 1+3 (incl. a character card) → back-button/minimise → cold relaunch (needs a booted emulator)
+- `node scripts/verify-android.mjs` — scripted emulator QA: fresh APK install → wizard steps 1–4 (character card, step-4 seed, rich-text editors) → back-button/minimise → cold relaunch (needs a booted emulator)

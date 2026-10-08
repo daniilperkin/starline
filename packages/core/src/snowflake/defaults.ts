@@ -1,5 +1,5 @@
 import type { SnowflakeStepNumber } from "../entities";
-import { EMPTY_RICH_TEXT } from "../richtext";
+import { EMPTY_RICH_TEXT, makeRichText, type PMDoc } from "../richtext";
 import type {
   SnowflakeStepContent,
   Step1Content,
@@ -51,6 +51,28 @@ export function emptyStepContent(step: SnowflakeStepNumber): SnowflakeStepConten
       throw new Error(`unsupported snowflake step: ${String(exhaustive)}`);
     }
   }
+}
+
+/**
+ * "Break step 2 into step 4 paragraphs" (spec §3.4.3): five paragraphs, each pre-seeded with
+ * its step-2 sentence as the first line.
+ */
+export function seedStep4FromStep2(step2: Step2Content): Step4Content {
+  return {
+    paragraphs: EXPANSION_KEYS.map((sourceKey) => {
+      const line = step2[sourceKey].trim();
+      const doc: PMDoc = {
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: line.length > 0 ? [{ type: "text", text: line }] : [],
+          },
+        ],
+      };
+      return { sourceKey, text: makeRichText(doc) };
+    }),
+  };
 }
 
 /** True when the user cleared all meaningful content (drives the not_started demotion, spec §3.4.1). */

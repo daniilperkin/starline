@@ -1,6 +1,7 @@
 import type { SqlValue } from "../commands";
 import type { ArcType, CharacterRole } from "../entities";
 import type { UUID } from "../primitives";
+import { countWords, type RichText } from "../richtext";
 import type { CharacterSummary } from "./types";
 
 /** The read-only statement surface a storage driver satisfies for queries. */
@@ -27,11 +28,14 @@ export async function listCharacters(
     goal: string;
     conflict: string;
     epiphany: string;
+    storyline_json: string | null;
+    storyline_text: string;
     order_key: string;
     updated_at: number;
   }>(
     `SELECT id, project_id, name, aliases, role, color, arc_type, one_line,
-            one_paragraph_text, motivation, goal, conflict, epiphany, order_key, updated_at
+            one_paragraph_text, motivation, goal, conflict, epiphany,
+            storyline_json, storyline_text, order_key, updated_at
        FROM character
       WHERE project_id = ? AND deleted_at IS NULL
       ORDER BY order_key`,
@@ -51,6 +55,11 @@ export async function listCharacters(
     goal: row.goal,
     conflict: row.conflict,
     epiphany: row.epiphany,
+    storyline: {
+      json: parseJson<RichText["json"]>(row.storyline_json ?? "", null),
+      text: row.storyline_text,
+      wordCount: countWords(row.storyline_text),
+    },
     orderKey: row.order_key,
     updatedAt: row.updated_at,
   }));

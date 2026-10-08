@@ -2,6 +2,7 @@ import type { ChangeEvent } from "../changes";
 import type { Command } from "../commands";
 import type { ArcType, CharacterRole } from "../entities";
 import { epochNow, newUuid, orderKeyBetween, type UUID } from "../primitives";
+import type { RichText } from "../richtext";
 import { CHARACTER_ROLE_COLORS, CHARACTER_ROLES, type CharacterDraft } from "./types";
 
 export interface CreateCharacterArgs {
@@ -65,7 +66,10 @@ const UPDATABLE_COLUMNS: Record<keyof CharacterDraft, string> = {
   epiphany: "epiphany",
 };
 
-export type CharacterPatch = Partial<CharacterDraft>;
+export type CharacterPatch = Partial<CharacterDraft> & {
+  /** Step 5 storyline — written as both `storyline_json` and `storyline_text`. */
+  storyline?: RichText;
+};
 
 export interface UpdateCharacterArgs {
   projectId: UUID;
@@ -76,8 +80,9 @@ export interface UpdateCharacterArgs {
 export const updateCharacter: Command<UpdateCharacterArgs, void> = {
   name: "character.update",
   async run(ctx, args) {
-    const entries = Object.entries(args.patch) as Array<[keyof CharacterDraft, string]>;
-    if (entries.length === 0) throw new Error("empty character patch");
+    const { storyline, ...draftPatch } = args.patch;
+    const entries = Object.entries(draftPatch) as Array<[keyof CharacterDraft, string]>;
+    if (entries.length === 0 && storyline === undefined) throw new Error("empty character patch");
     if (args.patch.name !== undefined) {
       const name = args.patch.name.trim();
       if (name.length === 0 || name.length > 120) {
@@ -92,7 +97,11 @@ export const updateCharacter: Command<UpdateCharacterArgs, void> = {
       throw new Error(`invalid colour: ${args.patch.color}`);
     }
     const sets = entries.map(([key]) => `${UPDATABLE_COLUMNS[key]} = ?`);
-    const params: Array<string | number> = entries.map(([, value]) => value);
+    const params: Array<string | number | null> = entries.map(([, value]) => value);
+    if (storyline !== undefined) {
+      sets.push("storyline_json = ?", "storyline_text = ?");
+      params.push(storyline.json === null ? null : JSON.stringify(storyline.json), storyline.text);
+    }
     params.push(epochNow(), args.characterId, args.projectId);
     await ctx.tx.query(
       `UPDATE character SET ${sets.join(", ")}, updated_at = ?

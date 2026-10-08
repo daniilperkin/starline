@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 import type { CharacterContextInfo } from "../characters/types";
 import { en } from "../i18n";
 import type { UUID } from "../primitives";
-import type { Step1Content, Step2Content } from "./types";
+import { makeRichText, type RichText } from "../richtext";
+import {
+  EXPANSION_KEYS,
+  type ExpansionKey,
+  type Step1Content,
+  type Step2Content,
+  type Step4Content,
+  type Step6Content,
+} from "./types";
 import {
   blockingIssues,
   type ValidateContext,
@@ -10,7 +18,16 @@ import {
   validateStep1,
   validateStep2,
   validateStep3,
+  validateStep4,
+  validateStep5,
+  validateStep6,
 } from "./validators";
+
+const rich = (text: string): RichText =>
+  makeRichText({
+    type: "doc",
+    content: [{ type: "paragraph", content: text.length > 0 ? [{ type: "text", text }] : [] }],
+  });
 
 const step1 = (sentence: string): Step1Content => ({ sentence, alternatives: [] });
 const step2 = (parts: Partial<Step2Content>): Step2Content => ({
@@ -108,7 +125,8 @@ describe("validateStep dispatcher", () => {
     expect(validateStep(3, { majorCharacterIds: [], skipped: false }).map((i) => i.code)).toContain(
       "S3_NO_MAJOR",
     );
-    expect(validateStep(4, { paragraphs: [] })).toEqual([]);
+    expect(validateStep(4, { paragraphs: [] }).map((i) => i.code)).toContain("S4_PARAGRAPH_EMPTY");
+    expect(validateStep(7, { completedCharacterIds: [] })).toEqual([]);
   });
 
   it("blockingIssues keeps only errors", () => {
@@ -128,6 +146,7 @@ function s3Character(overrides: Partial<CharacterContextInfo> = {}): CharacterCo
     goal: "Find the shifting harbour",
     conflict: "The sea takes the land",
     epiphany: "She cannot save everything",
+    storyline: "",
     ...overrides,
   };
 }
@@ -177,6 +196,89 @@ describe("validateStep3", () => {
   });
 });
 
+function step4Content(overrides: Partial<Record<ExpansionKey, string>> = {}): Step4Content {
+  return {
+    paragraphs: EXPANSION_KEYS.map((sourceKey) => ({
+      sourceKey,
+      text: rich(overrides[sourceKey] ?? `Some text for ${sourceKey} here.`),
+    })),
+  };
+}
+
+const TEN_WORDS = "One two three four five six seven eight nine ten.";
+
+describe("validateStep4", () => {
+  it("S4_PARAGRAPH_EMPTY: one error per empty paragraph", () => {
+    const issues = validateStep4(step4Content({ disaster1: "" }));
+    const empties = issues.filter((i) => i.code === "S4_PARAGRAPH_EMPTY");
+    expect(empties).toHaveLength(1);
+    expect(empties[0]?.severity).toBe("error");
+    expect(empties[0]?.field).toBe("/disaster1");
+  });
+
+  it("S4_DISASTER_ORDER: info when disaster 2 reads thin against the rest", () => {
+    const issues = validateStep4(
+      step4Content({
+        setup: TEN_WORDS,
+        disaster1: TEN_WORDS,
+        disaster3: TEN_WORDS,
+        ending: TEN_WORDS,
+        disaster2: "A short one.",
+      }),
+    );
+    expect(issues.map((i) => i.code)).toContain("S4_DISASTER_ORDER");
+  });
+
+  it("healthy content produces no issues", () => {
+    expect(validateStep4(step4Content())).toEqual([]);
+  });
+});
+
+describe("validateStep5", () => {
+  it("S5_NOT_REVIEWED: warning per major character with an empty storyline", () => {
+    const issues = validateStep5(
+      { reviewedCharacterIds: [] },
+      { characters: [s3Character()], majorCharacterIds: [S3_ID_A] },
+    );
+    expect(issues.filter((i) => i.code === "S5_NOT_REVIEWED")).toHaveLength(1);
+    expect(issues[0]?.severity).toBe("warning");
+  });
+
+  it("no warning once the storyline exists; non-majors and unknown ids are ignored", () => {
+    const issues = validateStep5(
+      { reviewedCharacterIds: [] },
+      {
+        characters: [
+          s3Character({ storyline: "Told in her own voice." }),
+          s3Character({ id: S3_ID_B, storyline: "" }),
+        ],
+        majorCharacterIds: [S3_ID_A, "00000000-0000-7000-8000-0000000000fe" as UUID],
+      },
+    );
+    expect(issues).toEqual([]);
+  });
+});
+
+describe("validateStep6", () => {
+  const section = (text: string): Step6Content["sections"][number] => ({
+    sourceKey: "setup",
+    text: rich(text),
+  });
+
+  it("S6_SECTION_EMPTY: error below four non-empty sections", () => {
+    const issues = validateStep6({
+      sections: [section("a"), section("b"), section("c"), section(""), section("")],
+    });
+    expect(issues.map((i) => i.code)).toEqual(["S6_SECTION_EMPTY"]);
+  });
+
+  it("four non-empty sections pass", () => {
+    expect(
+      validateStep6({ sections: [section("a"), section("b"), section("c"), section("d")] }),
+    ).toEqual([]);
+  });
+});
+
 describe("issue catalogue coverage", () => {
   it("every emittable issue code has an English message", () => {
     const emitted = [
@@ -190,6 +292,21 @@ describe("issue catalogue coverage", () => {
         { majorCharacterIds: [S3_ID_A], skipped: false },
         { characters: [s3Character({ epiphany: " " })] },
       ),
+      ...validateStep4(step4Content({ ending: "" })),
+      ...validateStep4(
+        step4Content({
+          setup: TEN_WORDS,
+          disaster1: TEN_WORDS,
+          disaster3: TEN_WORDS,
+          ending: TEN_WORDS,
+          disaster2: "A short one.",
+        }),
+      ),
+      ...validateStep5(
+        { reviewedCharacterIds: [] },
+        { characters: [s3Character()], majorCharacterIds: [S3_ID_A] },
+      ),
+      ...validateStep6({ sections: [] }),
     ];
     const catalogue = en.issues as Record<string, string>;
     for (const issue of emitted) {

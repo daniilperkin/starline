@@ -1,4 +1,5 @@
 import {
+  computeStaleSteps,
   format,
   messages,
   progressOf,
@@ -29,6 +30,7 @@ export function PlanScreen() {
   const project = projects.data?.[0] ?? null;
   const progress = progressOf(steps.data ?? []);
   const nextStep = nextStepOf(steps.data ?? []);
+  const staleSteps = computeStaleSteps(steps.data ?? []);
 
   const openStep = (step: SnowflakeStepNumber) => {
     void navigate({ to: "/plan/step/$step", params: { step: String(step) } });
@@ -113,7 +115,12 @@ export function PlanScreen() {
               const row = steps.data?.find((step) => step.step === stepNumber) ?? null;
               return (
                 <li key={stepNumber}>
-                  <StepRow stepNumber={stepNumber} row={row} onOpen={() => openStep(stepNumber)} />
+                  <StepRow
+                    stepNumber={stepNumber}
+                    row={row}
+                    stale={staleSteps.has(stepNumber)}
+                    onOpen={() => openStep(stepNumber)}
+                  />
                 </li>
               );
             })}
@@ -127,19 +134,16 @@ export function PlanScreen() {
 function StepRow({
   stepNumber,
   row,
+  stale,
   onOpen,
 }: {
   stepNumber: SnowflakeStepNumber;
   row: SnowflakeStepRow | null;
+  stale: boolean;
   onOpen: () => void;
 }) {
   const status = row?.status ?? "not_started";
   const glyph = status === "complete" ? "●" : status === "in_progress" ? "◐" : "○";
-  const stale =
-    row !== null &&
-    row.status === "complete" &&
-    row.completedAt !== null &&
-    row.updatedAt > row.completedAt;
   // Issue counts only matter once a step has content — a not-started step is not "warned".
   const issues = row && status !== "not_started" ? validateStep(stepNumber, row.content) : [];
 

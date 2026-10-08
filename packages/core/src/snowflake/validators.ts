@@ -1,19 +1,27 @@
 import type { CharacterContextInfo } from "../characters/types";
 import type { Severity, SnowflakeStepNumber, ValidationIssue } from "../entities";
+import type { UUID } from "../primitives";
 import { countWords } from "../richtext";
 import {
+  EXPANSION_KEYS,
+  type ExpansionKey,
   type SnowflakeStepContent,
   STEP2_PARTS,
   type Step1Content,
   type Step2Content,
   type Step3Content,
+  type Step4Content,
+  type Step5Content,
+  type Step6Content,
 } from "./types";
 
 export interface ValidateContext {
   /** Known character names + aliases, for the S1_HAS_NAMES heuristic. */
   characterNames?: readonly string[];
-  /** The project's characters, for the S3_* rules. */
+  /** The project's characters, for the S3_* and S5_* rules. */
   characters?: readonly CharacterContextInfo[];
+  /** Step 3's major-character selection, for the S5_* rules. */
+  majorCharacterIds?: readonly UUID[];
 }
 
 const QUOTED_RE = /"[^"]*"|“[^”]*”|‘[^’]*’|'[^']*'/g;
@@ -128,7 +136,53 @@ export function validateStep3(content: Step3Content, ctx: ValidateContext = {}):
   return issues;
 }
 
-/** Dispatcher: validators for steps 4–9 arrive with their slices. */
+/** Spec §3.4.2 — S4_* rules. */
+export function validateStep4(content: Step4Content): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const byKey = new Map(content.paragraphs.map((paragraph) => [paragraph.sourceKey, paragraph]));
+  const words = new Map<ExpansionKey, number>();
+  for (const key of EXPANSION_KEYS) {
+    const text = byKey.get(key)?.text.text.trim() ?? "";
+    words.set(key, countWords(text));
+    if (text.length === 0) issues.push(issue("S4_PARAGRAPH_EMPTY", "error", `/${key}`));
+  }
+  // Prompt to raise the stakes when the second disaster reads thin against the rest.
+  const others = (["setup", "disaster1", "disaster3", "ending"] as const)
+    .map((key) => words.get(key) ?? 0)
+    .sort((a, b) => a - b);
+  const median = ((others[1] ?? 0) + (others[2] ?? 0)) / 2;
+  const disaster2 = words.get("disaster2") ?? 0;
+  if (disaster2 > 0 && median > 0 && disaster2 < 0.4 * median) {
+    issues.push(issue("S4_DISASTER_ORDER", "info", "/disaster2"));
+  }
+  return issues;
+}
+
+/** Spec §3.4.2 — S5_* rules: a major character with an empty storyline warns. */
+export function validateStep5(
+  _content: Step5Content,
+  ctx: ValidateContext = {},
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const byId = new Map((ctx.characters ?? []).map((character) => [character.id, character]));
+  for (const id of ctx.majorCharacterIds ?? []) {
+    const character = byId.get(id);
+    if (!character) continue; // deleted characters are ignored, not flagged
+    if (character.storyline.trim().length === 0) {
+      issues.push(issue("S5_NOT_REVIEWED", "warning", "/reviewedCharacterIds"));
+    }
+  }
+  return issues;
+}
+
+/** Spec §3.4.2 — S6_* rules (decision 3: five sections, 1:1 with the step-4 paragraphs). */
+export function validateStep6(content: Step6Content): ValidationIssue[] {
+  const nonEmpty = content.sections.filter((section) => section.text.text.trim().length > 0).length;
+  if (nonEmpty < 4) return [issue("S6_SECTION_EMPTY", "error", "/sections")];
+  return [];
+}
+
+/** Dispatcher: validators for steps 7–9 arrive with their slices. */
 export function validateStep(
   step: SnowflakeStepNumber,
   content: SnowflakeStepContent,
@@ -141,6 +195,12 @@ export function validateStep(
       return validateStep2(content as Step2Content);
     case 3:
       return validateStep3(content as Step3Content, ctx);
+    case 4:
+      return validateStep4(content as Step4Content);
+    case 5:
+      return validateStep5(content as Step5Content, ctx);
+    case 6:
+      return validateStep6(content as Step6Content);
     default:
       return [];
   }

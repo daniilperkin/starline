@@ -172,11 +172,15 @@ export const markStepComplete: Command<MarkStepCompleteArgs, { completedAt: numb
   },
 };
 
-/** Character context for the validators: names+aliases (S1) and the S3 quartet fields. */
+/** Character context for the validators: names+aliases (S1), quartet+storyline (S3/S5), step 3 majors. */
 async function characterContext(
   ctx: CommandContext,
   projectId: UUID,
-): Promise<{ characterNames: string[]; characters: CharacterContextInfo[] }> {
+): Promise<{
+  characterNames: string[];
+  characters: CharacterContextInfo[];
+  majorCharacterIds: UUID[];
+}> {
   const rows = await ctx.tx.query<{
     id: string;
     name: string;
@@ -186,8 +190,9 @@ async function characterContext(
     goal: string;
     conflict: string;
     epiphany: string;
+    storyline_text: string;
   }>(
-    `SELECT id, name, aliases, role, motivation, goal, conflict, epiphany
+    `SELECT id, name, aliases, role, motivation, goal, conflict, epiphany, storyline_text
        FROM character WHERE project_id = ? AND deleted_at IS NULL`,
     [projectId],
   );
@@ -205,9 +210,18 @@ async function characterContext(
       goal: row.goal,
       conflict: row.conflict,
       epiphany: row.epiphany,
+      storyline: row.storyline_text,
     });
   }
-  return { characterNames, characters };
+  const step3Row = (
+    await ctx.tx.query<{ content: string }>(
+      `SELECT content FROM snowflake_step WHERE project_id = ? AND step = 3`,
+      [projectId],
+    )
+  )[0];
+  const majorCharacterIds =
+    parseJson<{ majorCharacterIds?: UUID[] }>(step3Row?.content ?? "", {}).majorCharacterIds ?? [];
+  return { characterNames, characters, majorCharacterIds };
 }
 
 function parseJson<T>(value: string, fallback: T): T {

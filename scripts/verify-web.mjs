@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Headless E2E for the web shell (spec §5.7 exit criterion + slices 1–2): create a library,
-// create a story, write and complete Snowflake steps 1–3 (incl. a character card, the
-// extraction trigger and a dossier edit), then reload/close/reopen and prove it persisted.
+// Headless E2E for the web shell (spec §5.7 exit criterion + slices 1–3): create a library,
+// create a story, write and complete Snowflake steps 1–6 (character card, extraction, dossier
+// edit, step-4 seed, storylines, sections), prove the Stale badge fires when step 2 is edited
+// after step 4 completed, then reload/close/reopen and prove it persisted.
 // By default the script serves the dev build itself (vite dev, port 5183); pass --no-serve
 // with a URL to use an already-running server.
 // Usage: node scripts/verify-web.mjs [url] [--no-serve]
@@ -113,20 +114,61 @@ try {
   await page.getByText("Keeps the harbour charts").waitFor();
   await page.screenshot({ path: join(shotDir, "6-people.png"), fullPage: true });
 
+  // 4d. Step 4: seed from step 2, complete.
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByRole("button", { name: /One-page synopsis/ }).click();
+  await page.getByRole("button", { name: /Break step 2 into step 4/ }).click();
+  const firstEditor = page.locator(".ProseMirror").first();
+  await firstEditor.waitFor();
+  if (!((await firstEditor.textContent()) ?? "").includes("quiet harbour town")) {
+    throw new Error("step-4 seed did not land in the editor");
+  }
+  await page.getByRole("button", { name: "Mark step complete" }).click();
+  await page.getByText("4 of 9 steps complete").waitFor();
+  await page.screenshot({ path: join(shotDir, "7-step4-done.png"), fullPage: true });
+
+  // 4e. Step 5: storyline from the character's POV, marked reviewed, complete.
+  await page.getByRole("button", { name: /Character descriptions/ }).click();
+  await page.getByRole("checkbox", { name: "Reviewed" }).check();
+  const storyline = page.locator(".ProseMirror").first();
+  await storyline.click();
+  await storyline.fill("From Mira's point of view the island shifts like a rumour.");
+  await page.getByRole("button", { name: "Mark step complete" }).click();
+  await page.getByText("5 of 9 steps complete").waitFor();
+  await page.screenshot({ path: join(shotDir, "8-step5-done.png"), fullPage: true });
+
+  // 4f. Step 6: four sections (decision 3), complete.
+  await page.getByRole("button", { name: /Four-page synopsis/ }).click();
+  const sections = page.locator(".ProseMirror");
+  await sections.nth(0).fill("Section one expands the setup into a full page of trouble.");
+  await sections.nth(1).fill("Section two follows the first disaster into the dark.");
+  await sections.nth(2).fill("Section three raises everything the story has left.");
+  await sections.nth(3).fill("Section four resolves the ending on the harbour's ruins.");
+  await page.getByRole("button", { name: "Mark step complete" }).click();
+  await page.getByText("6 of 9 steps complete").waitFor();
+
+  // 4g. Staleness (slice-3 exit): edit step 2 after step 4 completed → Stale badge appears.
+  await page.getByRole("button", { name: /One paragraph/ }).click();
+  await page.getByLabel("Disaster 3").fill("The harbour burns and the townsfolk scatter for good.");
+  await page.waitForTimeout(700);
+  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByText("Stale").first().waitFor();
+  await page.screenshot({ path: join(shotDir, "9-stale.png"), fullPage: true });
+
   // 5. Reload: back to the start screen; reopening restores the last route (hash history),
   // so tab over to Plan and check the persisted progress.
   await page.reload();
   await page.getByText("Your libraries").waitFor();
   await page.getByRole("button", { name: "Open" }).click();
   await page.getByRole("link", { name: "Plan" }).click();
-  await page.getByText("3 of 9 steps complete").waitFor();
+  await page.getByText("6 of 9 steps complete").waitFor();
 
-  // 6. Close → listed → reopen → still 3 of 9 (persistence across driver instances).
+  // 6. Close → listed → reopen → still 6 of 9 (persistence across driver instances).
   await page.getByRole("button", { name: "Close library" }).click();
   await page.getByText("Your libraries").waitFor();
   await page.getByText("Slice Demo").waitFor();
   await page.getByRole("button", { name: "Open" }).click();
-  await page.getByText("3 of 9 steps complete").waitFor();
+  await page.getByText("6 of 9 steps complete").waitFor();
   await page.screenshot({ path: join(shotDir, "5-reopened.png"), fullPage: true });
 
   console.log("WEB-VERIFY OK");
