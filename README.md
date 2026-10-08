@@ -36,6 +36,11 @@ pnpm --filter @starline/web preview    # http://localhost:5184
 - `crates/starline-storage*` — native storage crate + headless NDJSON CLI (tests, chaos)
 - `SPECIFICATION.md` (source of truth) · `DECISIONS.md` (owner decisions & audit resolutions) · `docs/`
 
+## Live
+
+- **PWA:** https://daniilperkin.github.io/starline/ — deploys automatically from `main` (see docs/HOSTING.md)
+- **Android APK:** `artifacts/starline-debug.apk` — debug build, sideload
+
 ## Gates (all green means shippable)
 
 - `pnpm typecheck` / `pnpm lint`

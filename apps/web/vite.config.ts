@@ -8,7 +8,12 @@ import { VitePWA } from "vite-plugin-pwa";
 // Field builds set STARLINE_CAP=1 (see DECISIONS.md 12); the PWA build stays the default.
 const isCapacitorBuild = process.env.STARLINE_CAP === "1";
 
+// Hosting at a subpath (GitHub Pages project site = /starline/) sets STARLINE_BASE; the
+// default build stays at the root for Cloudflare Pages / Netlify / local preview.
+const base = process.env.STARLINE_BASE ?? "/";
+
 export default defineConfig({
+  base,
   plugins: [
     react(),
     tailwindcss(),
@@ -25,8 +30,8 @@ export default defineConfig({
               theme_color: "#060714",
               background_color: "#060714",
               display: "standalone",
-              start_url: "/",
-              scope: "/",
+              start_url: base,
+              scope: base,
               icons: [
                 { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
                 { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },

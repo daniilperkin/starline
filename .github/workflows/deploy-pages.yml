@@ -1,0 +1,53 @@
+# Deploys the PWA to GitHub Pages on every push to main.
+#
+# Pages serves a project site at https://daniilperkin.github.io/starline/, so the build runs
+# with STARLINE_BASE=/starline/ (asset paths + manifest start_url/scope follow the base).
+# The app itself stays offline-complete: hosting is only the delivery truck, the service
+# worker precaches everything, and all data lives in the browser's OPFS on the device.
+#
+# Manual alternative: `cd apps/web && STARLINE_BASE=/starline/ node node_modules/vite/bin/vite.js build`
+# and drop dist/ on any static host (Cloudflare Pages, Netlify) — see docs/HOSTING.md.
+name: Deploy PWA to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # reads packageManager (pnpm@11.22.0) from package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @starline/web build
+        env:
+          STARLINE_BASE: /starline/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
