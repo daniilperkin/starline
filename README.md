@@ -39,8 +39,9 @@ pnpm --filter @starline/web preview    # http://localhost:5184
 ## Gates (all green means shippable)
 
 - `pnpm typecheck` / `pnpm lint`
-- `pnpm test` — 26 contract tests across both drivers
+- `pnpm test` — contract tests across both drivers + core domain unit tests (42 total)
 - `pnpm chaos` — kill-9 durability harness
-- `node scripts/verify-web.mjs` — create/open/close E2E (serves its own dev build)
-- `node scripts/verify-pwa.mjs` — service worker + offline reopen (serves its own preview build)
+- `node scripts/verify-web.mjs` — wizard E2E: library + story + steps 1–2 + persistence (serves its own dev build)
+- `node scripts/verify-pwa.mjs` — service worker + offline reopen with the plan intact (serves its own preview build)
 - `node scripts/check-contrast.mjs` — WCAG pin for the star-library palette (accent-is-decoration rule)
+- `node scripts/check-no-network.mjs` — offline-complete invariant: no network primitives in app source

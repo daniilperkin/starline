@@ -42,9 +42,10 @@ refused with a clear error.
 ## Gates (all green means shippable)
 
 - `pnpm typecheck` · `pnpm lint`
-- `pnpm test` — the same contract suite on both drivers (14 native + 12 web = 26)
+- `pnpm test` — the same contract suite on both drivers + core domain unit tests (42)
 - `pnpm chaos` — kill-9 chaos harness (durability of acknowledged writes)
-- `node scripts/verify-web.mjs` — create/open/close E2E (serves its own dev build)
-- `node scripts/verify-pwa.mjs` — service-worker + offline reopen (serves its own preview build)
+- `node scripts/verify-web.mjs` — wizard E2E: library + story + steps 1–2 + persistence across reload/reopen (serves its own dev build)
+- `node scripts/verify-pwa.mjs` — service-worker + offline reopen keeping the plan (serves its own preview build)
 - `node scripts/check-contrast.mjs` — WCAG pin for the star-library palette (accent-is-decoration rule)
+- `node scripts/check-no-network.mjs` — offline-complete invariant (no network primitives in apps/*/src or packages/*/src)
 - `node scripts/cargo.mjs build` — native storage crate

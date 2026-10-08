@@ -16,6 +16,8 @@ export const en = {
   },
   common: {
     saved: "Saved",
+    close: "Close",
+    loading: "Loading…",
     comingSoon: "Arrives in a later slice",
     comingSoonHint: "This part of the constellation is still being charted.",
   },
@@ -23,6 +25,10 @@ export const en = {
     heading: "Plan",
     stepsComplete: "{done} of 9 steps complete",
     continueHint: "Pick up where you left off",
+    createHeading: "Start your story",
+    createHint: "Name it, then answer one sentence at a time.",
+    createButton: "Create story",
+    titlePlaceholder: "Name your story",
     stepOf: "Step {n} of 9",
     status: {
       not_started: "Not started",

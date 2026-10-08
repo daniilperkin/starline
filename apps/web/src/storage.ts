@@ -1,5 +1,6 @@
+import type { OpenResult } from "@starline/db";
 import { TauriStorageDriver, WorkerTransport } from "@starline/driver-wasm";
-import type { LibrarySession } from "./App";
+import type { LibrarySession } from "./session";
 
 /**
  * M0 storage factory for the web build: libraries live in the OPFS sahpool.
@@ -24,32 +25,64 @@ export async function closeLibrary(session: LibrarySession): Promise<void> {
   await session.transport.dispose();
 }
 
-let listChain: Promise<string[]> = Promise.resolve([]);
+let startTransport: WorkerTransport | null = null;
+
+/**
+ * The start screen reuses ONE list worker for its lifetime. The sahpool VFS locks every pool
+ * file it can see while its worker is alive, so a short-lived list worker per call raced the
+ * session worker's open; one worker + an explicit release before opening removes the race
+ * instead of retrying around it.
+ */
+async function listWithTransport(): Promise<string[]> {
+  startTransport ??= new WorkerTransport();
+  try {
+    const { files } = await startTransport.request<{ files: string[] }>("list");
+    // Pool names come back percent-encoded; keep them encoded for open() and let the UI
+    // decode them for display.
+    return files.map((file) => file.replace(/^\//, "")).sort();
+  } catch (cause) {
+    await releaseStartTransport(); // a wedged worker: next call starts clean
+    throw cause;
+  }
+}
 
 /** Lists the library files in the OPFS pool (worker op specific to the web backend). */
 export function listLibraries(): Promise<string[]> {
-  // Serialize list calls: every call spawns its own pool instance, and concurrent installs
-  // contend for the sahpool lock (React StrictMode mounts the start screen twice in dev).
-  listChain = listChain.catch(() => []).then(() => listWithRetry());
-  return listChain;
+  return listWithTransport();
 }
 
-async function listWithRetry(): Promise<string[]> {
-  // The first attempt can race a just-terminated storage worker (close → back to the start
-  // screen); sahpool releases its handles asynchronously, so retry briefly before failing.
+/** Terminates the start-screen worker; its OPFS handles must be gone before a session opens. */
+export async function releaseStartTransport(): Promise<void> {
+  const transport = startTransport;
+  startTransport = null;
+  if (transport) await transport.dispose().catch(() => undefined);
+}
+
+const POOL_BUSY_RE = /NoModificationAllowedError|Access Handles cannot be created/;
+
+/**
+ * Opens a library for the start screen: releases the list worker first (its sahpool holds all
+ * pool handles while alive), then opens — retrying briefly while the browser finishes
+ * releasing a just-terminated worker's access handles (that release is asynchronous).
+ */
+export async function openLibrary(
+  name: string,
+  create: boolean,
+): Promise<{ driver: TauriStorageDriver; transport: WorkerTransport; info: OpenResult }> {
+  await releaseStartTransport();
   let lastError: unknown = null;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 350));
-    const transport = new WorkerTransport();
+  for (let attempt = 0; attempt < 8; attempt++) {
+    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 300));
+    const { driver, transport } = createLibrarySession();
     try {
-      const { files } = await transport.request<{ files: string[] }>("list");
-      // Pool names come back percent-encoded; keep them encoded for open() and let the UI
-      // decode them for display.
-      return files.map((file) => file.replace(/^\//, "")).sort();
+      const info = await driver.open({ path: `${name}.starline`, create, readOnly: false });
+      return { driver, transport, info };
     } catch (cause) {
       lastError = cause;
-    } finally {
-      await transport.dispose();
+      await driver.close().catch(() => undefined);
+      await transport.dispose().catch(() => undefined);
+      const message = cause instanceof Error ? cause.message : String(cause);
+      if (!POOL_BUSY_RE.test(message)) throw cause;
     }
   }
   throw lastError;

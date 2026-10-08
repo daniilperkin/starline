@@ -177,3 +177,121 @@ body {
 [data-theme="dark"] .sl-btn:hover:not(:disabled) {
   box-shadow: 0 0 18px -8px var(--sl-primary);
 }
+
+/* Bottom tab bar (Slice 1 navigation). */
+.sl-tabbar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 20;
+  border-top: 1px solid var(--sl-border);
+  background: color-mix(in srgb, var(--sl-surface) 88%, transparent);
+  backdrop-filter: blur(14px);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.sl-tabbar-inner {
+  margin: 0 auto;
+  display: flex;
+  max-width: 36rem;
+}
+
+.sl-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 56px;
+  font-size: 0.7rem;
+  color: var(--sl-muted);
+  text-decoration: none;
+}
+
+.sl-tab[data-active="true"] {
+  color: var(--sl-primary);
+}
+
+.sl-tab-glyph {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+/* Multi-line inputs (wizard steps). */
+.sl-textarea {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--sl-border);
+  background: var(--sl-surface);
+  color: var(--sl-text);
+  border-radius: 0.8rem;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+}
+
+.sl-textarea:focus {
+  border-color: var(--sl-primary);
+}
+
+/* Step list rows (Plan tab). */
+.sl-step-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid var(--sl-border);
+  background: var(--sl-surface);
+  color: var(--sl-text);
+  border-radius: 1rem;
+  padding: 0.7rem 0.9rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.sl-step-row:hover {
+  border-color: var(--sl-primary);
+}
+
+.sl-step-glyph {
+  font-size: 1.1rem;
+  color: var(--sl-muted);
+}
+
+.sl-step-glyph[data-status="in_progress"] {
+  color: var(--sl-primary);
+}
+
+.sl-step-glyph[data-status="complete"] {
+  color: var(--sl-accent);
+}
+
+/* Prompts bottom sheet. */
+.sl-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(3, 4, 14, 0.55);
+  border: none;
+  padding: 0;
+  cursor: default;
+}
+
+.sl-sheet {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 41;
+  margin: 0 auto;
+  max-width: 36rem;
+  max-height: 82dvh;
+  overflow: auto;
+  border-radius: 1.2rem 1.2rem 0 0;
+  background: var(--sl-surface);
+  border: 1px solid var(--sl-border);
+  padding: 1rem 1.1rem calc(1rem + env(safe-area-inset-bottom));
+}

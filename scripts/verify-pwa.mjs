@@ -2,9 +2,9 @@
 // PWA end-to-end check: needs a production build (`pnpm --filter @starline/web build`). By
 // default it serves the build itself (`vite preview` on port 5184); pass --no-serve with a URL
 // to use an already-running server. Proves: the service worker installs, the manifest is
-// served, and the installed app keeps working with the network OFF — create a library online,
-// close it, go offline, reload, and reopen the library from storage (spec §5.2 offline-complete).
-// Usage: node scripts/verify-pwa.mjs [url] [--no-serve]
+// served, and the installed app keeps working with the network OFF — create a library and a
+// story online, complete step 1, go offline, reload, reopen the library and see the plan
+// intact (spec §5.2 offline-complete). Usage: node scripts/verify-pwa.mjs [url] [--no-serve]
 import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -50,19 +50,28 @@ try {
   // Wait for the service worker to install, then reload so the page is controlled by it.
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
   await page.reload();
-  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, { timeout: 15000 });
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, {
+    timeout: 15000,
+  });
 
   const manifestStatus = await page.evaluate(() =>
     fetch("/manifest.webmanifest").then((r) => r.status),
   );
   await page.screenshot({ path: join(shotDir, "phone-start.png"), fullPage: true });
 
-  // Online: create a library and see the migrated workspace.
+  // Online: create a library, create a story, write and complete step 1.
   await page.getByPlaceholder("My Novel").fill("Star Demo");
   await page.getByRole("button", { name: "Create" }).click();
-  await page.getByText("Schema version", { exact: true }).waitFor();
-  await page.getByText("v1").waitFor();
-  await page.screenshot({ path: join(shotDir, "phone-workspace.png"), fullPage: true });
+  await page.getByPlaceholder("Name your story").fill("Star Demo Novel");
+  await page.getByRole("button", { name: "Create story" }).click();
+  await page.getByText("0 of 9 steps complete").waitFor();
+  await page.getByRole("button", { name: /One sentence/ }).click();
+  await page
+    .getByLabel("One sentence")
+    .fill("A lighthouse keeper must outwit the storm that swallowed her sister's ship");
+  await page.getByRole("button", { name: "Mark step complete" }).click();
+  await page.getByText("1 of 9 steps complete").waitFor();
+  await page.screenshot({ path: join(shotDir, "phone-plan.png"), fullPage: true });
   await page.getByRole("button", { name: "Close library" }).click();
   await page.getByText("Your libraries").waitFor();
 
@@ -71,12 +80,11 @@ try {
   await page.reload();
   await page.getByText("Your libraries").waitFor({ timeout: 15000 });
   await page.getByRole("button", { name: "Open" }).click();
-  await page.getByText("Schema version", { exact: true }).waitFor();
-  await page.getByText("none (already current)").waitFor();
+  await page.getByText("1 of 9 steps complete").waitFor();
   await page.screenshot({ path: join(shotDir, "phone-offline.png"), fullPage: true });
   await context.setOffline(false);
 
-  console.log(`PWA-VERIFY OK (manifest ${manifestStatus}, offline reopen works)`);
+  console.log(`PWA-VERIFY OK (manifest ${manifestStatus}, offline reopen keeps the plan)`);
   console.log(`screenshots: ${shotDir}`);
 } finally {
   await browser.close();

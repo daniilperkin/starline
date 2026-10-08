@@ -1,8 +1,13 @@
-import type { SqlRunner } from "../commands";
+import type { SqlValue } from "../commands";
 import type { SnowflakeStepNumber, StepStatus } from "../entities";
 import type { EpochMs, UUID } from "../primitives";
 import { emptyStepContent } from "./defaults";
 import type { SnowflakeStepContent, SnowflakeStepRow } from "./types";
+
+/** The read-only statement surface a storage driver satisfies for queries. */
+export interface QueryRunner {
+  query<T = Record<string, unknown>>(sql: string, params?: readonly SqlValue[]): Promise<T[]>;
+}
 
 /** A row of the project picker / Plan header. */
 export interface ProjectSummary {
@@ -43,7 +48,7 @@ function toProjectSummary(row: ProjectRawRow): ProjectSummary {
 }
 
 /** Active (not soft-deleted, not archived) projects, newest first. */
-export async function listProjects(runner: SqlRunner): Promise<ProjectSummary[]> {
+export async function listProjects(runner: QueryRunner): Promise<ProjectSummary[]> {
   const rows = await runner.query<ProjectRawRow>(
     `SELECT ${PROJECT_COLUMNS} FROM project
       WHERE deleted_at IS NULL AND archived = 0
@@ -52,7 +57,7 @@ export async function listProjects(runner: SqlRunner): Promise<ProjectSummary[]>
   return rows.map(toProjectSummary);
 }
 
-export async function getProject(runner: SqlRunner, id: UUID): Promise<ProjectSummary | null> {
+export async function getProject(runner: QueryRunner, id: UUID): Promise<ProjectSummary | null> {
   const rows = await runner.query<ProjectRawRow>(
     `SELECT ${PROJECT_COLUMNS} FROM project WHERE id = ? AND deleted_at IS NULL`,
     [id],
@@ -65,7 +70,7 @@ export async function getProject(runner: SqlRunner, id: UUID): Promise<ProjectSu
  * All nine snowflake steps of a project, ordered. Projects created by `createProject`
  * always own all nine rows (the M0 migrations only ever create projects through it).
  */
-export async function listSteps(runner: SqlRunner, projectId: UUID): Promise<SnowflakeStepRow[]> {
+export async function listSteps(runner: QueryRunner, projectId: UUID): Promise<SnowflakeStepRow[]> {
   const rows = await runner.query<{
     id: string;
     project_id: string;
@@ -96,7 +101,7 @@ export async function listSteps(runner: SqlRunner, projectId: UUID): Promise<Sno
 }
 
 export async function getStep(
-  runner: SqlRunner,
+  runner: QueryRunner,
   projectId: UUID,
   step: SnowflakeStepNumber,
 ): Promise<SnowflakeStepRow | null> {

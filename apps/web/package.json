@@ -12,12 +12,16 @@
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",
+    "@capacitor/app": "^8.1.2",
     "@capacitor/core": "8.5.3",
     "@starline/core": "workspace:*",
     "@starline/db": "workspace:*",
     "@starline/driver-wasm": "workspace:*",
+    "@tanstack/react-query": "^5.104.1",
+    "@tanstack/react-router": "^1.170.41",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@capacitor/assets": "3.0.5",

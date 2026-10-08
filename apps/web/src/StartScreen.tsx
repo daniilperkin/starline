@@ -1,22 +1,15 @@
 import type { MigrationReport } from "@starline/db";
 import { runMigrations } from "@starline/db";
 import { useCallback, useEffect, useState } from "react";
-import type { LibrarySession } from "./App";
-import { createLibrarySession, listLibraries } from "./storage";
-import { cycleTheme, getThemePreference, type ThemePreference } from "./theme";
-
-const THEME_LABEL: Record<ThemePreference, string> = {
-  system: "Theme: system",
-  light: "Theme: light",
-  dark: "Theme: dark",
-};
+import type { LibrarySession } from "./session";
+import { listLibraries, openLibrary } from "./storage";
+import { ThemeButton } from "./ThemeButton";
 
 export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => void }) {
   const [libraries, setLibraries] = useState<string[]>([]);
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [theme, setTheme] = useState<ThemePreference>(getThemePreference());
 
   const refresh = useCallback(async () => {
     try {
@@ -34,10 +27,16 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
     async (name: string, create: boolean) => {
       setBusy(true);
       setError(null);
-      const { driver, transport } = createLibrarySession();
       try {
-        const info = await driver.open({ path: `${name}.starline`, create, readOnly: false });
-        const report: MigrationReport = await runMigrations(driver);
+        const { driver, transport, info } = await openLibrary(name, create);
+        let report: MigrationReport;
+        try {
+          report = await runMigrations(driver);
+        } catch (cause) {
+          await driver.close().catch(() => undefined);
+          await transport.dispose().catch(() => undefined);
+          throw cause;
+        }
         if (create) {
           // Spec §5.4.1: ask the browser to make this origin's storage persistent on first creation.
           void navigator.storage?.persist?.();
@@ -45,8 +44,6 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
         onOpen({ driver, transport, name, info, report });
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause));
-        await driver.close().catch(() => undefined);
-        await transport.dispose().catch(() => undefined);
       } finally {
         setBusy(false);
       }
@@ -68,9 +65,7 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
             <span className="sl-chip">installable</span>
           </div>
         </div>
-        <button type="button" className="sl-btn" onClick={() => setTheme(cycleTheme())}>
-          {THEME_LABEL[theme]}
-        </button>
+        <ThemeButton />
       </header>
 
       <section className="sl-card p-5">

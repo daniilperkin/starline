@@ -13,3 +13,8 @@ export function format(template: string, params: Record<string, string | number>
     return value === undefined ? `{${key}}` : String(value);
   });
 }
+
+/** Resolves a ValidationIssue.code to its English message (falls back to the code itself). */
+export function issueMessage(code: string): string {
+  return (en.issues as Record<string, string>)[code] ?? code;
+}

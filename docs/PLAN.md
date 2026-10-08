@@ -315,12 +315,12 @@ written end-to-end; all gates green; PWA + APK rebuilt.
 - **Slice discipline**: every slice lands on `main` as a small commit series with detailed
   rationale; each slice is only "done" when all gates are green and the APK has been
   rebuilt and smoke-tested. Each slice closes with a three-line "what you can do now" note.
-- **Gates**: the existing seven (`typecheck`, `biome`, `test`, `chaos`, `verify-web`,
-  `verify-pwa`, `check-contrast`) plus:
+- **Gates**: the existing (`typecheck`, `biome`, `test`, `chaos`, `verify-web`,
+  `verify-pwa`, `check-contrast`, `check-no-network`) plus:
   - `scripts/verify-android.mjs` — scripted emulator flow: install → launch → create →
     restart → reopen (the manual QA pass from the APK session, automated).
   - export round-trip gate — arrives with Slice 12 and stays in CI.
-  - no-network invariant check — arrives with Slice 1 (bundle grep).
+  - no-network invariant check — shipped with Slice 1 (`scripts/check-no-network.mjs`, source grep).
 - **Strings**: `packages/core/src/i18n/` with typed keys and `en` as the base catalogue; a
   test fails the build on missing keys or unused keys. No literal UI copy in components.
 - **Performance budgets (phone adaptation of spec §5.1)**: list scroll 60 fps on the
