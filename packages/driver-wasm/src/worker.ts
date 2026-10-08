@@ -25,7 +25,7 @@ interface ExecOptions {
 
 interface PoolDb {
   exec(sql: string): unknown;
-  exec(options: ExecOptions): unknown[];
+  exec(options: ExecOptions): Record<string, unknown>[];
   changes(): number;
   close(): void;
 }

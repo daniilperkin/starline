@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+/* Theme tokens (spec §4.9): light/dark via data-theme on <html>, accent per preference. */
+:root {
+  --sl-bg: #f6f6f8;
+  --sl-surface: #ffffff;
+  --sl-text: #1b1b20;
+  --sl-muted: #63636e;
+  --sl-border: #e3e3e8;
+  --sl-accent: #6d28d9;
+  --sl-danger: #b91c1c;
+}
+
+[data-theme="dark"] {
+  --sl-bg: #101014;
+  --sl-surface: #18181f;
+  --sl-text: #ececf1;
+  --sl-muted: #a0a0ad;
+  --sl-border: #2b2b35;
+  --sl-accent: #a78bfa;
+  --sl-danger: #f87171;
+}
+
+@theme inline {
+  --color-canvas: var(--sl-bg);
+  --color-surface: var(--sl-surface);
+  --color-ink: var(--sl-text);
+  --color-muted: var(--sl-muted);
+  --color-line: var(--sl-border);
+  --color-accent: var(--sl-accent);
+  --color-danger: var(--sl-danger);
+}
+
+body {
+  margin: 0;
+  background: var(--sl-bg);
+  color: var(--sl-text);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+.sl-btn {
+  border: 1px solid var(--sl-border);
+  background: var(--sl-surface);
+  color: var(--sl-text);
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.sl-btn:hover:not(:disabled) {
+  border-color: var(--sl-accent);
+}
+
+.sl-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.sl-input {
+  border: 1px solid var(--sl-border);
+  background: var(--sl-surface);
+  color: var(--sl-text);
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.sl-input:focus {
+  border-color: var(--sl-accent);
+}

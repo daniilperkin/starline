@@ -11,8 +11,8 @@
 import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { createInterface } from "node:readline";
 import { dirname, join } from "node:path";
+import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -52,7 +52,8 @@ function startStorage() {
   });
   child.on("exit", () => {
     exited = true;
-    for (const pendingCall of pending.values()) pendingCall.reject(new Error("storage process exited"));
+    for (const pendingCall of pending.values())
+      pendingCall.reject(new Error("storage process exited"));
     pending.clear();
   });
   const request = (op, payload = {}) => {

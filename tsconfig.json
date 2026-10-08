@@ -3,6 +3,8 @@
   "references": [
     { "path": "packages/core" },
     { "path": "packages/db" },
-    { "path": "packages/driver-tauri" }
+    { "path": "packages/driver-tauri" },
+    { "path": "packages/driver-wasm" },
+    { "path": "apps/web" }
   ]
 }
