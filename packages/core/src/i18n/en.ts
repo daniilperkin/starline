@@ -1,0 +1,97 @@
+/**
+ * English message catalogue (decision 14: English first, i18n-ready).
+ * Leaf values are user-facing strings; `{param}` placeholders interpolate via `format()`.
+ * Future locales (de/uk/ru) implement the same `Messages` shape.
+ */
+export const en = {
+  app: {
+    tagline: "Your story, among the stars.",
+  },
+  tabs: {
+    plan: "Plan",
+    scenes: "Scenes",
+    people: "People",
+    world: "World",
+    notes: "Notes",
+  },
+  common: {
+    saved: "Saved",
+    comingSoon: "Arrives in a later slice",
+    comingSoonHint: "This part of the constellation is still being charted.",
+  },
+  plan: {
+    heading: "Plan",
+    stepsComplete: "{done} of 9 steps complete",
+    continueHint: "Pick up where you left off",
+    stepOf: "Step {n} of 9",
+    status: {
+      not_started: "Not started",
+      in_progress: "In progress",
+      complete: "Complete",
+    },
+    stale: "Stale",
+    hasWarnings: "Has warnings",
+    markComplete: "Mark step complete",
+    uncompleteHint: "Issues below must be fixed before this step can complete.",
+    blockersHeading: "Fix these first",
+    warningsHeading: "Warnings — fix or ignore",
+    ignore: "Ignore",
+    ignored: "Ignored",
+    next: "Next",
+    previous: "Back",
+  },
+  steps: {
+    1: "One sentence",
+    2: "One paragraph",
+    3: "Character summaries",
+    4: "One-page synopsis",
+    5: "Character descriptions",
+    6: "Four-page synopsis",
+    7: "Character charts",
+    8: "Scene list",
+    9: "Scene narratives",
+  },
+  step1: {
+    lead: "Sum up your whole story in one sentence — big picture, no character names.",
+    placeholder: "A grieving cartographer must…",
+    wordCounter: "{words} / 25 words",
+    alternativesHeading: "Earlier drafts",
+    tryAnother: "Try another phrasing",
+    promote: "Promote",
+    noAlternatives: "No earlier drafts yet.",
+  },
+  step2: {
+    lead: "One paragraph, five sentences: the setup, three disasters, the ending.",
+    setup: "Setup",
+    disaster1: "Disaster 1",
+    disaster2: "Disaster 2",
+    disaster3: "Disaster 3",
+    ending: "Ending",
+    placeholders: {
+      setup: "The world before everything changes…",
+      disaster1: "The first blow falls…",
+      disaster2: "Things get worse…",
+      disaster3: "It all falls apart…",
+      ending: "How it all resolves…",
+    },
+  },
+  prompts: {
+    heading: "Writing prompts",
+    rule: "The method",
+    examples: "Worked examples",
+    questions: "Ask yourself",
+    offlineNote: "Bundled with the app — works offline.",
+  },
+  issues: {
+    STEP_EMPTY: "Add some content before completing this step.",
+    S1_EMPTY: "Write your one-sentence summary.",
+    S1_TOO_LONG: "Longer than 25 words — the aim is 15–25.",
+    S1_HAS_NAMES: "Avoid character names — describe the role instead.",
+    S1_MULTI_SENTENCE: "More than one sentence — tighten it to one.",
+    S2_MISSING_PART: "All five parts are needed.",
+    S2_NOT_ONE_SENTENCE: "This part reads as several sentences — aim for one.",
+    S2_ENDING_UNRESOLVED: "The ending shares no words with the setup — does it answer it?",
+  },
+} as const;
+
+export type Messages = typeof en;
