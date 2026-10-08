@@ -62,3 +62,20 @@ everything not listed here; entries are folded back into the spec on owner reque
    offered and declined in favour of the PWA route. Its *conventions* are adopted instead: a token
    layer with contrast guardrails, pure domain rules with unit tests, feature folders, a
    single-command gate, docs discipline, and the "accent is decoration, never text" rule.
+
+## Owner decisions — deep question round (2026-10-08)
+
+9. **Core purpose — plan AND write.** StarLine is one place from a single sentence to a finished
+   draft: the Snowflake wizard to a scene-by-scene outline, then the manuscript written with
+   characters/lore/notes at hand. The editor is a first-class surface, not an export target.
+10. **Hard NOTs (binding): no multi-user/collaboration, no social/community features, no ads or
+    analytics.** AI prose was deliberately left off this veto list — v1 still ships offline/no-AI
+    per the spec; any AI feature would be a separate explicit owner decision, never a silent add.
+11. **Look — "more cosmic".** Brighter nebulas, gentle motion (twinkle + slow drift), glow accents.
+    Motion stays battery-aware: ~25 fps cap, pauses when the tab is hidden, honours
+    `prefers-reduced-motion` (static sky).
+12. **Phone delivery — sideloaded APK.** Capacitor wrap of the web build (chosen over HTTPS hosting
+    for v1 personal use). The PWA stays the source of truth; the APK is a shipped artifact.
+    adb-reverse against the dev server remains the fast live-reload loop during development.
+13. **Sequencing — plan deeply first.** Feature build-out (characters/outliner/lore/timeline) only
+    after a deep design pass; "everything, but plan deeply first".

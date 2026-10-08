@@ -154,3 +154,26 @@ body {
   font-size: 0.72rem;
   color: var(--sl-muted);
 }
+
+/* Cosmic glow accents (owner decision 11, "more cosmic"). */
+.sl-btn-primary {
+  box-shadow: 0 0 22px -6px var(--sl-primary);
+}
+
+.sl-card {
+  transition: box-shadow 160ms ease;
+}
+
+.sl-card:hover {
+  box-shadow:
+    0 14px 40px -20px var(--sl-glow),
+    0 0 26px -14px var(--sl-glow);
+}
+
+[data-theme="dark"] .sl-wordmark {
+  filter: drop-shadow(0 0 16px rgba(246, 199, 96, 0.28));
+}
+
+[data-theme="dark"] .sl-btn:hover:not(:disabled) {
+  box-shadow: 0 0 18px -8px var(--sl-primary);
+}
