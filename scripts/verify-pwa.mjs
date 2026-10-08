@@ -48,7 +48,15 @@ try {
   await page.goto(url);
 
   // Wait for the service worker to install, then reload so the page is controlled by it.
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
+  // (Guarded: against a stale dist the ready promise never settles and would hang the gate.)
+  await page.evaluate(() =>
+    Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("service worker never became ready")), 20_000),
+      ),
+    ]),
+  );
   await page.reload();
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null, {
     timeout: 15000,

@@ -5,6 +5,7 @@ import { ComingSoonScreen } from "./ComingSoonScreen";
 import { useProjects, useSteps } from "./data";
 import { Step1Editor } from "./Step1Editor";
 import { Step2Editor } from "./Step2Editor";
+import { Step3Editor } from "./Step3Editor";
 
 export function StepScreen() {
   const { step: stepParam } = useParams({ from: "/plan/step/$step" });
@@ -49,6 +50,8 @@ export function StepScreen() {
           <Step1Editor key={row.id} projectId={project.id} row={row} />
         ) : stepNumber === 2 ? (
           <Step2Editor key={row.id} projectId={project.id} row={row} />
+        ) : stepNumber === 3 ? (
+          <Step3Editor key={row.id} projectId={project.id} row={row} />
         ) : (
           <ComingSoonScreen label={messages.steps[stepNumber]} />
         )

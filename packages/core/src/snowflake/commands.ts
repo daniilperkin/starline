@@ -1,6 +1,8 @@
 import type { ChangeEvent } from "../changes";
+import type { CharacterContextInfo } from "../characters/types";
 import type { Command, CommandContext } from "../commands";
 import type {
+  CharacterRole,
   PlanningMethod,
   SnowflakeStepNumber,
   StepStatus,
@@ -93,9 +95,11 @@ export const saveStepContent: Command<SaveStepContentArgs, SaveStepContentResult
     )[0];
     if (!row) throw new Error(`snowflake step ${args.step} not found for this project`);
     const now = epochNow();
-    const issues = validateStep(args.step, args.content, {
-      characterNames: await characterNames(ctx, args.projectId),
-    });
+    const issues = validateStep(
+      args.step,
+      args.content,
+      await characterContext(ctx, args.projectId),
+    );
     const status = nextStatus(row.status, args.step, args.content, issues);
     await ctx.tx.query(
       `UPDATE snowflake_step
@@ -151,9 +155,7 @@ export const markStepComplete: Command<MarkStepCompleteArgs, { completedAt: numb
             message: "issues.STEP_EMPTY",
           },
         ]
-      : validateStep(args.step, content, {
-          characterNames: await characterNames(ctx, args.projectId),
-        });
+      : validateStep(args.step, content, await characterContext(ctx, args.projectId));
     const blocking = blockingIssues(issues);
     if (blocking.length > 0) throw new StepBlockedError(blocking);
     const now = epochNow();
@@ -170,20 +172,42 @@ export const markStepComplete: Command<MarkStepCompleteArgs, { completedAt: numb
   },
 };
 
-/** Known character names + aliases, feeding the S1_HAS_NAMES heuristic. */
-async function characterNames(ctx: CommandContext, projectId: UUID): Promise<string[]> {
-  const rows = await ctx.tx.query<{ name: string; aliases: string }>(
-    `SELECT name, aliases FROM character WHERE project_id = ? AND deleted_at IS NULL`,
+/** Character context for the validators: names+aliases (S1) and the S3 quartet fields. */
+async function characterContext(
+  ctx: CommandContext,
+  projectId: UUID,
+): Promise<{ characterNames: string[]; characters: CharacterContextInfo[] }> {
+  const rows = await ctx.tx.query<{
+    id: string;
+    name: string;
+    aliases: string;
+    role: string;
+    motivation: string;
+    goal: string;
+    conflict: string;
+    epiphany: string;
+  }>(
+    `SELECT id, name, aliases, role, motivation, goal, conflict, epiphany
+       FROM character WHERE project_id = ? AND deleted_at IS NULL`,
     [projectId],
   );
-  const names: string[] = [];
+  const characterNames: string[] = [];
+  const characters: CharacterContextInfo[] = [];
   for (const row of rows) {
-    names.push(row.name);
+    characterNames.push(row.name);
     for (const alias of parseJson<unknown[]>(row.aliases, [])) {
-      if (typeof alias === "string") names.push(alias);
+      if (typeof alias === "string") characterNames.push(alias);
     }
+    characters.push({
+      id: row.id as UUID,
+      role: row.role as CharacterRole,
+      motivation: row.motivation,
+      goal: row.goal,
+      conflict: row.conflict,
+      epiphany: row.epiphany,
+    });
   }
-  return names;
+  return { characterNames, characters };
 }
 
 function parseJson<T>(value: string, fallback: T): T {

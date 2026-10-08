@@ -2,7 +2,8 @@
 // Scripted emulator flow for the Android APK (docs/PLAN.md §6 gate). Expects a booted
 // emulator or attached device, installs the APK fresh, then drives the Capacitor WebView
 // over CDP (Playwright connectOverCDP): create library → create story → complete step 1 →
-// hardware back navigation → minimise at the root → cold relaunch keeps the plan.
+// complete step 3 with a character card → hardware back navigation → minimise at the root →
+// cold relaunch keeps the plan.
 // Usage: node scripts/verify-android.mjs [apk-path]
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -89,11 +90,21 @@ try {
   await page.getByText("1 of 9 steps complete").waitFor({ timeout: 30000 });
   console.log("PASS  step 1 completed");
 
+  // 2b. Step 3: a character card is created and flagged major on-device.
+  await page.getByRole("button", { name: /Character summaries/ }).click();
+  await page.getByPlaceholder("Character name").fill("Emu Character");
+  await page.getByRole("button", { name: "Add character" }).click();
+  await page.getByRole("textbox", { name: "Name", exact: true }).waitFor({ timeout: 15000 });
+  await page.getByLabel("Major character").check();
+  await page.getByRole("button", { name: "Mark step complete" }).click();
+  await page.getByText("2 of 9 steps complete").waitFor({ timeout: 30000 });
+  console.log("PASS  step 3 completed with a character card");
+
   // 3. Hardware back: from a step screen back to the plan.
   await page.getByRole("button", { name: /One paragraph/ }).click();
   await page.getByText("Step 2 of 9").waitFor({ timeout: 15000 });
   adb(["shell", "input", "keyevent", "4"]);
-  await page.getByText("1 of 9 steps complete").waitFor({ timeout: 15000 });
+  await page.getByText("2 of 9 steps complete").waitFor({ timeout: 15000 });
   console.log("PASS  hardware back returns to the plan");
 
   // 4. Hardware back walks out of history, then minimises the app at the root.
@@ -116,8 +127,8 @@ try {
   ({ browser, page } = await connect());
   await page.getByText("Your libraries").waitFor({ timeout: 60000 });
   await page.getByRole("button", { name: "Open" }).click();
-  await page.getByText("1 of 9 steps complete").waitFor({ timeout: 90000 });
-  console.log("PASS  cold relaunch → library listed → plan intact (1 of 9)");
+  await page.getByText("2 of 9 steps complete").waitFor({ timeout: 90000 });
+  console.log("PASS  cold relaunch → library listed → plan intact (2 of 9)");
 
   console.log("EMULATOR-QA OK");
 } finally {

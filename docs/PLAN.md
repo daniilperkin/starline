@@ -76,7 +76,7 @@ matters and the two domains are used differently. Open item #1.
 M1 reaches the spec's exit criterion on the phone. Slices are reviewable builds: each ends
 with all gates green, a rebuilt APK, and a short "what you can do now" note.
 
-### Slice 1 — Wizard skeleton + Steps 1–2
+### Slice 1 — Wizard skeleton + Steps 1–2 (**shipped 2026-10-08**)
 
 **Screens**: Plan tab (progress ring, 9-step list, continue-where-you-left-off); Step 1
 (sentence + alternatives as swipeable draft cards + word counter + prompts sheet); Step 2
@@ -94,7 +94,7 @@ autosave flush.
 fill step 2 with live warnings, complete both steps; kill the app → everything persists;
 APK rebuilt.
 
-### Slice 2 — Step 3 + People tab v1
+### Slice 2 — Step 3 + People tab v1 (**shipped 2026-10-08**; `reviewedCharacterIds` stub deferred to Slice 3 — it has no meaning before the step-5 screen)
 
 **Screens**: Step 3 (major-character cards: the Snowflake quartet — motivation, goal,
 conflict, epiphany — plus one-line and one-paragraph; adding a card creates the `Character`

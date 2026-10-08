@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { CharacterContextInfo } from "../characters/types";
 import { en } from "../i18n";
+import type { UUID } from "../primitives";
 import type { Step1Content, Step2Content } from "./types";
 import {
   blockingIssues,
@@ -7,6 +9,7 @@ import {
   validateStep,
   validateStep1,
   validateStep2,
+  validateStep3,
 } from "./validators";
 
 const step1 = (sentence: string): Step1Content => ({ sentence, alternatives: [] });
@@ -99,15 +102,78 @@ describe("validateStep2", () => {
 });
 
 describe("validateStep dispatcher", () => {
-  it("routes steps 1–2 and returns [] for later steps (validators arrive with their slices)", () => {
+  it("routes steps 1–3 and returns [] for not-yet-implemented steps", () => {
     expect(validateStep(1, step1(GOOD_S1))).toEqual([]);
     expect(validateStep(2, GOOD_S2)).toEqual([]);
-    expect(validateStep(3, { majorCharacterIds: [], skipped: false })).toEqual([]);
+    expect(validateStep(3, { majorCharacterIds: [], skipped: false }).map((i) => i.code)).toContain(
+      "S3_NO_MAJOR",
+    );
+    expect(validateStep(4, { paragraphs: [] })).toEqual([]);
   });
 
   it("blockingIssues keeps only errors", () => {
     const mixed = [...validateStep2(step2({ setup: "One. Two. Three. Four." }))];
     expect(blockingIssues(mixed).every((i) => i.severity === "error")).toBe(true);
+  });
+});
+
+const S3_ID_A = "00000000-0000-7000-8000-00000000000a" as UUID;
+const S3_ID_B = "00000000-0000-7000-8000-00000000000b" as UUID;
+
+function s3Character(overrides: Partial<CharacterContextInfo> = {}): CharacterContextInfo {
+  return {
+    id: S3_ID_A,
+    role: "major",
+    motivation: "To map the island",
+    goal: "Find the shifting harbour",
+    conflict: "The sea takes the land",
+    epiphany: "She cannot save everything",
+    ...overrides,
+  };
+}
+
+describe("validateStep3", () => {
+  it("S3_NO_MAJOR: error until a character is marked major — unless skipped", () => {
+    const codes = validateStep3({ majorCharacterIds: [], skipped: false }).map((i) => i.code);
+    expect(codes).toContain("S3_NO_MAJOR");
+    const skipped = validateStep3({ majorCharacterIds: [], skipped: true }).map((i) => i.code);
+    expect(skipped).not.toContain("S3_NO_MAJOR");
+  });
+
+  it("S3_FIELD_MISSING: one warning per major character with a gap", () => {
+    const issues = validateStep3(
+      { majorCharacterIds: [S3_ID_A], skipped: false },
+      { characters: [s3Character({ epiphany: " " })] },
+    );
+    expect(issues.filter((i) => i.code === "S3_FIELD_MISSING")).toHaveLength(1);
+
+    const complete = validateStep3(
+      { majorCharacterIds: [S3_ID_A], skipped: false },
+      { characters: [s3Character()] },
+    );
+    expect(complete.map((i) => i.code)).not.toContain("S3_FIELD_MISSING");
+  });
+
+  it("S3_NO_ANTAGONISTIC_FORCE: info once characters exist without an antagonist", () => {
+    const without = validateStep3(
+      { majorCharacterIds: [S3_ID_A], skipped: false },
+      { characters: [s3Character()] },
+    );
+    expect(without.map((i) => i.code)).toContain("S3_NO_ANTAGONISTIC_FORCE");
+
+    const withAntagonist = validateStep3(
+      { majorCharacterIds: [S3_ID_A], skipped: false },
+      { characters: [s3Character(), s3Character({ id: S3_ID_B, role: "antagonist" })] },
+    );
+    expect(withAntagonist.map((i) => i.code)).not.toContain("S3_NO_ANTAGONISTIC_FORCE");
+  });
+
+  it("unknown (deleted) majors are ignored, not flagged", () => {
+    const issues = validateStep3(
+      { majorCharacterIds: ["00000000-0000-7000-8000-0000000000ff" as UUID], skipped: false },
+      { characters: [] },
+    );
+    expect(issues.map((i) => i.code)).not.toContain("S3_FIELD_MISSING");
   });
 });
 
@@ -119,6 +185,11 @@ describe("issue catalogue coverage", () => {
       ...validateStep2(step2({ setup: "One. Two. Three. Four." })),
       ...validateStep2(step2({ ...GOOD_S2, ending: "Quietly, everything simply dissolves." })),
       ...validateStep1(step1("Mina walks home"), { characterNames: ["Mina"] }),
+      ...validateStep3({ majorCharacterIds: [], skipped: false }),
+      ...validateStep3(
+        { majorCharacterIds: [S3_ID_A], skipped: false },
+        { characters: [s3Character({ epiphany: " " })] },
+      ),
     ];
     const catalogue = en.issues as Record<string, string>;
     for (const issue of emitted) {

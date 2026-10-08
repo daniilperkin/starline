@@ -1,4 +1,5 @@
 export * from "./changes";
+export * from "./characters";
 export * from "./commands";
 export * from "./entities";
 export * from "./i18n";

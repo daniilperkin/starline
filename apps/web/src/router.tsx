@@ -7,7 +7,9 @@ import {
   redirect,
 } from "@tanstack/react-router";
 import { AppLayout } from "./AppLayout";
+import { CharacterScreen } from "./CharacterScreen";
 import { ComingSoonScreen } from "./ComingSoonScreen";
+import { PeopleScreen } from "./PeopleScreen";
 import { PlanScreen } from "./PlanScreen";
 import { StepScreen } from "./StepScreen";
 
@@ -42,7 +44,13 @@ const scenesRoute = createRoute({
 const peopleRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/people",
-  component: () => <ComingSoonScreen label={messages.tabs.people} />,
+  component: PeopleScreen,
+});
+
+const characterRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/people/$characterId",
+  component: CharacterScreen,
 });
 
 const worldRoute = createRoute({
@@ -63,6 +71,7 @@ const routeTree = rootRoute.addChildren([
   stepRoute,
   scenesRoute,
   peopleRoute,
+  characterRoute,
   worldRoute,
   notesRoute,
 ]);

@@ -1,3 +1,4 @@
+import type { CharacterContextInfo } from "../characters/types";
 import type { Severity, SnowflakeStepNumber, ValidationIssue } from "../entities";
 import { countWords } from "../richtext";
 import {
@@ -5,11 +6,14 @@ import {
   STEP2_PARTS,
   type Step1Content,
   type Step2Content,
+  type Step3Content,
 } from "./types";
 
 export interface ValidateContext {
   /** Known character names + aliases, for the S1_HAS_NAMES heuristic. */
   characterNames?: readonly string[];
+  /** The project's characters, for the S3_* rules. */
+  characters?: readonly CharacterContextInfo[];
 }
 
 const QUOTED_RE = /"[^"]*"|“[^”]*”|‘[^’]*’|'[^']*'/g;
@@ -99,7 +103,32 @@ export function validateStep2(content: Step2Content): ValidationIssue[] {
   return issues;
 }
 
-/** Dispatcher: validators for steps 3–9 arrive with their slices. */
+/** Spec §3.4.2 — S3_* rules. */
+export function validateStep3(content: Step3Content, ctx: ValidateContext = {}): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const characters = ctx.characters ?? [];
+  const byId = new Map(characters.map((character) => [character.id, character]));
+  if (!content.skipped && content.majorCharacterIds.length === 0) {
+    issues.push(issue("S3_NO_MAJOR", "error", "/majorCharacterIds"));
+  }
+  for (const id of content.majorCharacterIds) {
+    const character = byId.get(id);
+    if (!character) continue; // deleted characters are ignored, not flagged
+    const missing = [
+      character.motivation,
+      character.goal,
+      character.conflict,
+      character.epiphany,
+    ].some((value) => value.trim().length === 0);
+    if (missing) issues.push(issue("S3_FIELD_MISSING", "warning", "/majorCharacterIds"));
+  }
+  if (characters.length > 0 && !characters.some((character) => character.role === "antagonist")) {
+    issues.push(issue("S3_NO_ANTAGONISTIC_FORCE", "info", "/majorCharacterIds"));
+  }
+  return issues;
+}
+
+/** Dispatcher: validators for steps 4–9 arrive with their slices. */
 export function validateStep(
   step: SnowflakeStepNumber,
   content: SnowflakeStepContent,
@@ -110,6 +139,8 @@ export function validateStep(
       return validateStep1(content as Step1Content, ctx);
     case 2:
       return validateStep2(content as Step2Content);
+    case 3:
+      return validateStep3(content as Step3Content, ctx);
     default:
       return [];
   }
