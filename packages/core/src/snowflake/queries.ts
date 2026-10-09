@@ -122,6 +122,115 @@ export function progressOf(steps: readonly SnowflakeStepRow[]): ProjectProgress 
   return { done: steps.filter((step) => step.status === "complete").length, total: steps.length };
 }
 
+/** One row of the dashboard's "Continue where you left off" card. */
+export interface RecentEntity {
+  kind: "step" | "character" | "scene";
+  id: UUID;
+  /** Display label: the character name / scene line; steps carry their number instead. */
+  label: string;
+  step: SnowflakeStepNumber | null;
+  updatedAt: EpochMs;
+}
+
+/** Everything the M1 dashboard cards read (spec §4.1: counts, words, recent, target). */
+export interface DashboardStats {
+  characterCount: number;
+  sceneCount: number;
+  loreCount: number;
+  noteCount: number;
+  /** Sum of scene target words — the step-8 estimate the dashboard shows until drafts exist. */
+  estimatedWords: number;
+  targetWordCount: number | null;
+  recent: RecentEntity[];
+}
+
+/** Dashboard aggregates in one call: counts, the running estimate and the last five edits. */
+export async function getDashboardStats(
+  runner: QueryRunner,
+  projectId: UUID,
+): Promise<DashboardStats> {
+  const counts = (
+    await runner.query<{
+      characters: number;
+      scenes: number;
+      lore: number;
+      notes: number;
+      estimated_words: number;
+      target_word_count: number | null;
+    }>(
+      `SELECT
+         (SELECT COUNT(*) FROM character WHERE project_id = ? AND deleted_at IS NULL) AS characters,
+         (SELECT COUNT(*) FROM scene     WHERE project_id = ? AND deleted_at IS NULL) AS scenes,
+         (SELECT COUNT(*) FROM lore_entry WHERE project_id = ? AND deleted_at IS NULL) AS lore,
+         (SELECT COUNT(*) FROM idea_note  WHERE project_id = ? AND deleted_at IS NULL) AS notes,
+         (SELECT COALESCE(SUM(target_word_count), 0) FROM scene
+           WHERE project_id = ? AND deleted_at IS NULL) AS estimated_words,
+         (SELECT target_word_count FROM project WHERE id = ?) AS target_word_count`,
+      [projectId, projectId, projectId, projectId, projectId, projectId],
+    )
+  )[0];
+
+  const recent: RecentEntity[] = [];
+  const stepRows = await runner.query<{ id: string; step: number; updated_at: number }>(
+    `SELECT id, step, updated_at FROM snowflake_step
+      WHERE project_id = ? AND status != 'not_started' ORDER BY updated_at DESC LIMIT 5`,
+    [projectId],
+  );
+  for (const row of stepRows) {
+    recent.push({
+      kind: "step",
+      id: row.id as UUID,
+      label: "",
+      step: row.step as SnowflakeStepNumber,
+      updatedAt: row.updated_at,
+    });
+  }
+  const characterRows = await runner.query<{ id: string; name: string; updated_at: number }>(
+    `SELECT id, name, updated_at FROM character
+      WHERE project_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT 5`,
+    [projectId],
+  );
+  for (const row of characterRows) {
+    recent.push({
+      kind: "character",
+      id: row.id as UUID,
+      label: row.name,
+      step: null,
+      updatedAt: row.updated_at,
+    });
+  }
+  const sceneRows = await runner.query<{
+    id: string;
+    title: string;
+    synopsis_text: string;
+    updated_at: number;
+  }>(
+    `SELECT id, title, synopsis_text, updated_at FROM scene
+      WHERE project_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT 5`,
+    [projectId],
+  );
+  for (const row of sceneRows) {
+    recent.push({
+      kind: "scene",
+      id: row.id as UUID,
+      label: row.title.trim() || (row.synopsis_text.split("\n")[0]?.trim() ?? ""),
+      step: null,
+      updatedAt: row.updated_at,
+    });
+  }
+  recent.sort((a, b) => b.updatedAt - a.updatedAt);
+
+  return {
+    characterCount: counts?.characters ?? 0,
+    sceneCount: counts?.scenes ?? 0,
+    loreCount: counts?.lore ?? 0,
+    noteCount: counts?.notes ?? 0,
+    estimatedWords: counts?.estimated_words ?? 0,
+    targetWordCount: counts?.target_word_count ?? null,
+    recent: recent.slice(0, 5),
+  };
+}
+
 function parseJson<T>(value: string, fallback: T): T {
   try {
     return JSON.parse(value) as T;

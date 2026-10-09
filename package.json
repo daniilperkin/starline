@@ -15,7 +15,9 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
-    "chaos": "node scripts/chaos/run.mjs"
+    "chaos": "node scripts/chaos/run.mjs",
+    "chaos:web": "node scripts/chaos/web.mjs",
+    "check:bundle": "node scripts/check-bundle.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
@@ -23,6 +25,7 @@
     "@vitest/browser": "5.0.3",
     "@vitest/browser-playwright": "5.0.3",
     "@vitest/coverage-v8": "^5.0.3",
+    "axe-core": "^4.14.0",
     "fast-check": "^4.10.2",
     "playwright": "1.64.0",
     "typescript": "^7.0.2",

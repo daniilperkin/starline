@@ -3,6 +3,7 @@ import {
   format,
   messages,
   progressOf,
+  type RecentEntity,
   type SceneContextInfo,
   type SnowflakeStepNumber,
   type SnowflakeStepRow,
@@ -11,10 +12,22 @@ import {
 } from "@starline/core";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useCreateProject, useProjects, useSceneTree, useSteps } from "./data";
+import {
+  useCreateProject,
+  useDashboardStats,
+  useProjects,
+  useSceneTree,
+  useSnapshots,
+  useSteps,
+  useTakeSnapshot,
+  useTrash,
+} from "./data";
 import { useSessionStore } from "./session";
 import { closeLibrary } from "./storage";
 import { ThemeButton } from "./ThemeButton";
+import { relativeTime } from "./time";
+
+const numberFormat = new Intl.NumberFormat();
 
 export function PlanScreen() {
   const session = useSessionStore((state) => state.session);
@@ -24,6 +37,10 @@ export function PlanScreen() {
   const createProject = useCreateProject();
   const steps = useSteps(projects.data?.[0]?.id ?? null);
   const tree = useSceneTree(projects.data?.[0]?.id ?? null);
+  const stats = useDashboardStats(projects.data?.[0]?.id ?? null);
+  const snapshots = useSnapshots();
+  const takeSnapshot = useTakeSnapshot();
+  const trash = useTrash(projects.data?.[0]?.id ?? null);
   const [title, setTitle] = useState("");
   const [closing, setClosing] = useState(false);
 
@@ -34,6 +51,7 @@ export function PlanScreen() {
         id: scene.id,
         povCharacterId: scene.povCharacterId,
         chapterId: scene.chapterId,
+        synopsisWords: scene.synopsis.wordCount,
       })),
     [tree.data],
   );
@@ -48,6 +66,20 @@ export function PlanScreen() {
   const openStep = (step: SnowflakeStepNumber) => {
     void navigate({ to: "/plan/step/$step", params: { step: String(step) } });
   };
+
+  const openRecent = (entity: RecentEntity) => {
+    if (entity.kind === "step" && entity.step !== null) {
+      openStep(entity.step);
+      return;
+    }
+    if (entity.kind === "character") {
+      void navigate({ to: "/people/$characterId", params: { characterId: entity.id } });
+      return;
+    }
+    void navigate({ to: "/scenes" });
+  };
+
+  const step8Complete = steps.data?.some((step) => step.step === 8 && step.status === "complete");
 
   return (
     <div className="flex flex-1 flex-col gap-5">
@@ -111,6 +143,89 @@ export function PlanScreen() {
               </p>
             </div>
             <ProgressRing done={progress.done} total={progress.total} />
+          </section>
+
+          <section className="sl-card flex flex-col gap-3 p-4">
+            {stats.data ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="sl-chip">
+                  {format(messages.dashboard.counts, {
+                    characters: stats.data.characterCount,
+                    scenes: stats.data.sceneCount,
+                  })}
+                </span>
+                <span className="sl-chip">
+                  {stats.data.targetWordCount !== null
+                    ? format(messages.dashboard.words, {
+                        est: numberFormat.format(stats.data.estimatedWords),
+                        target: numberFormat.format(stats.data.targetWordCount),
+                      })
+                    : format(messages.dashboard.wordsNoTarget, {
+                        est: numberFormat.format(stats.data.estimatedWords),
+                      })}
+                </span>
+                {step8Complete ? (
+                  <span className="sl-chip">✦ {messages.dashboard.planned}</span>
+                ) : null}
+              </div>
+            ) : null}
+
+            {stats.data && stats.data.recent.length > 0 ? (
+              <div>
+                <h3 className="text-xs font-medium text-muted">
+                  {messages.dashboard.continueHeading}
+                </h3>
+                <ul className="mt-1.5 flex flex-col gap-1">
+                  {stats.data.recent.map((entity) => (
+                    <li key={`${entity.kind}:${entity.id}`}>
+                      <button
+                        type="button"
+                        className="sl-recent-row"
+                        onClick={() => openRecent(entity)}
+                      >
+                        <span className="min-w-0 flex-1 truncate text-left text-sm">
+                          {entity.kind === "step" && entity.step !== null
+                            ? `${entity.step}. ${messages.steps[entity.step]}`
+                            : entity.label.trim() || messages.dashboard.sceneFallback}
+                        </span>
+                        <span className="shrink-0 text-xs text-muted">
+                          {relativeTime(entity.updatedAt)}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            <div className="flex items-center justify-between gap-2 border-t border-line pt-3">
+              <p className="min-w-0 flex-1 truncate text-xs text-muted">
+                {snapshots.data && snapshots.data.length > 0
+                  ? format(messages.snapshot.last, {
+                      when: relativeTime(snapshots.data[0]?.createdAt ?? null),
+                    })
+                  : messages.snapshot.none}
+              </p>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  className="sl-btn-small"
+                  disabled={takeSnapshot.isPending}
+                  onClick={() => takeSnapshot.mutate("manual")}
+                >
+                  {takeSnapshot.isPending ? messages.snapshot.taking : messages.snapshot.now}
+                </button>
+                <button
+                  type="button"
+                  className="sl-btn-small"
+                  onClick={() => void navigate({ to: "/trash" })}
+                >
+                  {trash.data && trash.data.length > 0
+                    ? `${messages.trash.open} · ${trash.data.length}`
+                    : messages.trash.open}
+                </button>
+              </div>
+            </div>
           </section>
 
           {nextStep !== null ? (

@@ -4,6 +4,7 @@ import {
   type CharacterPatch,
   type CharacterRole,
   type Command,
+  copyLineToSceneSynopsis,
   createChapter,
   createCharacter,
   createPlotline,
@@ -13,7 +14,9 @@ import {
   deleteChapter,
   deleteCharacter,
   deleteScene,
+  emptyTrash,
   executeCommand,
+  getDashboardStats,
   getSceneDetail,
   listChapters,
   listCharacters,
@@ -23,18 +26,23 @@ import {
   listScenes,
   listSteps,
   listTags,
+  listTrash,
   markStepComplete,
   moveChapter,
   moveScene,
   type PartSummary,
+  purgeExpiredTrash,
+  restoreEntity,
   type SceneSummary,
   type SnowflakeStepContent,
   type SnowflakeStepNumber,
   saveStepContent,
   setSceneCharacters,
   setSceneLore,
+  setScenePlacement,
   setScenePlotline,
   setSceneTags,
+  type TrashEntityType,
   type UUID,
   updateChapter,
   updateCharacter,
@@ -43,6 +51,7 @@ import {
 import type { TauriStorageDriver } from "@starline/driver-wasm";
 import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useSessionStore } from "./session";
+import { listSnapshots, type SnapshotReason, takeSnapshot } from "./snapshots";
 
 export const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 5_000, retry: 1 } },
@@ -61,9 +70,29 @@ bus.subscribe(() => {
   void queryClient.invalidateQueries({ queryKey: ["scene"] });
   void queryClient.invalidateQueries({ queryKey: ["plotlines"] });
   void queryClient.invalidateQueries({ queryKey: ["tags"] });
+  void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+  void queryClient.invalidateQueries({ queryKey: ["trash"] });
 });
 
-function runCommand<A, R>(driver: TauriStorageDriver, command: Command<A, R>, args: A): Promise<R> {
+let lastActivityAt = Date.now();
+
+/** Subscribes to command activity — the 15-minute snapshot trigger reads `lastActivityAt`. */
+export function onActivity(listener: () => void): () => void {
+  return bus.subscribe(() => {
+    lastActivityAt = Date.now();
+    listener();
+  });
+}
+
+export function lastActivityTime(): number {
+  return lastActivityAt;
+}
+
+export function runCommand<A, R>(
+  driver: TauriStorageDriver,
+  command: Command<A, R>,
+  args: A,
+): Promise<R> {
   return executeCommand({ transaction: (fn) => driver.transaction(fn) }, bus, command, args);
 }
 
@@ -276,3 +305,128 @@ export const useSetSceneCharacters = () => useSceneCommand(setSceneCharacters);
 export const useSetScenePlotline = () => useSceneCommand(setScenePlotline);
 export const useSetSceneTags = () => useSceneCommand(setSceneTags);
 export const useSetSceneLore = () => useSceneCommand(setSceneLore);
+export const useSetScenePlacement = () => useSceneCommand(setScenePlacement);
+export const useCopyLineToSynopsis = () => useSceneCommand(copyLineToSceneSynopsis);
+
+/** Dashboard aggregates (counts, estimate, recent edits) for one project. */
+export function useDashboardStats(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["dashboard", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return getDashboardStats(session.driver, projectId);
+    },
+  });
+}
+
+/** The Trash list for one project. */
+export function useTrash(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["trash", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return listTrash(session.driver, projectId);
+    },
+  });
+}
+
+export function useRestoreEntity() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: { projectId: UUID; entityType: TrashEntityType; entityId: UUID }) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, restoreEntity, args);
+    },
+  });
+}
+
+export function useEmptyTrash() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: { projectId: UUID }) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, emptyTrash, args);
+    },
+  });
+}
+
+export function usePurgeExpiredTrash() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: { projectId: UUID }) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, purgeExpiredTrash, args);
+    },
+  });
+}
+
+/** Snapshot files for the open library (spec §4.5.3); newest first. */
+export function useSnapshots() {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["snapshots", session?.name ?? null],
+    enabled: session !== null,
+    queryFn: async () => {
+      if (!session) throw new Error("no library open");
+      return listSnapshots(session.name);
+    },
+  });
+}
+
+export function useTakeSnapshot() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (reason: SnapshotReason) => {
+      if (!session) throw new Error("no library open");
+      const entry = await takeSnapshot(session, reason);
+      await queryClient.invalidateQueries({ queryKey: ["snapshots"] });
+      return entry;
+    },
+  });
+}
+
+/**
+ * Dev-only test hook for scripts/chaos/web.mjs: exposes the open session's driver plus the
+ * command set, so the chaos harness can hammer random writes and simulate mid-write crashes
+ * without driving the UI. `import.meta.env.DEV` is statically false in production builds, so
+ * none of this ships (the offline/no-network gate also stays green — no fetch anywhere).
+ */
+const chaosCommands: Record<string, Command<never, unknown>> = {
+  createScene: createScene as Command<never, unknown>,
+  updateScene: updateScene as Command<never, unknown>,
+  deleteScene: deleteScene as Command<never, unknown>,
+  moveScene: moveScene as Command<never, unknown>,
+  createChapter: createChapter as Command<never, unknown>,
+  createCharacter: createCharacter as Command<never, unknown>,
+  saveStepContent: saveStepContent as Command<never, unknown>,
+  restoreEntity: restoreEntity as Command<never, unknown>,
+  setScenePlacement: setScenePlacement as Command<never, unknown>,
+};
+
+if (import.meta.env.DEV) {
+  (window as unknown as Record<string, unknown>).__starlineDev = {
+    session: () => useSessionStore.getState().session,
+    run: (name: string, args: unknown) => {
+      const session = useSessionStore.getState().session;
+      if (!session) throw new Error("no library open");
+      const command = chaosCommands[name];
+      if (!command) throw new Error(`unknown chaos command: ${name}`);
+      return executeCommand(
+        { transaction: (fn) => session.driver.transaction(fn) },
+        bus,
+        command,
+        args as never,
+      );
+    },
+    /** Pool occupancy for e2e (capacity/fileCount/files) — snapshot temps must not leak slots. */
+    poolStats: () => {
+      const session = useSessionStore.getState().session;
+      if (!session) throw new Error("no library open");
+      return session.transport.request("pool_stats", {});
+    },
+  };
+}

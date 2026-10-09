@@ -6,14 +6,23 @@
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
 
 interface Sqlite3Api {
-  installOpfsSAHPoolVfs(options: { name: string; initialCapacity?: number }): Promise<SahPool>;
+  installOpfsSAHPoolVfs(options: {
+    name: string;
+    initialCapacity?: number;
+    forceReinitIfPreviouslyFailed?: boolean;
+  }): Promise<SahPool>;
 }
 
 interface SahPool {
   OpfsSAHPoolDb: new (filename: string) => PoolDb;
   getFileNames(): string[];
+  /** Deletes a pool file. Takes the ABSOLUTE name (`/lib.starline`) — an exact map lookup. */
   unlink(filename: string): boolean;
   exportFile(filename: string): Uint8Array;
+  getCapacity(): number;
+  getFileCount(): number;
+  /** Grows the pool until it holds at least `min` slots. */
+  reserveMinimumCapacity(min: number): Promise<number>;
 }
 
 interface ExecOptions {
@@ -43,9 +52,32 @@ async function ensureInit(): Promise<SahPool> {
     sqlite3 = (await sqlite3InitModule()) as unknown as Sqlite3Api;
   }
   if (!pool) {
-    // The sahpool VFS pre-allocates fixed slots (default capacity is only 6 files); snapshots
-    // and imports share the pool, and exhausting it surfaces as SQLITE_CANTOPEN on open.
-    pool = await sqlite3.installOpfsSAHPoolVfs({ name: "starline-sahpool", initialCapacity: 64 });
+    // The sahpool VFS owns a set of pre-allocated file slots. The initial capacity stays small
+    // (16) on purpose: sqlite-wasm re-runs addCapacity() on installs over an existing pool
+    // directory, so a big initial number can balloon the pool; growth is on demand instead
+    // (ensurePoolHeadroom). Also: sqlite-wasm CACHES a failed install per worker, so a retry
+    // needs forceReinitIfPreviouslyFailed.
+    const startedAt = Date.now();
+    for (;;) {
+      try {
+        pool = await sqlite3.installOpfsSAHPoolVfs({
+          name: "starline-sahpool",
+          initialCapacity: 16,
+          forceReinitIfPreviouslyFailed: true,
+        });
+        break;
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : String(cause);
+        // The previous page's worker may still be releasing its access handles (that is
+        // asynchronous and takes a few seconds after a reload); retrying is the documented
+        // workaround for exactly this environment.
+        const transient = /NoModificationAllowedError|Access Handles cannot be created/.test(
+          message,
+        );
+        if (!transient || Date.now() - startedAt > 15_000) throw cause;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
   }
   return pool;
 }
@@ -53,6 +85,17 @@ async function ensureInit(): Promise<SahPool> {
 function requireDb(): PoolDb {
   if (!db) throw new Error("not open");
   return db;
+}
+
+/**
+ * The sahpool has a FIXED number of file slots; a database, its rollback journal and snapshot
+ * temps each occupy one, and a full pool surfaces as "SAH pool is full" the moment SQLite
+ * tries to create the journal — i.e. a library that can no longer be opened. Make sure a few
+ * slots are free before an operation that needs to create files.
+ */
+async function ensurePoolHeadroom(needed = 4): Promise<void> {
+  const sahPool = await ensureInit();
+  await sahPool.reserveMinimumCapacity(sahPool.getFileCount() + needed);
 }
 
 function queryRows(sql: string, params: unknown[] = []): Record<string, unknown>[] {
@@ -79,6 +122,9 @@ async function handle(op: string, req: Record<string, unknown>): Promise<unknown
     case "open": {
       if (db) throw new Error("already open");
       const sahPool = await ensureInit();
+      // Opening creates the rollback journal immediately, and creating a library adds a file:
+      // make sure the pool has slots for both before SQLite touches the filesystem.
+      await ensurePoolHeadroom(2);
       const path = String(req.path);
       const create = Boolean(req.create);
       const ro = Boolean(req.readOnly);
@@ -149,6 +195,8 @@ async function handle(op: string, req: Record<string, unknown>): Promise<unknown
     }
     case "snapshot": {
       const dest = String(req.dest);
+      // A snapshot materialises a whole new file in the pool — one free slot required.
+      await ensurePoolHeadroom(1);
       requireDb().exec(`VACUUM INTO '${dest.replace(/'/g, "''")}';`);
       let byteSize = 0;
       try {
@@ -159,6 +207,14 @@ async function handle(op: string, req: Record<string, unknown>): Promise<unknown
         // exportFile may be unavailable in older builds; the snapshot itself is what matters.
       }
       return { path: dest, byteSize, createdAt: Date.now() };
+    }
+    case "export_file": {
+      // The web snapshot flow copies pool files into the real OPFS (apps/web/src/snapshots.ts):
+      // the main thread needs the raw bytes, so hand them back over postMessage.
+      const sahPool = await ensureInit();
+      const raw = String(req.path);
+      const name = raw.startsWith("/") ? raw : `/${raw}`;
+      return { bytes: sahPool.exportFile(name) };
     }
     case "integrity_check": {
       const rows = queryRows("PRAGMA integrity_check");
@@ -173,10 +229,20 @@ async function handle(op: string, req: Record<string, unknown>): Promise<unknown
       return { mtimeMs: 0 };
     case "unlink": {
       const sahPool = await ensureInit();
-      // Pool names are stored with a leading slash; deletePath() is an exact map lookup.
+      // The pool's file map is keyed by ABSOLUTE names ("/snap-tmp-x.starline", as xOpen
+      // normalizes them); a relative name is an exact-lookup miss that returns false and
+      // silently leaks the slot forever.
       const raw = String(req.path);
       const name = raw.startsWith("/") ? raw : `/${raw}`;
       return { removed: sahPool.unlink(name) };
+    }
+    case "pool_stats": {
+      const sahPool = await ensureInit();
+      return {
+        capacity: sahPool.getCapacity(),
+        fileCount: sahPool.getFileCount(),
+        files: sahPool.getFileNames(),
+      };
     }
     case "shutdown": {
       if (db) {

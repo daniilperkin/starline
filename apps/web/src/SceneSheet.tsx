@@ -15,6 +15,7 @@ import {
   useCreatePlotline,
   useDeleteScene,
   usePlotlines,
+  useRestoreEntity,
   useSceneDetail,
   useSetSceneCharacters,
   useSetScenePlotline,
@@ -23,6 +24,7 @@ import {
   useUpdateScene,
 } from "./data";
 import { RichTextEditor } from "./RichTextEditor";
+import { useUndoStore } from "./undo";
 import { useAutosave } from "./useAutosave";
 
 type SheetDraft = SceneDraft & { synopsis: RichText };
@@ -115,6 +117,8 @@ function SceneSheetBody({
   const tags = useTags(projectId);
   const updateScene = useUpdateScene();
   const deleteScene = useDeleteScene();
+  const restore = useRestoreEntity();
+  const pushUndo = useUndoStore((state) => state.push);
   const setCharacters = useSetSceneCharacters();
   const setPlotline = useSetScenePlotline();
   const setTags = useSetSceneTags();
@@ -151,11 +155,13 @@ function SceneSheetBody({
   const onDelete = async () => {
     if (!confirmDelete) {
       setConfirmDelete(true);
-      window.setTimeout(() => setConfirmDelete(false), 2500);
       return;
     }
     await flush();
     await deleteScene.mutateAsync({ projectId, sceneId });
+    pushUndo(messages.undo.sceneDeleted, async () => {
+      await restore.mutateAsync({ projectId, entityType: "scene", entityId: sceneId });
+    });
     onClose();
   };
 

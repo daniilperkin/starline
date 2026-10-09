@@ -1,7 +1,7 @@
 import type { ChangeEvent } from "../changes";
 import type { Command } from "../commands";
 import type { SceneOutcome, SceneStatus, TimeOfDay } from "../entities";
-import { epochNow, newUuid, orderKeyBetween, type UUID } from "../primitives";
+import { epochNow, newUuid, type OrderKey, orderKeyBetween, type UUID } from "../primitives";
 import { EMPTY_RICH_TEXT, type RichText, richTextFromPlain } from "../richtext";
 import { parseSceneList } from "./parse";
 import {
@@ -246,6 +246,107 @@ export const moveScene: Command<MoveSceneArgs, void> = {
   },
 };
 
+export interface SetScenePlacementArgs {
+  projectId: UUID;
+  sceneId: UUID;
+  chapterId: UUID | null;
+  orderKey: OrderKey;
+}
+
+/**
+ * Writes exactly `chapter_id` + `order_key` on one row — the undo inverse of a move
+ * (`moveScene` computes a fresh key; this restores the captured one, spec §3.6 invariant 4).
+ */
+export const setScenePlacement: Command<SetScenePlacementArgs, void> = {
+  name: "scene.setPlacement",
+  async run(ctx, args) {
+    const now = epochNow();
+    await ctx.tx.query(
+      `UPDATE scene SET chapter_id = ?, order_key = ?, updated_at = ?
+        WHERE id = ? AND project_id = ? AND deleted_at IS NULL`,
+      [args.chapterId, args.orderKey, now, args.sceneId, args.projectId],
+    );
+    return {
+      result: undefined,
+      changes: [{ table: "scene", op: "update", id: args.sceneId, parentIds: [args.projectId] }],
+    };
+  },
+};
+
+export interface CopyLineToSceneSynopsisArgs {
+  projectId: UUID;
+  sceneId: UUID;
+}
+
+export interface CopyLineToSceneSynopsisResult {
+  copied: boolean;
+  alreadyPresent: boolean;
+}
+
+/** First block of a plain-text projection (blocks are single-newline separated, richtext.ts). */
+function firstParagraph(text: string): string {
+  return text.split("\n")[0]?.trim() ?? "";
+}
+
+/**
+ * Step-9 trigger "Copy to scene synopsis" (spec §3.4.3): the scene's original step-8 line
+ * becomes the **first paragraph** of the synopsis; existing paragraphs stay below it, so the
+ * action never destroys text. No-op when the synopsis already opens with that line (which is
+ * the state right after a step-8 paste — the one-liner is the synopsis at import time).
+ */
+export const copyLineToSceneSynopsis: Command<
+  CopyLineToSceneSynopsisArgs,
+  CopyLineToSceneSynopsisResult
+> = {
+  name: "scene.copyLineToSynopsis",
+  async run(ctx, args) {
+    const row = (
+      await ctx.tx.query<{
+        title: string;
+        synopsis_json: string | null;
+        synopsis_text: string;
+        snowflake_source: string | null;
+      }>(
+        `SELECT title, synopsis_json, synopsis_text, snowflake_source FROM scene
+          WHERE id = ? AND project_id = ? AND deleted_at IS NULL`,
+        [args.sceneId, args.projectId],
+      )
+    )[0];
+    if (!row) throw new Error("scene not found");
+    const source = parseJson<SnowflakeSource | null>(row.snowflake_source, null);
+    // Scenes pasted before the oneLine field existed fall back to the synopsis's opening line.
+    const line =
+      (source?.oneLine ?? "").trim() || firstParagraph(row.synopsis_text) || row.title.trim();
+    if (line.length === 0) throw new Error("no step-8 line to copy");
+    const existing = row.synopsis_text.trim();
+    if (existing.length > 0 && firstParagraph(existing) === line) {
+      return { result: { copied: false, alreadyPresent: true }, changes: [] };
+    }
+    const now = epochNow();
+    const doc = parseJson<{ type?: string; content?: unknown[] } | null>(row.synopsis_json, null);
+    let synopsisJson: string | null;
+    let synopsisText: string;
+    if (doc !== null && Array.isArray(doc.content)) {
+      const paragraph = { type: "paragraph", content: [{ type: "text", text: line }] };
+      synopsisJson = JSON.stringify({ ...doc, type: "doc", content: [paragraph, ...doc.content] });
+      synopsisText = existing.length > 0 ? `${line}\n${existing}` : line;
+    } else {
+      const built = richTextFromPlain(existing.length > 0 ? `${line}\n${existing}` : line);
+      synopsisJson = built.json === null ? null : JSON.stringify(built.json);
+      synopsisText = built.text;
+    }
+    await ctx.tx.query(
+      `UPDATE scene SET synopsis_json = ?, synopsis_text = ?, updated_at = ?
+        WHERE id = ? AND project_id = ?`,
+      [synopsisJson, synopsisText, now, args.sceneId, args.projectId],
+    );
+    return {
+      result: { copied: true, alreadyPresent: false },
+      changes: [{ table: "scene", op: "update", id: args.sceneId, parentIds: [args.projectId] }],
+    };
+  },
+};
+
 export interface CreateScenesFromListArgs {
   projectId: UUID;
   /** The pasted step-8 list (TSV/CSV-ish/plain lines — see parseSceneList). */
@@ -393,7 +494,11 @@ export const createScenesFromList: Command<CreateScenesFromListArgs, CreateScene
           synopsis.text,
           povId,
           row.estWords,
-          JSON.stringify({ step: 8, line: row.line } satisfies SnowflakeSource),
+          JSON.stringify({
+            step: 8,
+            line: row.line,
+            oneLine: row.oneLine,
+          } satisfies SnowflakeSource),
           now,
           now,
         ],
@@ -801,7 +906,8 @@ export const setSceneLore: Command<SetSceneLoreArgs, void> = {
   },
 };
 
-function parseJson<T>(value: string, fallback: T): T {
+function parseJson<T>(value: string | null, fallback: T): T {
+  if (value === null) return fallback;
   try {
     return JSON.parse(value) as T;
   } catch {

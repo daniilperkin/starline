@@ -76,6 +76,9 @@ export function tagColorFor(name: string): string {
 export interface SnowflakeSource {
   step: 8 | 9;
   line: number;
+  /** The original step-8 one-line, kept so step 9's "Copy to scene synopsis" can always
+   *  restore it (older rows predate the field — callers fall back to the synopsis text). */
+  oneLine?: string;
 }
 
 /** The editable scalar subset of a scene — the scene editor's fields minus joins. */
@@ -119,11 +122,13 @@ export interface SceneDetail extends SceneSummary {
   tagIds: UUID[];
 }
 
-/** The slice of a scene the S8_* validators read. */
+/** The slice of a scene the S8_* / S9_* validators read. */
 export interface SceneContextInfo {
   id: UUID;
   povCharacterId: UUID | null;
   chapterId: UUID | null;
+  /** Plain-text word count of the scene synopsis (S9_SCENE_THIN, spec §3.4.2). */
+  synopsisWords: number;
 }
 
 export interface PartSummary {

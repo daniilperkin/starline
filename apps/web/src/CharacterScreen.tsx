@@ -10,7 +10,14 @@ import {
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { draftOf, patchOf } from "./characterDraft";
-import { useCharacters, useDeleteCharacter, useProjects, useUpdateCharacter } from "./data";
+import {
+  useCharacters,
+  useDeleteCharacter,
+  useProjects,
+  useRestoreEntity,
+  useUpdateCharacter,
+} from "./data";
+import { useUndoStore } from "./undo";
 import { useAutosave } from "./useAutosave";
 
 const ARC_TYPES: readonly ArcType[] = [
@@ -45,6 +52,8 @@ function DossierForm({ projectId, character }: { projectId: UUID; character: Cha
   const navigate = useNavigate();
   const update = useUpdateCharacter();
   const remove = useDeleteCharacter();
+  const restore = useRestoreEntity();
+  const pushUndo = useUndoStore((state) => state.push);
 
   useAutosave(draft, async (value) => {
     const patch = patchOf(value);
@@ -67,6 +76,9 @@ function DossierForm({ projectId, character }: { projectId: UUID; character: Cha
       return;
     }
     await remove.mutateAsync({ projectId, characterId: character.id }).catch(() => undefined);
+    pushUndo(messages.undo.characterDeleted, async () => {
+      await restore.mutateAsync({ projectId, entityType: "character", entityId: character.id });
+    });
     await navigate({ to: "/people" });
   };
 

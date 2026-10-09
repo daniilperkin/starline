@@ -140,7 +140,7 @@ plotline joins, merge-on-reimport by `snowflakeSource.line` (no duplicates on re
 **Exit**: paste 40 lines → 40 scenes; reorder and reassign chapters; scene editor
 round-trips; the "40-scene outline" milestone is reachable end-to-end.
 
-### Slice 5 — Step 9 + dashboard + M1 hardening
+### Slice 5 — Step 9 + dashboard + M1 hardening (**built**; phones verified via `verify-android`)
 
 **Screens**: Step 9 (accordion over the scene list; synopsis expansion per scene; "Copy to
 scene synopsis" trigger); Plan dashboard (progress ring, entity counts, words vs target,

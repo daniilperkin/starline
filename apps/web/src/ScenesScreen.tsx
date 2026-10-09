@@ -1,4 +1,16 @@
 import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  DragOverlay,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   type ChapterSummary,
   format,
   messages,
@@ -7,7 +19,7 @@ import {
   type SceneSummary,
   type UUID,
 } from "@starline/core";
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import {
   useCreateChapter,
   useCreateScene,
@@ -16,10 +28,13 @@ import {
   useMoveChapter,
   useMoveScene,
   useProjects,
+  useRestoreEntity,
   useSceneTree,
+  useSetScenePlacement,
   useUpdateChapter,
 } from "./data";
 import { SceneSheet } from "./SceneSheet";
+import { useUndoStore } from "./undo";
 
 const numberFormat = new Intl.NumberFormat();
 
@@ -45,8 +60,12 @@ export function ScenesScreen() {
   const deleteChapter = useDeleteChapter();
   const moveScene = useMoveScene();
   const deleteScene = useDeleteScene();
+  const restore = useRestoreEntity();
+  const setPlacement = useSetScenePlacement();
+  const pushUndo = useUndoStore((state) => state.push);
 
   const [sheetSceneId, setSheetSceneId] = useState<UUID | null>(null);
+  const [activeSceneId, setActiveSceneId] = useState<UUID | null>(null);
   const [sceneMenuFor, setSceneMenuFor] = useState<UUID | null>(null);
   const [moveMenuFor, setMoveMenuFor] = useState<UUID | null>(null);
   const [chapterMenuFor, setChapterMenuFor] = useState<UUID | null>(null);
@@ -55,6 +74,14 @@ export function ScenesScreen() {
   const [renamingChapter, setRenamingChapter] = useState<UUID | null>(null);
   const [renameText, setRenameText] = useState("");
   const [newChapterTitle, setNewChapterTitle] = useState("");
+
+  // Long-press (220 ms) drag on touch; a 6 px distance threshold for mouse so clicks pass
+  // through. Keyboard users keep the row-menu move/reassign path — drag is never the only way
+  // (spec §4.3.2 a11y rule).
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 10 } }),
+  );
 
   const chapters = useMemo(() => tree.data?.chapters ?? [], [tree.data]);
   const scenes = useMemo(
@@ -96,28 +123,77 @@ export function ScenesScreen() {
     setSceneDeleteConfirm(null);
   };
 
-  const moveSceneBy = (scene: SceneSummary, group: SceneGroup, direction: -1 | 1) => {
+  const moveSceneBy = async (scene: SceneSummary, group: SceneGroup, direction: -1 | 1) => {
     const index = group.scenes.findIndex((candidate) => candidate.id === scene.id);
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= group.scenes.length) return;
-    if (direction === -1) {
-      const before = group.scenes[targetIndex];
-      moveScene.mutate({
-        projectId,
-        sceneId: scene.id,
-        chapterId: scene.chapterId,
-        beforeSceneId: before?.id ?? null,
-      });
-    } else {
-      const before = group.scenes[targetIndex + 1]?.id ?? null;
-      moveScene.mutate({
-        projectId,
-        sceneId: scene.id,
-        chapterId: scene.chapterId,
-        beforeSceneId: before,
-      });
-    }
+    const beforeSceneId =
+      direction === -1
+        ? (group.scenes[targetIndex]?.id ?? null)
+        : (group.scenes[targetIndex + 1]?.id ?? null);
+    const previous = { chapterId: scene.chapterId, orderKey: scene.orderKey };
     closeMenus();
+    try {
+      await moveScene.mutateAsync({
+        projectId,
+        sceneId: scene.id,
+        chapterId: scene.chapterId,
+        beforeSceneId,
+      });
+      pushUndo(messages.undo.sceneMoved, async () => {
+        await setPlacement.mutateAsync({ projectId, sceneId: scene.id, ...previous });
+      });
+    } catch {
+      // The query cache refresh surfaces the failure; nothing to undo.
+    }
+  };
+
+  /** Chapter reassignment from the row menu — same undo shape as a reorder. */
+  const reassignScene = async (scene: SceneSummary, chapterId: UUID | null) => {
+    const previous = { chapterId: scene.chapterId, orderKey: scene.orderKey };
+    closeMenus();
+    try {
+      await moveScene.mutateAsync({ projectId, sceneId: scene.id, chapterId, beforeSceneId: null });
+      pushUndo(messages.undo.sceneMoved, async () => {
+        await setPlacement.mutateAsync({ projectId, sceneId: scene.id, ...previous });
+      });
+    } catch {
+      // The query cache refresh surfaces the failure; nothing to undo.
+    }
+  };
+
+  // Long-press (220 ms) drag on touch; a 6 px distance threshold for mouse so clicks pass
+  // through. Keyboard users keep the row-menu move/reassign path — drag is never the only way
+  // (spec §4.3.2 a11y rule).
+  const activeScene = scenes.find((scene) => scene.id === activeSceneId) ?? null;
+
+  /** Reorder within the same group; the target index decides the `beforeSceneId` insertion. */
+  const onDragEnd = (event: DragEndEvent) => {
+    setActiveSceneId(null);
+    const { active, over } = event;
+    if (over === null || active.id === over.id) return;
+    const group = groups.find((candidate) =>
+      candidate.scenes.some((scene) => scene.id === active.id),
+    );
+    if (!group) return;
+    const activeIndex = group.scenes.findIndex((scene) => scene.id === active.id);
+    const overIndex = group.scenes.findIndex((scene) => scene.id === over.id);
+    if (activeIndex === -1 || overIndex === -1) return;
+    const scene = group.scenes[activeIndex];
+    if (scene === undefined) return;
+    const beforeSceneId =
+      overIndex > activeIndex
+        ? (group.scenes[overIndex + 1]?.id ?? null)
+        : (group.scenes[overIndex]?.id ?? null);
+    const previous = { chapterId: scene.chapterId, orderKey: scene.orderKey };
+    void moveScene
+      .mutateAsync({ projectId, sceneId: scene.id, chapterId: scene.chapterId, beforeSceneId })
+      .then(() => {
+        pushUndo(messages.undo.sceneMoved, async () => {
+          await setPlacement.mutateAsync({ projectId, sceneId: scene.id, ...previous });
+        });
+      })
+      .catch(() => undefined);
   };
 
   const moveChapterBy = (chapter: ChapterSummary, direction: -1 | 1) => {
@@ -193,250 +269,305 @@ export function ScenesScreen() {
         <p className="text-sm text-muted">{messages.scenes.empty}</p>
       ) : null}
 
-      {groups.map((group) => {
-        const chapter = group.chapter;
-        const groupWords = group.scenes.reduce(
-          (sum, scene) =>
-            sum + (scene.bodyWordCount > 0 ? scene.bodyWordCount : (scene.targetWordCount ?? 0)),
-          0,
-        );
-        return (
-          <section key={chapter?.id ?? "unassigned"} className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              {chapter !== null && renamingChapter === chapter.id ? (
-                <input
-                  className="sl-input min-w-0 flex-1"
-                  value={renameText}
-                  aria-label={messages.scenes.chapterRenamed}
-                  onChange={(event) => setRenameText(event.target.value)}
-                  onBlur={() => {
-                    const title = renameText.trim();
-                    if (title.length > 0 && title !== chapter.title) {
-                      updateChapter.mutate({ projectId, chapterId: chapter.id, patch: { title } });
-                    }
-                    setRenamingChapter(null);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") (event.target as HTMLInputElement).blur();
-                    if (event.key === "Escape") setRenamingChapter(null);
-                  }}
-                />
-              ) : (
-                <h2 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-wide uppercase">
-                  {chapter !== null ? chapter.title : messages.scenes.unassigned}
-                </h2>
-              )}
-              <span className="shrink-0 text-xs text-muted">
-                {format(messages.scenes.sceneCount, { n: group.scenes.length })} ·{" "}
-                {format(messages.scenes.wordsEst, { words: numberFormat.format(groupWords) })}
-              </span>
-              {chapter !== null ? (
-                <button
-                  type="button"
-                  className="sl-btn sl-btn-small"
-                  aria-label={`${chapter.title} ⋯`}
-                  onClick={() => {
-                    setChapterMenuFor(chapterMenuFor === chapter.id ? null : chapter.id);
-                    setSceneMenuFor(null);
-                    setMoveMenuFor(null);
-                    setChapterDeleteConfirm(null);
-                  }}
-                >
-                  ⋯
-                </button>
-              ) : null}
-            </div>
-
-            {chapter !== null && chapterMenuFor === chapter.id ? (
-              <div className="sl-row-menu">
-                <button
-                  type="button"
-                  className="sl-btn sl-btn-small"
-                  onClick={() => moveChapterBy(chapter, -1)}
-                >
-                  ↑ {messages.scenes.moveUp}
-                </button>
-                <button
-                  type="button"
-                  className="sl-btn sl-btn-small"
-                  onClick={() => moveChapterBy(chapter, 1)}
-                >
-                  ↓ {messages.scenes.moveDown}
-                </button>
-                <button
-                  type="button"
-                  className="sl-btn sl-btn-small"
-                  onClick={() => {
-                    setRenamingChapter(chapter.id);
-                    setRenameText(chapter.title);
-                    closeMenus();
-                  }}
-                >
-                  ✎ {messages.scenes.rename}
-                </button>
-                <button
-                  type="button"
-                  className="sl-btn sl-btn-small"
-                  data-danger={chapterDeleteConfirm === chapter.id}
-                  onClick={() => {
-                    if (chapterDeleteConfirm !== chapter.id) {
-                      setChapterDeleteConfirm(chapter.id);
-                      window.setTimeout(() => setChapterDeleteConfirm(null), 2500);
-                      return;
-                    }
-                    deleteChapter.mutate({ projectId, chapterId: chapter.id });
-                    closeMenus();
-                  }}
-                >
-                  {chapterDeleteConfirm === chapter.id
-                    ? format(messages.scenes.chapterDeleteConfirm, { n: group.scenes.length })
-                    : `✕ ${messages.scenes.delete}`}
-                </button>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={(event) => setActiveSceneId(event.active.id as UUID)}
+        onDragEnd={onDragEnd}
+      >
+        {groups.map((group) => {
+          const chapter = group.chapter;
+          const groupWords = group.scenes.reduce(
+            (sum, scene) =>
+              sum + (scene.bodyWordCount > 0 ? scene.bodyWordCount : (scene.targetWordCount ?? 0)),
+            0,
+          );
+          return (
+            <section key={chapter?.id ?? "unassigned"} className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                {chapter !== null && renamingChapter === chapter.id ? (
+                  <input
+                    className="sl-input min-w-0 flex-1"
+                    value={renameText}
+                    aria-label={messages.scenes.chapterRenamed}
+                    onChange={(event) => setRenameText(event.target.value)}
+                    onBlur={() => {
+                      const title = renameText.trim();
+                      if (title.length > 0 && title !== chapter.title) {
+                        updateChapter.mutate({
+                          projectId,
+                          chapterId: chapter.id,
+                          patch: { title },
+                        });
+                      }
+                      setRenamingChapter(null);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") (event.target as HTMLInputElement).blur();
+                      if (event.key === "Escape") setRenamingChapter(null);
+                    }}
+                  />
+                ) : (
+                  <h2 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-wide uppercase">
+                    {chapter !== null ? chapter.title : messages.scenes.unassigned}
+                  </h2>
+                )}
+                <span className="shrink-0 text-xs text-muted">
+                  {format(messages.scenes.sceneCount, { n: group.scenes.length })} ·{" "}
+                  {format(messages.scenes.wordsEst, { words: numberFormat.format(groupWords) })}
+                </span>
+                {chapter !== null ? (
+                  <button
+                    type="button"
+                    className="sl-btn sl-btn-small"
+                    aria-label={`${chapter.title} ⋯`}
+                    onClick={() => {
+                      setChapterMenuFor(chapterMenuFor === chapter.id ? null : chapter.id);
+                      setSceneMenuFor(null);
+                      setMoveMenuFor(null);
+                      setChapterDeleteConfirm(null);
+                    }}
+                  >
+                    ⋯
+                  </button>
+                ) : null}
               </div>
-            ) : null}
 
-            <ul className="flex flex-col gap-1.5">
-              {group.scenes.map((scene) => (
-                <li key={scene.id} className="flex flex-col">
-                  <div className="sl-scene-line">
-                    <button
-                      type="button"
-                      className="sl-scene-line-main"
-                      onClick={() => setSheetSceneId(scene.id)}
-                    >
-                      <span className="w-6 shrink-0 text-right text-xs text-muted tabular-nums">
-                        {bookIndex.get(scene.id) ?? ""}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-sm">
-                        {scene.title.length > 0
-                          ? scene.title
-                          : scene.synopsis.text.length > 0
-                            ? scene.synopsis.text
-                            : messages.sceneSheet.titlePlaceholder}
-                      </span>
-                      <span className="shrink-0 text-xs text-muted">
-                        {scene.povName ?? messages.scenes.noPov}
-                      </span>
-                      <span
-                        className="sl-chip shrink-0"
-                        style={{ color: SCENE_STATUS_COLORS[scene.status] }}
-                      >
-                        {messages.scenes.status[scene.status]}
-                      </span>
-                      <span className="w-16 shrink-0 text-right text-xs text-muted tabular-nums">
-                        {scene.bodyWordCount > 0
-                          ? numberFormat.format(scene.bodyWordCount)
-                          : scene.targetWordCount !== null
-                            ? `≈${numberFormat.format(scene.targetWordCount)}`
-                            : ""}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      className="sl-btn sl-btn-small"
-                      aria-label={`⋯ ${scene.title || scene.synopsis.text}`}
-                      onClick={() => {
-                        setSceneMenuFor(sceneMenuFor === scene.id ? null : scene.id);
-                        setMoveMenuFor(null);
-                        setSceneDeleteConfirm(null);
-                        setChapterMenuFor(null);
-                      }}
-                    >
-                      ⋯
-                    </button>
-                  </div>
-
-                  {sceneMenuFor === scene.id ? (
-                    <div className="sl-row-menu">
-                      <button
-                        type="button"
-                        className="sl-btn sl-btn-small"
-                        onClick={() => moveSceneBy(scene, group, -1)}
-                      >
-                        ↑ {messages.scenes.moveUp}
-                      </button>
-                      <button
-                        type="button"
-                        className="sl-btn sl-btn-small"
-                        onClick={() => moveSceneBy(scene, group, 1)}
-                      >
-                        ↓ {messages.scenes.moveDown}
-                      </button>
-                      <button
-                        type="button"
-                        className="sl-btn sl-btn-small"
-                        onClick={() => setMoveMenuFor(moveMenuFor === scene.id ? null : scene.id)}
-                      >
-                        ⇥ {messages.scenes.moveToChapter}
-                      </button>
-                      <button
-                        type="button"
-                        className="sl-btn sl-btn-small"
-                        data-danger={sceneDeleteConfirm === scene.id}
-                        onClick={() => {
-                          if (sceneDeleteConfirm !== scene.id) {
-                            setSceneDeleteConfirm(scene.id);
-                            window.setTimeout(() => setSceneDeleteConfirm(null), 2500);
-                            return;
-                          }
-                          deleteScene.mutate({ projectId, sceneId: scene.id });
-                          closeMenus();
-                        }}
-                      >
-                        {sceneDeleteConfirm === scene.id
-                          ? messages.scenes.deleteConfirm
-                          : `✕ ${messages.scenes.delete}`}
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {moveMenuFor === scene.id ? (
-                    <div className="sl-row-menu">
-                      {chapters
-                        .filter((candidate) => candidate.id !== scene.chapterId)
-                        .map((candidate) => (
-                          <button
-                            key={candidate.id}
-                            type="button"
-                            className="sl-btn sl-btn-small"
-                            onClick={() => {
-                              moveScene.mutate({
-                                projectId,
-                                sceneId: scene.id,
-                                chapterId: candidate.id,
-                                beforeSceneId: null,
-                              });
-                              closeMenus();
-                            }}
-                          >
-                            {candidate.title}
-                          </button>
-                        ))}
-                      {scene.chapterId !== null ? (
-                        <button
-                          type="button"
-                          className="sl-btn sl-btn-small"
-                          onClick={() => {
-                            moveScene.mutate({
+              {chapter !== null && chapterMenuFor === chapter.id ? (
+                <div className="sl-row-menu">
+                  <button
+                    type="button"
+                    className="sl-btn sl-btn-small"
+                    onClick={() => moveChapterBy(chapter, -1)}
+                  >
+                    ↑ {messages.scenes.moveUp}
+                  </button>
+                  <button
+                    type="button"
+                    className="sl-btn sl-btn-small"
+                    onClick={() => moveChapterBy(chapter, 1)}
+                  >
+                    ↓ {messages.scenes.moveDown}
+                  </button>
+                  <button
+                    type="button"
+                    className="sl-btn sl-btn-small"
+                    onClick={() => {
+                      setRenamingChapter(chapter.id);
+                      setRenameText(chapter.title);
+                      closeMenus();
+                    }}
+                  >
+                    ✎ {messages.scenes.rename}
+                  </button>
+                  <button
+                    type="button"
+                    className="sl-btn sl-btn-small"
+                    data-danger={chapterDeleteConfirm === chapter.id}
+                    onClick={() => {
+                      if (chapterDeleteConfirm !== chapter.id) {
+                        setChapterDeleteConfirm(chapter.id);
+                        window.setTimeout(() => setChapterDeleteConfirm(null), 2500);
+                        return;
+                      }
+                      // Capture the chapter's scenes + their keys first: deleteChapter moves
+                      // them to Unassigned, so a real undo restores the chapter and puts every
+                      // scene back where it was (spec §2.3.3 undo).
+                      const placement = group.scenes.map((scene) => ({
+                        sceneId: scene.id,
+                        orderKey: scene.orderKey,
+                      }));
+                      closeMenus();
+                      void deleteChapter
+                        .mutateAsync({ projectId, chapterId: chapter.id })
+                        .then(() => {
+                          pushUndo(messages.undo.chapterDeleted, async () => {
+                            await restore.mutateAsync({
                               projectId,
-                              sceneId: scene.id,
-                              chapterId: null,
-                              beforeSceneId: null,
+                              entityType: "chapter",
+                              entityId: chapter.id,
                             });
-                            closeMenus();
-                          }}
-                        >
-                          {messages.scenes.moveToUnassigned}
-                        </button>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      })}
+                            for (const item of placement) {
+                              await setPlacement.mutateAsync({
+                                projectId,
+                                sceneId: item.sceneId,
+                                chapterId: chapter.id,
+                                orderKey: item.orderKey,
+                              });
+                            }
+                          });
+                        })
+                        .catch(() => undefined);
+                    }}
+                  >
+                    {chapterDeleteConfirm === chapter.id
+                      ? format(messages.scenes.chapterDeleteConfirm, { n: group.scenes.length })
+                      : `✕ ${messages.scenes.delete}`}
+                  </button>
+                </div>
+              ) : null}
+
+              <SortableContext
+                items={group.scenes.map((candidate) => candidate.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <ul className="flex flex-col gap-1.5">
+                  {group.scenes.map((scene) => (
+                    <SortableSceneRow key={scene.id} id={scene.id}>
+                      {({ listeners, isDragging }) => (
+                        <>
+                          <div className="sl-scene-line" data-dragging={isDragging}>
+                            <button
+                              type="button"
+                              className="sl-scene-line-main"
+                              {...listeners}
+                              onClick={() => setSheetSceneId(scene.id)}
+                            >
+                              <span className="w-6 shrink-0 text-right text-xs text-muted tabular-nums">
+                                {bookIndex.get(scene.id) ?? ""}
+                              </span>
+                              <span className="min-w-0 flex-1 truncate text-sm">
+                                {scene.title.length > 0
+                                  ? scene.title
+                                  : scene.synopsis.text.length > 0
+                                    ? scene.synopsis.text
+                                    : messages.sceneSheet.titlePlaceholder}
+                              </span>
+                              <span className="shrink-0 text-xs text-muted">
+                                {scene.povName ?? messages.scenes.noPov}
+                              </span>
+                              <span
+                                className="sl-chip shrink-0"
+                                style={{ color: SCENE_STATUS_COLORS[scene.status] }}
+                              >
+                                {messages.scenes.status[scene.status]}
+                              </span>
+                              <span className="w-16 shrink-0 text-right text-xs text-muted tabular-nums">
+                                {scene.bodyWordCount > 0
+                                  ? numberFormat.format(scene.bodyWordCount)
+                                  : scene.targetWordCount !== null
+                                    ? `≈${numberFormat.format(scene.targetWordCount)}`
+                                    : ""}
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              className="sl-btn sl-btn-small"
+                              aria-label={`⋯ ${scene.title || scene.synopsis.text}`}
+                              onClick={() => {
+                                setSceneMenuFor(sceneMenuFor === scene.id ? null : scene.id);
+                                setMoveMenuFor(null);
+                                setSceneDeleteConfirm(null);
+                                setChapterMenuFor(null);
+                              }}
+                            >
+                              ⋯
+                            </button>
+                          </div>
+
+                          {sceneMenuFor === scene.id ? (
+                            <div className="sl-row-menu">
+                              <button
+                                type="button"
+                                className="sl-btn sl-btn-small"
+                                onClick={() => void moveSceneBy(scene, group, -1)}
+                              >
+                                ↑ {messages.scenes.moveUp}
+                              </button>
+                              <button
+                                type="button"
+                                className="sl-btn sl-btn-small"
+                                onClick={() => void moveSceneBy(scene, group, 1)}
+                              >
+                                ↓ {messages.scenes.moveDown}
+                              </button>
+                              <button
+                                type="button"
+                                className="sl-btn sl-btn-small"
+                                onClick={() =>
+                                  setMoveMenuFor(moveMenuFor === scene.id ? null : scene.id)
+                                }
+                              >
+                                ⇥ {messages.scenes.moveToChapter}
+                              </button>
+                              <button
+                                type="button"
+                                className="sl-btn sl-btn-small"
+                                data-danger={sceneDeleteConfirm === scene.id}
+                                onClick={() => {
+                                  if (sceneDeleteConfirm !== scene.id) {
+                                    setSceneDeleteConfirm(scene.id);
+                                    window.setTimeout(() => setSceneDeleteConfirm(null), 2500);
+                                    return;
+                                  }
+                                  closeMenus();
+                                  void deleteScene
+                                    .mutateAsync({ projectId, sceneId: scene.id })
+                                    .then(() => {
+                                      pushUndo(messages.undo.sceneDeleted, async () => {
+                                        await restore.mutateAsync({
+                                          projectId,
+                                          entityType: "scene",
+                                          entityId: scene.id,
+                                        });
+                                      });
+                                    })
+                                    .catch(() => undefined);
+                                }}
+                              >
+                                {sceneDeleteConfirm === scene.id
+                                  ? messages.scenes.deleteConfirm
+                                  : `✕ ${messages.scenes.delete}`}
+                              </button>
+                            </div>
+                          ) : null}
+
+                          {moveMenuFor === scene.id ? (
+                            <div className="sl-row-menu">
+                              {chapters
+                                .filter((candidate) => candidate.id !== scene.chapterId)
+                                .map((candidate) => (
+                                  <button
+                                    key={candidate.id}
+                                    type="button"
+                                    className="sl-btn sl-btn-small"
+                                    onClick={() => void reassignScene(scene, candidate.id)}
+                                  >
+                                    {candidate.title}
+                                  </button>
+                                ))}
+                              {scene.chapterId !== null ? (
+                                <button
+                                  type="button"
+                                  className="sl-btn sl-btn-small"
+                                  onClick={() => void reassignScene(scene, null)}
+                                >
+                                  {messages.scenes.moveToUnassigned}
+                                </button>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </>
+                      )}
+                    </SortableSceneRow>
+                  ))}
+                </ul>
+              </SortableContext>
+            </section>
+          );
+        })}
+        <DragOverlay dropAnimation={null}>
+          {activeScene !== null ? (
+            <div className="sl-card p-3 text-sm shadow-lg">
+              {activeScene.title.length > 0
+                ? activeScene.title
+                : activeScene.synopsis.text.length > 0
+                  ? activeScene.synopsis.text
+                  : messages.sceneSheet.titlePlaceholder}
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {sheetSceneId !== null ? (
         <SceneSheet
@@ -446,5 +577,39 @@ export function ScenesScreen() {
         />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * One draggable scene row. The drag listeners ride the row's main button: long-press on touch
+ * (TouchSensor delay), 6 px drag on mouse — a quick tap still opens the scene sheet. Keyboard
+ * users keep the row-menu move/reassign path, so drag is never the only route (spec §4.3.2).
+ */
+function SortableSceneRow({
+  id,
+  children,
+}: {
+  id: UUID;
+  children: (props: {
+    listeners: Record<string, unknown> | undefined;
+    isDragging: boolean;
+  }) => ReactNode;
+}) {
+  const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <li
+      ref={setNodeRef}
+      className="flex flex-col"
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : undefined,
+      }}
+    >
+      {children({
+        listeners: listeners as Record<string, unknown> | undefined,
+        isDragging,
+      })}
+    </li>
   );
 }

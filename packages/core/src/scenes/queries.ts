@@ -176,8 +176,9 @@ export async function listSceneContext(
     id: string;
     pov_character_id: string | null;
     chapter_id: string | null;
+    synopsis_text: string;
   }>(
-    `SELECT id, pov_character_id, chapter_id FROM scene
+    `SELECT id, pov_character_id, chapter_id, synopsis_text FROM scene
       WHERE project_id = ? AND deleted_at IS NULL`,
     [projectId],
   );
@@ -185,6 +186,7 @@ export async function listSceneContext(
     id: row.id as UUID,
     povCharacterId: row.pov_character_id as UUID | null,
     chapterId: row.chapter_id as UUID | null,
+    synopsisWords: countWords(row.synopsis_text),
   }));
 }
 

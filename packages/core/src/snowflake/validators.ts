@@ -15,6 +15,7 @@ import {
   type Step5Content,
   type Step6Content,
   type Step8Content,
+  type Step9Content,
 } from "./types";
 
 export interface ValidateContext {
@@ -208,7 +209,25 @@ export function validateStep8(
   return issues;
 }
 
-/** Dispatcher: validators for steps 7 and 9 arrive with their slices. */
+/**
+ * Spec §3.4.2 — S9_* rules: a scene synopsis under 40 words is thin (info only — step 9 is
+ * optional by design, so this nudges rather than gates). Reads the `scene` table via
+ * `ctx.scenes`; without scene context the validator stays silent.
+ */
+export function validateStep9(
+  _content: Step9Content,
+  ctx: ValidateContext = {},
+): ValidationIssue[] {
+  if (ctx.scenes === undefined) return [];
+  const issues: ValidationIssue[] = [];
+  for (const scene of ctx.scenes) {
+    if (scene.synopsisWords < 40)
+      issues.push(issue("S9_SCENE_THIN", "info", `/scenes/${scene.id}`));
+  }
+  return issues;
+}
+
+/** Dispatcher: validators for step 7 arrive with its slice. */
 export function validateStep(
   step: SnowflakeStepNumber,
   content: SnowflakeStepContent,
@@ -229,6 +248,8 @@ export function validateStep(
       return validateStep6(content as Step6Content);
     case 8:
       return validateStep8(content as Step8Content, ctx);
+    case 9:
+      return validateStep9(content as Step9Content, ctx);
     default:
       return [];
   }

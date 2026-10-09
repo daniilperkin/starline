@@ -8,3 +8,4 @@ export * from "./richtext";
 export * from "./scenes";
 export * from "./settings";
 export * from "./snowflake";
+export * from "./trash";

@@ -12,6 +12,7 @@ import {
   type Step4Content,
   type Step6Content,
   type Step8Content,
+  type Step9Content,
 } from "./types";
 import {
   blockingIssues,
@@ -24,6 +25,7 @@ import {
   validateStep5,
   validateStep6,
   validateStep8,
+  validateStep9,
 } from "./validators";
 
 const rich = (text: string): RichText =>
@@ -287,6 +289,7 @@ describe("validateStep8", () => {
     id: "00000000-0000-7000-8000-0000000000aa" as UUID,
     povCharacterId: "00000000-0000-7000-8000-0000000000bb" as UUID,
     chapterId: "00000000-0000-7000-8000-0000000000cc" as UUID,
+    synopsisWords: 120,
     ...overrides,
   });
   const emptyStep8: Step8Content = { generatedSceneIds: [], lastImportedAt: null };
@@ -316,6 +319,33 @@ describe("validateStep8", () => {
 
   it("stays silent without scene context", () => {
     expect(validateStep8(emptyStep8)).toEqual([]);
+  });
+});
+
+describe("validateStep9", () => {
+  const scene = (overrides: Partial<SceneContextInfo> = {}): SceneContextInfo => ({
+    id: "00000000-0000-7000-8000-0000000000aa" as UUID,
+    povCharacterId: null,
+    chapterId: null,
+    synopsisWords: 120,
+    ...overrides,
+  });
+  const step9: Step9Content = { expandedSceneIds: [], skipped: false };
+
+  it("S9_SCENE_THIN: info per scene synopsis under 40 words", () => {
+    const issues = validateStep9(step9, {
+      scenes: [scene(), scene({ id: S3_ID_B, synopsisWords: 12 })],
+    });
+    expect(issues.map((i) => i.code)).toEqual(["S9_SCENE_THIN"]);
+    expect(issues[0]?.severity).toBe("info");
+  });
+
+  it("a fully expanded list passes", () => {
+    expect(validateStep9(step9, { scenes: [scene(), scene()] })).toEqual([]);
+  });
+
+  it("stays silent without scene context", () => {
+    expect(validateStep9(step9)).toEqual([]);
   });
 });
 
@@ -350,7 +380,11 @@ describe("issue catalogue coverage", () => {
       ...validateStep8({ generatedSceneIds: [], lastImportedAt: null }, { scenes: [] }),
       ...validateStep8(
         { generatedSceneIds: [], lastImportedAt: null },
-        { scenes: [{ id: S3_ID_A, povCharacterId: null, chapterId: null }] },
+        { scenes: [{ id: S3_ID_A, povCharacterId: null, chapterId: null, synopsisWords: 10 }] },
+      ),
+      ...validateStep9(
+        { expandedSceneIds: [], skipped: false },
+        { scenes: [{ id: S3_ID_A, povCharacterId: null, chapterId: null, synopsisWords: 10 }] },
       ),
     ];
     const catalogue = en.issues as Record<string, string>;

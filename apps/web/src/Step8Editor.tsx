@@ -72,6 +72,7 @@ export function Step8Editor({ projectId, row }: { projectId: UUID; row: Snowflak
         id: scene.id,
         povCharacterId: scene.povCharacterId,
         chapterId: scene.chapterId,
+        synopsisWords: scene.synopsis.wordCount,
       })),
     [scenes],
   );

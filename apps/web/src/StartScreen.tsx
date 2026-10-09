@@ -1,8 +1,9 @@
 import type { MigrationReport } from "@starline/db";
 import { runMigrations } from "@starline/db";
 import { useCallback, useEffect, useState } from "react";
+import { assessSessionHealth, markSessionOpen, purgeTrashOnOpen } from "./health";
 import type { LibrarySession } from "./session";
-import { listLibraries, openLibrary } from "./storage";
+import { cleanupTempFiles, listLibraries, openLibrary } from "./storage";
 import { ThemeButton } from "./ThemeButton";
 
 export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => void }) {
@@ -13,6 +14,9 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
 
   const refresh = useCallback(async () => {
     try {
+      // Sweep orphaned snapshot temp files first — a crash mid-snapshot can leave one behind
+      // and it must not read as a library (spec §4.5.3).
+      await cleanupTempFiles().catch(() => 0);
       setLibraries(await listLibraries());
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -37,11 +41,17 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
           await transport.dispose().catch(() => undefined);
           throw cause;
         }
+        // Crash marker + integrity check + 30-day trash purge (spec §2.3.3, §5.3). The
+        // health snapshot is read BEFORE the marker is overwritten so the previous session's
+        // unclean exit is still visible.
+        const health = await assessSessionHealth(driver);
+        await markSessionOpen(driver);
+        await purgeTrashOnOpen(driver);
         if (create) {
           // Spec §5.4.1: ask the browser to make this origin's storage persistent on first creation.
           void navigator.storage?.persist?.();
         }
-        onOpen({ driver, transport, name, info, report });
+        onOpen({ driver, transport, name, info, report, health });
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause));
       } finally {

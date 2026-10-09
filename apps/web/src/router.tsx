@@ -13,6 +13,7 @@ import { PeopleScreen } from "./PeopleScreen";
 import { PlanScreen } from "./PlanScreen";
 import { ScenesScreen } from "./ScenesScreen";
 import { StepScreen } from "./StepScreen";
+import { TrashScreen } from "./TrashScreen";
 
 const rootRoute = createRootRoute({ component: AppLayout });
 
@@ -40,6 +41,12 @@ const scenesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/scenes",
   component: ScenesScreen,
+});
+
+const trashRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/trash",
+  component: TrashScreen,
 });
 
 const peopleRoute = createRoute({
@@ -71,6 +78,7 @@ const routeTree = rootRoute.addChildren([
   planRoute,
   stepRoute,
   scenesRoute,
+  trashRoute,
   peopleRoute,
   characterRoute,
   worldRoute,

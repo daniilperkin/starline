@@ -33,7 +33,7 @@ export function RichTextEditor({
 
   return (
     <div className="sl-editor">
-      <div className="sl-editor-toolbar" role="toolbar" aria-label={messages.prompts.heading}>
+      <div className="sl-editor-toolbar" role="toolbar" aria-label={messages.editor.toolbar}>
         <button
           type="button"
           className={buttonClass}
@@ -41,7 +41,7 @@ export function RichTextEditor({
           aria-pressed={editor.isActive("bold")}
           onClick={() => editor.chain().focus().toggleBold().run()}
         >
-          <strong>B</strong>
+          <strong aria-hidden="true">B</strong>
         </button>
         <button
           type="button"
@@ -50,16 +50,16 @@ export function RichTextEditor({
           aria-pressed={editor.isActive("italic")}
           onClick={() => editor.chain().focus().toggleItalic().run()}
         >
-          <em>I</em>
+          <em aria-hidden="true">I</em>
         </button>
         <button
           type="button"
           className={buttonClass}
-          aria-label={messages.editor.heading}
+          aria-label={messages.editor.headingLabel}
           aria-pressed={editor.isActive("heading", { level: 2 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
         >
-          H2
+          <span aria-hidden="true">H2</span>
         </button>
         <button
           type="button"
@@ -68,7 +68,7 @@ export function RichTextEditor({
           disabled={!editor.can().undo()}
           onClick={() => editor.chain().focus().undo().run()}
         >
-          ↶
+          <span aria-hidden="true">↶</span>
         </button>
       </div>
       <EditorContent editor={editor} className="sl-editor-body" />

@@ -42,11 +42,12 @@ refused with a clear error.
 ## Gates (all green means shippable)
 
 - `pnpm typecheck` · `pnpm lint`
-- `pnpm test` — the same contract suite on both drivers + core domain unit tests (86)
-- `pnpm chaos` — kill-9 chaos harness (durability of acknowledged writes)
-- `node scripts/verify-web.mjs` — wizard E2E: library + story + steps 1–6 (character card, extraction, dossier edit, step-4 seed, storylines, sections, Stale badge) + step 8 (paste 40 scenes, merge re-import) + Scenes tab (reorder, reassign, editor round-trip) + persistence across reload/reopen (serves its own dev build)
+- `pnpm test` — the same contract suite on both drivers + core domain unit tests (97, incl. slice-5 trash/undo integration on rusqlite)
+- `pnpm chaos` — kill-9 chaos harness (durability of acknowledged writes, native driver)
+- `pnpm chaos:web` — web crash harness (random writes killed mid-flight + reopen assertions: crash banner, integrity, FK sanity)
+- `node scripts/verify-web.mjs` — wizard E2E: library + story + steps 1–6 (character card, extraction, dossier edit, step-4 seed, storylines, sections, Stale badge) + step 8 (paste 40 scenes, merge re-import) + Scenes tab (reorder, reassign, editor round-trip) + slice 5 (step 9, dashboard, trash, undo, drag, axe scans) + persistence across reload/reopen (serves its own dev build)
 - `node scripts/verify-pwa.mjs` — service-worker + offline reopen keeping the plan (serves its own preview build)
 - `node scripts/check-contrast.mjs` — WCAG pin for the star-library palette (accent-is-decoration rule)
 - `node scripts/check-no-network.mjs` — offline-complete invariant (no network primitives in apps/*/src or packages/*/src)
-- `node scripts/verify-android.mjs` — scripted emulator QA: fresh APK install → wizard steps 1–4 (character card, step-4 seed, rich-text editors) → step-8 paste import → Scenes tab + scene-sheet round-trip → back-button/minimise → cold relaunch (booted emulator required)
+- `node scripts/verify-android.mjs` — scripted emulator QA: fresh APK install → wizard steps 1–4 (character card, step-4 seed, rich-text editors) → step-8 paste import → Scenes tab + scene-sheet round-trip → slice 5 on-device (step 9, dashboard + snapshot, trash, undo, drag) → back-button/minimise → cold relaunch (booted emulator required)
 - `node scripts/cargo.mjs build` — native storage crate
