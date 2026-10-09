@@ -13,4 +13,5 @@ export * from "./search";
 export * from "./settings";
 export * from "./snowflake";
 export * from "./tags";
+export * from "./timeline";
 export * from "./trash";

@@ -22,6 +22,7 @@ import {
   createScene,
   createScenesFromList,
   createTag,
+  createTimelineEvent,
   deleteChapter,
   deleteCharacter,
   deleteFieldDef,
@@ -31,6 +32,7 @@ import {
   deleteRelationshipGroup,
   deleteScene,
   deleteTag,
+  deleteTimelineEvent,
   type EntityType,
   emptyTrash,
   executeCommand,
@@ -41,6 +43,8 @@ import {
   getPlotlineGrid,
   getRelationshipMatrix,
   getSceneDetail,
+  getTimeline,
+  getTimelineCoverage,
   type LoreEntryPatch,
   type LoreKind,
   linkMention,
@@ -71,6 +75,7 @@ import {
   moveFieldDef,
   moveLoreEntry,
   moveScene,
+  moveTimelineItem,
   type PartSummary,
   type PossibleMention,
   purgeExpiredTrash,
@@ -105,6 +110,7 @@ import {
   updateRelationship,
   updateRelationshipGroup,
   updateScene,
+  updateTimelineEvent,
 } from "@starline/core";
 import type { TauriStorageDriver } from "@starline/driver-wasm";
 import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
@@ -147,6 +153,8 @@ bus.subscribe(() => {
   void queryClient.invalidateQueries({ queryKey: ["fieldDefs"] });
   void queryClient.invalidateQueries({ queryKey: ["plotlineGrid"] });
   void queryClient.invalidateQueries({ queryKey: ["plotlineBalance"] });
+  // Slice 10: the timeline lanes, the tray and the conflict list.
+  void queryClient.invalidateQueries({ queryKey: ["timeline"] });
 });
 
 let lastActivityAt = Date.now();
@@ -454,6 +462,39 @@ export function usePlotlineBalance(projectId: UUID | null) {
   });
 }
 
+// ---- Slice 10: the timeline ---------------------------------------------------------------
+
+export const useCreateTimelineEvent = () => useSceneCommand(createTimelineEvent);
+export const useUpdateTimelineEvent = () => useSceneCommand(updateTimelineEvent);
+export const useDeleteTimelineEvent = () => useSceneCommand(deleteTimelineEvent);
+export const useMoveTimelineItem = () => useSceneCommand(moveTimelineItem);
+
+/** Lanes, placed items, the no-time tray and the "two places at once" warnings. */
+export function useTimeline(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["timeline", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return getTimeline(session.driver, projectId);
+    },
+  });
+}
+
+/** Placed vs unplaced scenes, for the header line. */
+export function useTimelineCoverage(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["timeline", "coverage", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return getTimelineCoverage(session.driver, projectId);
+    },
+  });
+}
+
 /** Dashboard aggregates (counts, estimate, recent edits) for one project. */
 export function useDashboardStats(projectId: UUID | null) {
   const session = useSessionStore((state) => state.session);
@@ -575,6 +616,11 @@ const chaosCommands: Record<string, Command<never, unknown>> = {
   moveFieldDef: moveFieldDef as Command<never, unknown>,
   deleteFieldDef: deleteFieldDef as Command<never, unknown>,
   setScenePlotline: setScenePlotline as Command<never, unknown>,
+  setSceneCharacters: setSceneCharacters as Command<never, unknown>,
+  createTimelineEvent: createTimelineEvent as Command<never, unknown>,
+  updateTimelineEvent: updateTimelineEvent as Command<never, unknown>,
+  deleteTimelineEvent: deleteTimelineEvent as Command<never, unknown>,
+  moveTimelineItem: moveTimelineItem as Command<never, unknown>,
 };
 
 if (import.meta.env.DEV || import.meta.env.VITE_STARLINE_DEV === "1") {
@@ -618,6 +664,12 @@ if (import.meta.env.DEV || import.meta.env.VITE_STARLINE_DEV === "1") {
       const session = useSessionStore.getState().session;
       if (!session) throw new Error("no library open");
       return runConsistencyChecks(session.driver, projectId as UUID);
+    },
+    /** Slice-10 read for the E2E journey: the timeline lanes, tray and conflicts. */
+    timeline: (projectId: string) => {
+      const session = useSessionStore.getState().session;
+      if (!session) throw new Error("no library open");
+      return getTimeline(session.driver, projectId as UUID);
     },
     /** Slice-9 reads for the E2E journey: tags with counts, the grid and its balance. */
     tags: (projectId: string) => {

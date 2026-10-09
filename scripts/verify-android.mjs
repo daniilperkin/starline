@@ -586,6 +586,69 @@ try {
   console.log("PASS  tag manager on-device");
   await page.getByRole("link", { name: "Plan" }).click();
 
+  // 2p. Slice 10 on-device: the timeline — place a scene from the no-time tray, add a world
+  // event, then drag a block with a real touch-driven pointer and check the row changed.
+  await page.getByRole("link", { name: "World" }).click();
+  await page.getByTestId("sl-world-timeline").click();
+  await page.getByTestId("sl-tray-row").first().waitFor({ timeout: 60000 });
+  const emuTray = await page.getByTestId("sl-tray-row").count();
+  console.log(`PERF  timeline tray rows on-device: ${emuTray}`);
+  await page.getByTestId("sl-tray-input").first().fill("1247-03-12 18:00");
+  await page.getByTestId("sl-tray-place").first().click();
+  await page.waitForTimeout(1500);
+  const emuPlaced = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query(
+      "SELECT id, story_time FROM scene WHERE story_time IS NOT NULL AND deleted_at IS NULL",
+    );
+    return rows;
+  });
+  if (emuPlaced.length !== 1) {
+    throw new Error(`tray place did not persist on-device: ${JSON.stringify(emuPlaced)}`);
+  }
+  console.log(`PASS  timeline tray place on-device (story time ${emuPlaced[0].story_time})`);
+
+  await page.getByTestId("sl-timeline-add-event").click();
+  await page.getByTestId("sl-event-sheet").waitFor({ timeout: 30000 });
+  await page.getByTestId("sl-event-title").fill("The comet falls");
+  await page.getByTestId("sl-event-time").fill("1247-03-12 20:00");
+  await page.getByTestId("sl-event-save").click();
+  await page.waitForTimeout(1500);
+  const emuEvents = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    return session.driver.query("SELECT title, lane FROM timeline_event WHERE deleted_at IS NULL");
+  });
+  if (emuEvents.length !== 1 || emuEvents[0].lane !== "world") {
+    throw new Error(`timeline event not stored on-device: ${JSON.stringify(emuEvents)}`);
+  }
+  console.log(`PASS  timeline event on-device ("${emuEvents[0].title}")`);
+
+  // Drag the single placed scene to a new story time. The canvas is wider than the phone, so
+  // bring the block into view first — CDP mouse coordinates are viewport-relative.
+  await page.getByTestId("sl-timeline-zoom").selectOption("days");
+  await page.waitForTimeout(600);
+  const emuBlock = page.locator('[data-testid="sl-timeline-block"][data-kind="scene"]').first();
+  await emuBlock.scrollIntoViewIfNeeded();
+  const emuBox = await emuBlock.boundingBox();
+  if (emuBox === null) throw new Error("timeline block has no box on-device");
+  await page.mouse.move(emuBox.x + 10, emuBox.y + emuBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(emuBox.x + 200, emuBox.y + emuBox.height / 2, { steps: 10 });
+  await page.mouse.up();
+  await page.waitForTimeout(1500);
+  const emuAfter = await page.evaluate(async (sceneId) => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query("SELECT story_time FROM scene WHERE id = ?", [sceneId]);
+    return rows[0]?.story_time;
+  }, emuPlaced[0].id);
+  if (Number(emuAfter) === Number(emuPlaced[0].story_time)) {
+    throw new Error("dragging the timeline block did not change the story time on-device");
+  }
+  console.log(`PASS  timeline drag on-device (${emuPlaced[0].story_time} → ${emuAfter})`);
+  await page.screenshot({ path: join(shotDir, "emu-slice10-timeline.png"), fullPage: true });
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.waitForTimeout(500);
+
   // 3. Hardware back: from a step screen back to the plan.
   await page.getByRole("link", { name: "Plan" }).click();
   await page.locator(".sl-step-row").filter({ hasText: "Character descriptions" }).click();

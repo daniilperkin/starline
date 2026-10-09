@@ -773,6 +773,99 @@ try {
   console.log(`  field usage after the fill: ${usageAfter.trim()}`);
   await page.getByRole("link", { name: "Plan" }).click();
 
+  // 4u. Slice 10: the timeline — place a scene from the no-time tray, add a world event, drag a
+  // block to a new story time (asserted against the row, not the pixels) and zoom the axis.
+  await page.getByRole("link", { name: "World" }).click();
+  await page.getByTestId("sl-world-timeline").click();
+  // The tray card paints before the timeline query lands, so wait for a ROW, not the card.
+  await page.getByTestId("sl-tray-row").first().waitFor({ timeout: 30000 });
+  const trayRows = await page.getByTestId("sl-tray-row").count();
+  if (trayRows === 0) throw new Error("no-time tray is empty on a fresh timeline");
+  console.log(`  timeline tray rows: ${trayRows}`);
+
+  await page.getByTestId("sl-tray-input").first().fill("1247-03-12");
+  await page.getByTestId("sl-tray-place").first().click();
+  await page.waitForTimeout(1200);
+  const placed = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const projects = await session.driver.query("SELECT id FROM project LIMIT 1");
+    const timeline = await window.__starlineDev.timeline(projects[0].id);
+    const rows = await session.driver.query(
+      "SELECT story_time FROM scene WHERE story_time IS NOT NULL AND deleted_at IS NULL",
+    );
+    return { noTime: timeline.noTime.length, placedRows: rows.length, first: rows[0]?.story_time };
+  });
+  if (placed.placedRows !== 1) throw new Error(`tray place did not persist (${placed.placedRows})`);
+  if (!Number.isFinite(Number(placed.first)) || Number(placed.first) <= 0) {
+    throw new Error(`story time looks wrong: ${placed.first}`);
+  }
+  console.log(`  timeline: scene placed at story time ${placed.first}, tray now ${placed.noTime}`);
+  await page.getByTestId("sl-timeline-block").first().waitFor({ timeout: 20000 });
+
+  // A world event, created through the sheet.
+  await page.getByTestId("sl-timeline-add-event").click();
+  await page.getByTestId("sl-event-sheet").waitFor({ timeout: 20000 });
+  await page.getByTestId("sl-event-title").fill("The comet falls");
+  await page.getByTestId("sl-event-time").fill("1247-03-12 20:00");
+  await page.getByTestId("sl-event-label").fill("the night of the storm");
+  await page.getByTestId("sl-event-save").click();
+  await page.waitForTimeout(1200);
+  const events = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query(
+      "SELECT title, story_time_label, lane FROM timeline_event WHERE deleted_at IS NULL",
+    );
+    return rows;
+  });
+  if (events.length !== 1 || events[0].title !== "The comet falls") {
+    throw new Error(`event not stored: ${JSON.stringify(events)}`);
+  }
+  if (events[0].lane !== "world") throw new Error(`event landed in lane ${events[0].lane}`);
+  console.log(`  timeline event: "${events[0].title}" in the world lane`);
+
+  // Drag the scene block to a new time. Zoom to days first so the gesture is human-sized.
+  await page.getByTestId("sl-timeline-zoom").selectOption("days");
+  await page.waitForTimeout(400);
+  const before = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query(
+      "SELECT id, story_time FROM scene WHERE story_time IS NOT NULL AND deleted_at IS NULL",
+    );
+    return rows[0];
+  });
+  const sceneBlock = page.locator('[data-testid="sl-timeline-block"][data-kind="scene"]').first();
+  await sceneBlock.scrollIntoViewIfNeeded();
+  const blockBox = await sceneBlock.boundingBox();
+  if (blockBox === null) throw new Error("scene block has no box");
+  await page.mouse.move(blockBox.x + Math.min(20, blockBox.width / 2), blockBox.y + blockBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(blockBox.x + 240, blockBox.y + blockBox.height / 2, { steps: 10 });
+  await page.mouse.up();
+  await page.waitForTimeout(1200);
+  const after = await page.evaluate(async (sceneId) => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query("SELECT story_time FROM scene WHERE id = ?", [sceneId]);
+    return rows[0]?.story_time;
+  }, before.id);
+  if (Number(after) === Number(before.story_time)) {
+    throw new Error("dragging the block did not change the story time");
+  }
+  console.log(`  timeline drag: ${before.story_time} → ${after}`);
+  await page.screenshot({ path: join(shotDir, "19-timeline.png"), fullPage: true });
+  await axeScan("timeline");
+
+  // Zoom changes the axis labels.
+  await page.getByTestId("sl-timeline-zoom").selectOption("years");
+  await page.waitForTimeout(500);
+  const yearTicks = await page.getByTestId("sl-timeline-axis").innerText();
+  await page.getByTestId("sl-timeline-zoom").selectOption("hours");
+  await page.waitForTimeout(500);
+  const hourTicks = await page.getByTestId("sl-timeline-axis").innerText();
+  if (yearTicks === hourTicks) throw new Error("zoom did not change the axis labels");
+  console.log(`  timeline zoom: "${yearTicks.replace(/\s+/g, " ").trim()}" → "${hourTicks.replace(/\s+/g, " ").trim()}"`);
+  await page.getByTestId("sl-timeline-zoom").selectOption("years");
+  await page.getByRole("link", { name: "Plan" }).click();
+
   // Phone-path budgets (spec §5.1): the same reads the panels run, through the wasm driver.
   const perf = await page.evaluate(async () => {
     const session = window.__starlineDev.session();

@@ -20,6 +20,7 @@ import {
 } from "./data";
 import { LoreSheet } from "./LoreSheet";
 import { useNavigationStore } from "./navigation";
+import { TimelineView } from "./timeline/TimelineView";
 
 /** World tab v1 (PLAN slice 6): the category tree plus the entry list of the chosen node. */
 
@@ -46,6 +47,7 @@ export function WorldScreen() {
   const [selection, setSelection] = useState<Selection>(ALL);
   const [query, setQuery] = useState("");
   const [openEntryId, setOpenEntryId] = useState<UUID | null>(null);
+  const [mode, setMode] = useState<"lore" | "timeline">("lore");
   const [newCategory, setNewCategory] = useState("");
   const [newEntry, setNewEntry] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -179,179 +181,206 @@ export function WorldScreen() {
         <span className="sl-chip">
           {messages.world.entries.replace("{n}", String(entries.data?.length ?? 0))}
         </span>
+        <fieldset className="sl-segmented sl-fieldset ml-auto">
+          <legend className="sr-only">{messages.world.heading}</legend>
+          {(["lore", "timeline"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              className="sl-segment"
+              aria-pressed={mode === option}
+              data-testid={`sl-world-${option}`}
+              onClick={() => setMode(option)}
+            >
+              {option === "lore" ? messages.timeline.lore : messages.timeline.heading}
+            </button>
+          ))}
+        </fieldset>
       </header>
 
-      <input
-        className="sl-input"
-        placeholder={messages.world.search}
-        aria-label={messages.world.search}
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-      />
+      {mode === "timeline" && projectId !== null ? <TimelineView projectId={projectId} /> : null}
 
-      {error !== null ? (
-        <p className="sl-error" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      <section aria-label={messages.world.heading} className="flex flex-col gap-1">
-        <button
-          type="button"
-          className="sl-tree-row"
-          data-active={selection === ALL}
-          onClick={() => setSelection(ALL)}
-        >
-          <span aria-hidden="true">✧</span>
-          <span className="flex-1 text-left">{messages.tabs.world}</span>
-          <span className="text-xs text-muted">{entries.data?.length ?? 0}</span>
-        </button>
-        {tree.map((node) => (
-          <CategoryRow
-            key={node.id}
-            node={node}
-            depth={0}
-            selection={selection}
-            onSelect={setSelection}
-            onDelete={(category) => void onDeleteCategory(category)}
+      {mode === "timeline" ? null : (
+        <>
+          <input
+            className="sl-input"
+            placeholder={messages.world.search}
+            aria-label={messages.world.search}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
           />
-        ))}
-        {uncategorisedCount > 0 ? (
-          <button
-            type="button"
-            className="sl-tree-row"
-            data-active={selection === UNCATEGORISED}
-            onClick={() => setSelection(UNCATEGORISED)}
-          >
-            <span aria-hidden="true">◦</span>
-            <span className="flex-1 text-left">{messages.world.uncategorised}</span>
-            <span className="text-xs text-muted">{uncategorisedCount}</span>
-          </button>
-        ) : null}
-      </section>
 
-      <form
-        className="flex gap-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void onAddCategory();
-        }}
-      >
-        <input
-          className="sl-input flex-1"
-          placeholder={messages.world.newCategoryName}
-          aria-label={messages.world.newCategory}
-          value={newCategory}
-          onChange={(event) => setNewCategory(event.target.value)}
-        />
-        <button type="submit" className="sl-btn" disabled={newCategory.trim().length === 0}>
-          {messages.world.newCategory}
-        </button>
-      </form>
+          {error !== null ? (
+            <p className="sl-error" role="alert">
+              {error}
+            </p>
+          ) : null}
 
-      <form
-        className="flex gap-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void onAddEntry();
-        }}
-      >
-        <input
-          className="sl-input flex-1"
-          placeholder={messages.world.newEntryName}
-          aria-label={messages.world.newEntry}
-          value={newEntry}
-          onChange={(event) => setNewEntry(event.target.value)}
-        />
-        <button type="submit" className="sl-btn" disabled={newEntry.trim().length === 0}>
-          {messages.world.newEntry}
-        </button>
-      </form>
-
-      {visible.length === 0 ? (
-        <p className="text-sm text-muted">
-          {query.trim().length > 0
-            ? messages.world.noResults.replace("{query}", query.trim())
-            : messages.world.empty}
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {visible.map((entry) => (
-            <li key={entry.id} className="sl-lore-card">
-              <button
-                type="button"
-                className="flex w-full items-start gap-3 p-4 text-left"
-                onClick={() => setOpenEntryId(entry.id)}
-              >
-                <span className="sl-lore-glyph" aria-hidden="true">
-                  {LORE_KIND_GLYPHS[entry.kind]}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">
-                    {entry.pinned ? <span aria-hidden="true">✦ </span> : null}
-                    {entry.name}
-                  </span>
-                  {entry.summary.length > 0 ? (
-                    <span className="block truncate text-xs text-muted">{entry.summary}</span>
-                  ) : null}
-                </span>
-                <span className="sl-chip">{kindLabel(entry)}</span>
-              </button>
-              <div className="flex justify-end gap-1 px-2 pb-2">
-                <button
-                  type="button"
-                  className="sl-btn"
-                  aria-label={`${messages.world.moveUp}: ${entry.name}`}
-                  onClick={() => void onMoveEntry(entry, -1)}
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  className="sl-btn"
-                  aria-label={`${messages.world.moveDown}: ${entry.name}`}
-                  onClick={() => void onMoveEntry(entry, 1)}
-                >
-                  ↓
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {cascadeFor !== null ? (
-        <div className="sl-cascade" role="alertdialog" aria-label={messages.world.deleteCategory}>
-          <p className="text-sm">
-            {messages.world.cascadeWarning.replace("{n}", String(cascadeFor.count))}
-          </p>
-          <div className="flex gap-2">
+          <section aria-label={messages.world.heading} className="flex flex-col gap-1">
             <button
               type="button"
-              className="sl-btn"
-              onClick={() => {
-                const category = (categories.data ?? []).find((row) => row.id === cascadeFor.id);
-                if (category) void onDeleteCategory(category);
-              }}
+              className="sl-tree-row"
+              data-active={selection === ALL}
+              onClick={() => setSelection(ALL)}
             >
-              {messages.world.cascadeConfirm}
+              <span aria-hidden="true">✧</span>
+              <span className="flex-1 text-left">{messages.tabs.world}</span>
+              <span className="text-xs text-muted">{entries.data?.length ?? 0}</span>
             </button>
-            <button type="button" className="sl-btn" onClick={() => setCascadeFor(null)}>
-              {messages.common.cancel}
-            </button>
-          </div>
-        </div>
-      ) : null}
+            {tree.map((node) => (
+              <CategoryRow
+                key={node.id}
+                node={node}
+                depth={0}
+                selection={selection}
+                onSelect={setSelection}
+                onDelete={(category) => void onDeleteCategory(category)}
+              />
+            ))}
+            {uncategorisedCount > 0 ? (
+              <button
+                type="button"
+                className="sl-tree-row"
+                data-active={selection === UNCATEGORISED}
+                onClick={() => setSelection(UNCATEGORISED)}
+              >
+                <span aria-hidden="true">◦</span>
+                <span className="flex-1 text-left">{messages.world.uncategorised}</span>
+                <span className="text-xs text-muted">{uncategorisedCount}</span>
+              </button>
+            ) : null}
+          </section>
 
-      {openEntryId !== null ? (
-        <LoreSheet
-          projectId={project.id}
-          entryId={openEntryId}
-          categories={categories.data ?? []}
-          entries={entries.data ?? []}
-          onClose={() => setOpenEntryId(null)}
-        />
-      ) : null}
+          <form
+            className="flex gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void onAddCategory();
+            }}
+          >
+            <input
+              className="sl-input flex-1"
+              placeholder={messages.world.newCategoryName}
+              aria-label={messages.world.newCategory}
+              value={newCategory}
+              onChange={(event) => setNewCategory(event.target.value)}
+            />
+            <button type="submit" className="sl-btn" disabled={newCategory.trim().length === 0}>
+              {messages.world.newCategory}
+            </button>
+          </form>
+
+          <form
+            className="flex gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void onAddEntry();
+            }}
+          >
+            <input
+              className="sl-input flex-1"
+              placeholder={messages.world.newEntryName}
+              aria-label={messages.world.newEntry}
+              value={newEntry}
+              onChange={(event) => setNewEntry(event.target.value)}
+            />
+            <button type="submit" className="sl-btn" disabled={newEntry.trim().length === 0}>
+              {messages.world.newEntry}
+            </button>
+          </form>
+
+          {visible.length === 0 ? (
+            <p className="text-sm text-muted">
+              {query.trim().length > 0
+                ? messages.world.noResults.replace("{query}", query.trim())
+                : messages.world.empty}
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {visible.map((entry) => (
+                <li key={entry.id} className="sl-lore-card">
+                  <button
+                    type="button"
+                    className="flex w-full items-start gap-3 p-4 text-left"
+                    onClick={() => setOpenEntryId(entry.id)}
+                  >
+                    <span className="sl-lore-glyph" aria-hidden="true">
+                      {LORE_KIND_GLYPHS[entry.kind]}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">
+                        {entry.pinned ? <span aria-hidden="true">✦ </span> : null}
+                        {entry.name}
+                      </span>
+                      {entry.summary.length > 0 ? (
+                        <span className="block truncate text-xs text-muted">{entry.summary}</span>
+                      ) : null}
+                    </span>
+                    <span className="sl-chip">{kindLabel(entry)}</span>
+                  </button>
+                  <div className="flex justify-end gap-1 px-2 pb-2">
+                    <button
+                      type="button"
+                      className="sl-btn"
+                      aria-label={`${messages.world.moveUp}: ${entry.name}`}
+                      onClick={() => void onMoveEntry(entry, -1)}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="sl-btn"
+                      aria-label={`${messages.world.moveDown}: ${entry.name}`}
+                      onClick={() => void onMoveEntry(entry, 1)}
+                    >
+                      ↓
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {cascadeFor !== null ? (
+            <div
+              className="sl-cascade"
+              role="alertdialog"
+              aria-label={messages.world.deleteCategory}
+            >
+              <p className="text-sm">
+                {messages.world.cascadeWarning.replace("{n}", String(cascadeFor.count))}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="sl-btn"
+                  onClick={() => {
+                    const category = (categories.data ?? []).find(
+                      (row) => row.id === cascadeFor.id,
+                    );
+                    if (category) void onDeleteCategory(category);
+                  }}
+                >
+                  {messages.world.cascadeConfirm}
+                </button>
+                <button type="button" className="sl-btn" onClick={() => setCascadeFor(null)}>
+                  {messages.common.cancel}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {openEntryId !== null ? (
+            <LoreSheet
+              projectId={project.id}
+              entryId={openEntryId}
+              categories={categories.data ?? []}
+              entries={entries.data ?? []}
+              onClose={() => setOpenEntryId(null)}
+            />
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

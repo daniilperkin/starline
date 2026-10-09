@@ -1325,3 +1325,126 @@ body {
   gap: 0.4rem;
   padding: 0.7rem;
 }
+
+/* ---- Slice 10: timeline v1 (spec §4.4.1) ------------------------------------------------ */
+
+.sl-timeline-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sl-timeline-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  border: 1px solid var(--sl-border);
+  border-radius: 0.7rem;
+  background: var(--sl-surface);
+  -webkit-overflow-scrolling: touch;
+}
+
+.sl-timeline-canvas {
+  position: relative;
+  min-height: 60px;
+}
+
+.sl-timeline-axis {
+  position: relative;
+  height: 26px;
+  border-bottom: 1px solid var(--sl-border);
+}
+
+.sl-timeline-tick {
+  position: absolute;
+  top: 6px;
+  transform: translateX(-50%);
+  font-size: 0.62rem;
+  color: var(--sl-muted);
+  white-space: nowrap;
+}
+
+.sl-timeline-lane {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 46px;
+  border-bottom: 1px solid var(--sl-border);
+}
+
+.sl-timeline-lane:last-child {
+  border-bottom: none;
+}
+
+.sl-timeline-lane-label {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 92px;
+  width: 92px;
+  padding: 0 0.5rem;
+  background: var(--sl-surface);
+  font-size: 0.72rem;
+  color: var(--sl-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sl-timeline-track {
+  position: relative;
+  flex: 1 1 auto;
+  height: 40px;
+}
+
+.sl-timeline-block {
+  position: absolute;
+  top: 5px;
+  height: 30px;
+  max-width: 200px;
+  padding: 0 0.5rem;
+  border: 1px solid var(--sl-primary);
+  border-radius: 0.5rem;
+  background: var(--sl-surface-2);
+  color: var(--sl-text);
+  font-size: 0.68rem;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  touch-action: none;
+  cursor: grab;
+}
+
+.sl-timeline-block[data-kind="event"] {
+  background: var(--sl-surface);
+  border-style: dashed;
+}
+
+.sl-timeline-block[data-dragging="true"] {
+  z-index: 5;
+  cursor: grabbing;
+  box-shadow: 0 6px 18px -8px var(--sl-glow);
+}
+
+.sl-timeline-block-label {
+  pointer-events: none;
+}
+
+.sl-timeline-block[data-kind="event"] .sl-timeline-block-label::before {
+  content: "◆ ";
+}
+
+.sl-timeline-conflicts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.6rem 0.75rem;
+  border-left: 3px solid var(--sl-danger);
+  border-radius: 0.7rem;
+  background: var(--sl-surface-2);
+}
