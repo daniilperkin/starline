@@ -1,31 +1,230 @@
-import { makeRichText, messages, type PMDoc, type RichText } from "@starline/core";
+import {
+  type Mentionable,
+  makeRichText,
+  messages,
+  type PMDoc,
+  type RichText,
+} from "@starline/core";
+import Mention from "@tiptap/extension-mention";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import { useRef } from "react";
 
 /**
- * Rich-text v1 (PLAN slice 3): TipTap with bold / italic / heading / undo only — the smallest
- * editor that satisfies the spec's rich-text columns. Uncontrolled by design: `initial` seeds
- * the document once, `onChange` streams the current value upward. Remount (key) to replace
- * the document wholesale (e.g. the step-4 seed).
+ * Rich-text v1 (PLAN slices 3 + 6): TipTap with bold / italic / heading / undo, plus optional
+ * `@`-mentions when a `mentionables` list is provided (lore bodies today, every editor later).
+ * Uncontrolled by design: `initial` seeds the document once, `onChange` streams the current
+ * value upward. Remount (key) to replace the document wholesale (e.g. the step-4 seed).
+ *
+ * Mention chips store `{ entityId, entityType, label }` — ids, never names, so a rename
+ * re-renders every chip (PLAN slice 6 exit) and the mention mirror stays valid.
  */
+
+/** The mention node, extended with the entity type so backlinks know what they point at. */
+const EntityMention = Mention.extend({
+  addAttributes() {
+    return {
+      entityId: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.getAttribute("data-entity-id"),
+        renderHTML: (attrs: Record<string, unknown>) =>
+          attrs.entityId ? { "data-entity-id": attrs.entityId } : {},
+      },
+      entityType: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.getAttribute("data-entity-type"),
+        renderHTML: (attrs: Record<string, unknown>) =>
+          attrs.entityType ? { "data-entity-type": attrs.entityType } : {},
+      },
+      label: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.getAttribute("data-label"),
+        renderHTML: (attrs: Record<string, unknown>) =>
+          attrs.label ? { "data-label": attrs.label } : {},
+      },
+    };
+  },
+  renderText({ node }: { node: { attrs: Record<string, unknown> } }) {
+    return `@${String(node.attrs.label ?? "")}`;
+  },
+});
+
+/** Minimal suggestion popup: a list under the caret, keyboard-driven (no tippy dependency). */
+function mentionSuggestion() {
+  let popup: HTMLDivElement | null = null;
+  let active = 0;
+  let current: Mentionable[] = [];
+  let pick: (item: Mentionable) => void = () => undefined;
+
+  const draw = () => {
+    if (!popup) return;
+    popup.replaceChildren();
+    if (current.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "sl-mention-empty";
+      empty.textContent = messages.world.mentionEmpty;
+      popup.append(empty);
+      return;
+    }
+    current.forEach((item, index) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "sl-mention-row";
+      row.dataset.active = index === active ? "true" : "false";
+      const glyph = document.createElement("span");
+      glyph.className = "sl-mention-glyph";
+      glyph.setAttribute("aria-hidden", "true");
+      glyph.textContent = item.glyph;
+      const label = document.createElement("span");
+      label.className = "sl-mention-label";
+      label.textContent = item.label;
+      const detail = document.createElement("span");
+      detail.className = "sl-mention-detail";
+      detail.textContent = item.detail;
+      row.append(glyph, label, detail);
+      row.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        pick(item);
+      });
+      popup?.append(row);
+    });
+  };
+
+  const place = (rect: DOMRect | null | undefined) => {
+    if (!popup || !rect) return;
+    popup.style.left = `${Math.min(rect.left, window.innerWidth - 260)}px`;
+    popup.style.top = `${rect.bottom + 6}px`;
+  };
+
+  // The suggestion option wants a RENDERER here — an object with onStart/onUpdate/onKeyDown/
+  // onExit. Wrapping it one level deeper (returning `{ render: () => … }`) fails silently:
+  // the plugin calls render() and finds no lifecycle hooks, so no popup ever appears.
+  return {
+    onStart: (props: {
+      items: Mentionable[];
+      clientRect?: (() => DOMRect | null) | null;
+      command: (item: Mentionable) => void;
+    }) => {
+      current = props.items;
+      active = 0;
+      pick = props.command;
+      popup = document.createElement("div");
+      popup.className = "sl-mention-popup";
+      popup.setAttribute("role", "listbox");
+      popup.setAttribute("aria-label", messages.world.mentionsTitle);
+      document.body.append(popup);
+      draw();
+      place(props.clientRect?.());
+    },
+    onUpdate: (props: {
+      items: Mentionable[];
+      clientRect?: (() => DOMRect | null) | null;
+      command: (item: Mentionable) => void;
+    }) => {
+      current = props.items;
+      pick = props.command;
+      active = Math.min(active, Math.max(current.length - 1, 0));
+      draw();
+      place(props.clientRect?.());
+    },
+    onKeyDown: (props: { event: KeyboardEvent }) => {
+      if (props.event.key === "Escape") {
+        popup?.remove();
+        popup = null;
+        return true;
+      }
+      if (current.length === 0) return false;
+      if (props.event.key === "ArrowDown") {
+        active = (active + 1) % current.length;
+        draw();
+        return true;
+      }
+      if (props.event.key === "ArrowUp") {
+        active = (active - 1 + current.length) % current.length;
+        draw();
+        return true;
+      }
+      if (props.event.key === "Enter" || props.event.key === "Tab") {
+        const item = current[active];
+        if (item) pick(item);
+        return true;
+      }
+      return false;
+    },
+    onExit: () => {
+      popup?.remove();
+      popup = null;
+    },
+  };
+}
+
 export function RichTextEditor({
   initial,
   ariaLabel,
   onChange,
+  mentionables,
 }: {
   initial: RichText;
   ariaLabel: string;
   onChange: (value: RichText) => void;
+  /** When provided, typing `@` opens the entity picker and inserts id-based chips. */
+  mentionables?: Mentionable[];
 }) {
-  const editor = useEditor({
-    extensions: [StarterKit.configure({ heading: { levels: [2] } })],
-    content: initial.json ?? undefined,
-    shouldRerenderOnTransaction: true,
-    editorProps: { attributes: { "aria-label": ariaLabel, class: "sl-prosemirror" } },
-    onUpdate: ({ editor: instance }) => {
-      onChange(makeRichText(instance.getJSON() as PMDoc));
+  // The suggestion reads items at call time; a ref keeps the editor instance stable while the
+  // entity list refreshes underneath it.
+  const mentionablesRef = useRef<Mentionable[]>(mentionables ?? []);
+  mentionablesRef.current = mentionables ?? [];
+  const withMentions = mentionables !== undefined;
+
+  const editor = useEditor(
+    {
+      extensions: [
+        StarterKit.configure({ heading: { levels: [2] } }),
+        ...(withMentions
+          ? [
+              EntityMention.configure({
+                HTMLAttributes: { class: "sl-mention-chip" },
+                suggestion: {
+                  char: "@",
+                  // The suggestion callbacks are typed against TipTap's MentionNodeAttrs; the
+                  // runtime objects are our richer Mentionables (id/label/type/glyph/detail).
+                  items: ({ query }) =>
+                    mentionablesRef.current
+                      .filter((item) => item.label.toLowerCase().includes(query.toLowerCase()))
+                      .slice(0, 8) as never,
+                  command: ({ editor: instance, range, props }) => {
+                    const item = props as unknown as Mentionable;
+                    instance
+                      .chain()
+                      .focus()
+                      .insertContentAt(range, [
+                        {
+                          type: "mention",
+                          attrs: {
+                            entityId: item.id,
+                            entityType: item.type,
+                            label: item.label,
+                          },
+                        },
+                        { type: "text", text: " " },
+                      ])
+                      .run();
+                  },
+                  render: (() => mentionSuggestion()) as never,
+                },
+              }),
+            ]
+          : []),
+      ],
+      content: initial.json ?? undefined,
+      shouldRerenderOnTransaction: true,
+      editorProps: { attributes: { "aria-label": ariaLabel, class: "sl-prosemirror" } },
+      onUpdate: ({ editor: instance }) => {
+        onChange(makeRichText(instance.getJSON() as PMDoc));
+      },
     },
-  });
+    [withMentions],
+  );
 
   if (!editor) return null;
 

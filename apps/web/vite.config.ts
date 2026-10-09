@@ -54,4 +54,24 @@ export default defineConfig({
   ],
   server: { port: 5183 },
   preview: { port: 5184 },
+  optimizeDeps: {
+    // Pre-bundle everything the shell imports at boot. Without this, vite discovers a new
+    // dependency mid-session, re-optimizes and hard-reloads the page — which aborts an
+    // in-flight library create (this flaked the E2E gate twice) and slows cold start.
+    include: [
+      "react",
+      "react-dom",
+      "react-dom/client",
+      "@tanstack/react-router",
+      "@tanstack/react-query",
+      "zustand",
+      "@tiptap/react",
+      "@tiptap/starter-kit",
+      "@tiptap/extension-mention",
+      "@tiptap/suggestion",
+      "@dnd-kit/core",
+      "@dnd-kit/sortable",
+      "@dnd-kit/utilities",
+    ],
+  },
 });

@@ -86,5 +86,25 @@ export async function listTrash(runner: TrashQueryRunner, projectId: UUID): Prom
     });
   }
 
+  const lore = await runner.query<{
+    id: string;
+    name: string;
+    summary: string;
+    deleted_at: number;
+  }>(
+    `SELECT id, name, summary, deleted_at FROM lore_entry
+      WHERE project_id = ? AND deleted_at IS NOT NULL`,
+    [projectId],
+  );
+  for (const row of lore) {
+    items.push({
+      entityType: "lore_entry",
+      entityId: row.id as UUID,
+      deletedAt: row.deleted_at as EpochMs,
+      label: row.name,
+      detail: row.summary,
+    });
+  }
+
   return items.sort((a, b) => b.deletedAt - a.deletedAt);
 }

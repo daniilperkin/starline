@@ -7,19 +7,31 @@ import {
   copyLineToSceneSynopsis,
   createChapter,
   createCharacter,
+  createLoreCategory,
+  createLoreEntry,
   createPlotline,
   createProject,
   createScene,
   createScenesFromList,
   deleteChapter,
   deleteCharacter,
+  deleteLoreCategory,
+  deleteLoreEntry,
   deleteScene,
   emptyTrash,
   executeCommand,
   getDashboardStats,
+  getLoreEntry,
   getSceneDetail,
+  type LoreEntryPatch,
+  type LoreKind,
   listChapters,
   listCharacters,
+  listFieldDefs,
+  listFieldValues,
+  listLoreCategories,
+  listLoreEntries,
+  listMentionables,
   listParts,
   listPlotlines,
   listProjects,
@@ -29,6 +41,7 @@ import {
   listTrash,
   markStepComplete,
   moveChapter,
+  moveLoreEntry,
   moveScene,
   type PartSummary,
   purgeExpiredTrash,
@@ -37,6 +50,8 @@ import {
   type SnowflakeStepContent,
   type SnowflakeStepNumber,
   saveStepContent,
+  seedLoreTaxonomy,
+  setFieldValue,
   setSceneCharacters,
   setSceneLore,
   setScenePlacement,
@@ -46,6 +61,7 @@ import {
   type UUID,
   updateChapter,
   updateCharacter,
+  updateLoreEntry,
   updateScene,
 } from "@starline/core";
 import type { TauriStorageDriver } from "@starline/driver-wasm";
@@ -72,6 +88,8 @@ bus.subscribe(() => {
   void queryClient.invalidateQueries({ queryKey: ["tags"] });
   void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
   void queryClient.invalidateQueries({ queryKey: ["trash"] });
+  void queryClient.invalidateQueries({ queryKey: ["lore"] });
+  void queryClient.invalidateQueries({ queryKey: ["fields"] });
 });
 
 let lastActivityAt = Date.now();
@@ -405,6 +423,10 @@ const chaosCommands: Record<string, Command<never, unknown>> = {
   saveStepContent: saveStepContent as Command<never, unknown>,
   restoreEntity: restoreEntity as Command<never, unknown>,
   setScenePlacement: setScenePlacement as Command<never, unknown>,
+  createLoreEntry: createLoreEntry as Command<never, unknown>,
+  updateLoreEntry: updateLoreEntry as Command<never, unknown>,
+  deleteLoreEntry: deleteLoreEntry as Command<never, unknown>,
+  seedLoreTaxonomy: seedLoreTaxonomy as Command<never, unknown>,
 };
 
 if (import.meta.env.DEV) {
@@ -429,4 +451,171 @@ if (import.meta.env.DEV) {
       return session.transport.request("pool_stats", {});
     },
   };
+}
+
+/** World/lore reads and writes (PLAN slice 6). */
+
+export function useLoreCategories(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["lore", session?.name ?? null, projectId, "categories"],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return listLoreCategories(session.driver, projectId);
+    },
+  });
+}
+
+export function useLoreEntries(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["lore", session?.name ?? null, projectId, "entries"],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return listLoreEntries(session.driver, projectId);
+    },
+  });
+}
+
+export function useLoreEntry(projectId: UUID | null, entryId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["lore", session?.name ?? null, projectId, "entry", entryId],
+    enabled: session !== null && projectId !== null && entryId !== null,
+    queryFn: async () => {
+      if (!session || !projectId || !entryId) throw new Error("no entry open");
+      return getLoreEntry(session.driver, projectId, entryId);
+    },
+  });
+}
+
+export function useMentionables(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["lore", session?.name ?? null, projectId, "mentionables"],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return listMentionables(session.driver, projectId);
+    },
+  });
+}
+
+export function useLoreFieldDefs(projectId: UUID | null, kind: string | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["fields", session?.name ?? null, projectId, "lore", kind],
+    enabled: session !== null && projectId !== null && kind !== null,
+    queryFn: async () => {
+      if (!session || !projectId || !kind) throw new Error("no project open");
+      return listFieldDefs(session.driver, projectId, "lore", kind);
+    },
+  });
+}
+
+export function useFieldValues(ownerId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["fields", session?.name ?? null, "values", ownerId],
+    enabled: session !== null && ownerId !== null,
+    queryFn: async () => {
+      if (!session || !ownerId) throw new Error("no owner");
+      return listFieldValues(session.driver, "lore", ownerId);
+    },
+  });
+}
+
+export function useSeedLoreTaxonomy() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (projectId: UUID) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, seedLoreTaxonomy, { projectId });
+    },
+  });
+}
+
+export function useCreateLoreCategory() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: { projectId: UUID; name: string; parentId?: UUID | null }) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, createLoreCategory, args);
+    },
+  });
+}
+
+export function useCreateLoreEntry() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: {
+      projectId: UUID;
+      name: string;
+      kind: LoreKind;
+      customKindLabel?: string;
+      categoryId?: UUID | null;
+      parentEntryId?: UUID | null;
+    }) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, createLoreEntry, args);
+    },
+  });
+}
+
+export function useUpdateLoreEntry() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: { projectId: UUID; entryId: UUID; patch: LoreEntryPatch }) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, updateLoreEntry, args);
+    },
+  });
+}
+
+export function useDeleteLoreEntry() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: { projectId: UUID; entryId: UUID }) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, deleteLoreEntry, args);
+    },
+  });
+}
+
+export function useMoveLoreEntry() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: {
+      projectId: UUID;
+      entryId: UUID;
+      categoryId: UUID | null;
+      parentEntryId: UUID | null;
+      orderKey: string;
+    }) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, moveLoreEntry, args);
+    },
+  });
+}
+
+export function useDeleteLoreCategory() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: { projectId: UUID; categoryId: UUID; cascade?: boolean }) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, deleteLoreCategory, args);
+    },
+  });
+}
+
+export function useSetFieldValue() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: { defId: UUID; ownerType: string; ownerId: UUID; value: unknown }) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, setFieldValue, args);
+    },
+  });
 }

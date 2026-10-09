@@ -8,12 +8,15 @@
 // hardware back navigation → minimise at the root → cold relaunch keeps the plan.
 // Usage: node scripts/verify-android.mjs [apk-path]
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+const shotDir = join(tmpdir(), "starline-shots");
+mkdirSync(shotDir, { recursive: true });
 const apk = process.argv[2] ?? join(repoRoot, "artifacts", "starline-debug.apk");
 const ADB = process.env.ADB ?? "C:/Users/danyo/AppData/Local/Android/Sdk/platform-tools/adb.exe";
 const PACKAGE = "app.starline";
@@ -260,6 +263,56 @@ try {
   if (!dragged) throw new Error("long-press drag did not reorder on-device");
   console.log("PASS  long-press drag reorder on-device");
 
+  // 2l. Slice 6 on-device — World tab: the seeded taxonomy, an entry with its kind template,
+  // an @-mention inserted from the picker, then delete → undo from the toast.
+  await page.getByRole("link", { name: "World" }).click();
+  await page.getByRole("heading", { name: "World" }).waitFor({ timeout: 30000 });
+  await page
+    .locator(".sl-tree-row")
+    .filter({ hasText: "Geography" })
+    .waitFor({ timeout: 30000 });
+  await page.locator(".sl-tree-row").filter({ hasText: "Geography" }).click();
+  await page.getByPlaceholder("Entry name").fill("Emberfall");
+  await page.getByRole("button", { name: "New entry", exact: true }).click();
+  await page
+    .locator(".sl-lore-card")
+    .filter({ hasText: "Emberfall" })
+    .first()
+    .waitFor({ timeout: 30000 });
+  await page.locator(".sl-lore-card").filter({ hasText: "Emberfall" }).first().click();
+  const loreSheet = page.getByRole("dialog", { name: "Emberfall" });
+  await loreSheet.waitFor({ timeout: 30000 });
+  await loreSheet.getByLabel("Climate").waitFor({ timeout: 20000 });
+  await loreSheet.getByLabel("Summary").fill("A harbour town on the glass sea");
+  await loreSheet.locator(".sl-editor-body .ProseMirror").click();
+  await page.keyboard.type("North of the ruins lies ");
+  await page.keyboard.type("@Emb");
+  await page
+    .locator(".sl-mention-popup .sl-mention-row")
+    .filter({ hasText: "Emberfall" })
+    .waitFor({ timeout: 20000 });
+  await page.locator(".sl-mention-popup .sl-mention-row").filter({ hasText: "Emberfall" }).click();
+  await loreSheet
+    .locator(".sl-mention-chip")
+    .filter({ hasText: "Emberfall" })
+    .waitFor({ timeout: 20000 });
+  await page.screenshot({ path: join(shotDir, "emu-slice6-lore.png"), fullPage: true });
+  console.log("PASS  world tab + kind template + @-mention on-device");
+
+  // Delete the entry and bring it back from the toast (the second undo of the session — the
+  // undo button used to stay disabled after the first one).
+  await loreSheet.getByRole("button", { name: "Delete entry" }).click();
+  await loreSheet.getByRole("button", { name: "Tap again to delete" }).click();
+  await page.getByText("Entry deleted").waitFor({ timeout: 20000 });
+  await page.getByRole("button", { name: "Undo" }).click();
+  await page
+    .locator(".sl-lore-card")
+    .filter({ hasText: "Emberfall" })
+    .first()
+    .waitFor({ timeout: 20000 });
+  await page.getByRole("button", { name: "Undo" }).waitFor({ state: "hidden", timeout: 20000 });
+  console.log("PASS  lore delete → undo on-device");
+
   // 3. Hardware back: from a step screen back to the plan.
   await page.getByRole("link", { name: "Plan" }).click();
   await page.locator(".sl-step-row").filter({ hasText: "Character descriptions" }).click();
@@ -291,6 +344,15 @@ try {
   await page.getByRole("button", { name: "Open" }).click();
   await page.getByText("6 of 9 steps complete").waitFor({ timeout: 90000 });
   console.log("PASS  cold relaunch → library listed → plan intact (6 of 9)");
+
+  // The lore entry written before the relaunch survived too (wasm OPFS persistence on-device).
+  await page.getByRole("link", { name: "World" }).click();
+  await page
+    .locator(".sl-lore-card")
+    .filter({ hasText: "Emberfall" })
+    .first()
+    .waitFor({ timeout: 60000 });
+  console.log("PASS  cold relaunch → lore entry intact");
 
   console.log("EMULATOR-QA OK");
 } finally {

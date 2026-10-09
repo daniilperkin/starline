@@ -492,3 +492,155 @@ body {
 .sl-recent-row:hover {
   background: var(--sl-surface-2);
 }
+
+/* --- Slice 6: World tab, lore sheet, mention picker ------------------------------- */
+
+.sl-tree-group {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.sl-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.sl-tree-row:hover {
+  background: var(--sl-surface-2);
+}
+
+.sl-tree-row[data-active="true"] {
+  background: var(--sl-surface-2);
+  box-shadow: inset 0 0 0 1px var(--sl-border);
+}
+
+.sl-tree-delete {
+  background: none;
+  border: none;
+  color: var(--sl-muted);
+  cursor: pointer;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.sl-tree-delete:hover {
+  color: var(--sl-danger, #e5484d);
+  background: var(--sl-surface-2);
+}
+
+.sl-lore-card {
+  background: var(--sl-surface);
+  border: 1px solid var(--sl-border);
+  border-radius: 0.9rem;
+  overflow: hidden;
+}
+
+.sl-lore-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 0.5rem;
+  background: var(--sl-surface-2);
+  font-size: 0.9rem;
+  flex: none;
+}
+
+.sl-breadcrumb {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sl-error {
+  color: var(--sl-danger, #e5484d);
+  font-size: 0.85rem;
+}
+
+.sl-cascade {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.9rem;
+  border: 1px solid var(--sl-danger, #e5484d);
+  border-radius: 0.9rem;
+  background: var(--sl-surface);
+}
+
+.sl-mention-chip {
+  background: var(--sl-surface-2);
+  border: 1px solid var(--sl-border);
+  border-radius: 0.5rem;
+  padding: 0 0.25rem;
+  white-space: nowrap;
+}
+
+.sl-mention-popup {
+  position: fixed;
+  z-index: 60;
+  width: 240px;
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 0.3rem;
+  background: var(--sl-surface);
+  border: 1px solid var(--sl-border);
+  border-radius: 0.8rem;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+}
+
+.sl-mention-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0.45rem 0.5rem;
+  border-radius: 0.55rem;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.85rem;
+}
+
+.sl-mention-row[data-active="true"] {
+  background: var(--sl-surface-2);
+}
+
+.sl-mention-glyph {
+  flex: none;
+}
+
+.sl-mention-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sl-mention-detail {
+  flex: none;
+  color: var(--sl-muted);
+  font-size: 0.7rem;
+}
+
+.sl-mention-empty {
+  padding: 0.5rem;
+  color: var(--sl-muted);
+  font-size: 0.8rem;
+}

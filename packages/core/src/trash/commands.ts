@@ -10,6 +10,7 @@ const TRASH_TABLES: Record<TrashEntityType, string> = {
   scene: "scene",
   chapter: "chapter",
   plotline: "plotline",
+  lore_entry: "lore_entry",
 };
 
 function assertTrashable(entityType: EntityType): asserts entityType is TrashEntityType {
@@ -80,7 +81,7 @@ export const purgeExpiredTrash: Command<PurgeExpiredTrashArgs, TrashPurgeResult>
     let purged = 0;
     const changes: ChangeEvent[] = [];
     // Scenes first: a purged chapter would otherwise null their chapter_id before they go.
-    for (const entityType of ["scene", "chapter", "plotline", "character"] as const) {
+    for (const entityType of ["scene", "chapter", "plotline", "character", "lore_entry"] as const) {
       const table = TRASH_TABLES[entityType];
       const count = await ctx.tx.query<{ n: number }>(
         `SELECT COUNT(*) AS n FROM ${table}
@@ -112,7 +113,7 @@ export const emptyTrash: Command<EmptyTrashArgs, TrashPurgeResult> = {
     const byType: Partial<Record<TrashEntityType, number>> = {};
     let purged = 0;
     const changes: ChangeEvent[] = [];
-    for (const entityType of ["scene", "chapter", "plotline", "character"] as const) {
+    for (const entityType of ["scene", "chapter", "plotline", "character", "lore_entry"] as const) {
       const table = TRASH_TABLES[entityType];
       const count = await ctx.tx.query<{ n: number }>(
         `SELECT COUNT(*) AS n FROM ${table} WHERE project_id = ? AND deleted_at IS NOT NULL`,

@@ -6,6 +6,7 @@ export type EntityType =
   | "chapter"
   | "part"
   | "lore"
+  | "lore_entry"
   | "note"
   | "plotline"
   | "location"

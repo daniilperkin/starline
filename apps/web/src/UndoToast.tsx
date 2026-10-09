@@ -6,8 +6,11 @@ import { useUndoStore } from "./undo";
 export function UndoToast() {
   const action = useUndoStore((state) => state.action);
   const clear = useUndoStore((state) => state.clear);
-  const [busy, setBusy] = useState(false);
+  // Keyed by action id: a plain boolean would stay true after the first undo (this component
+  // outlives the toast) and disable the button for every later toast in the session.
+  const [busyId, setBusyId] = useState<number | null>(null);
   if (!action) return null;
+  const busy = busyId === action.id;
   return (
     <div className="sl-undo-toast" role="status" aria-live="polite">
       <span className="min-w-0 flex-1 truncate text-sm">{action.label}</span>
@@ -16,7 +19,7 @@ export function UndoToast() {
         className="sl-btn-small"
         disabled={busy}
         onClick={() => {
-          setBusy(true);
+          setBusyId(action.id);
           void action
             .undo()
             .catch(() => undefined)

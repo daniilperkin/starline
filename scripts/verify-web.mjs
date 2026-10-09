@@ -363,6 +363,77 @@ try {
   if (beforeDrag === afterDrag) throw new Error("drag reorder did not move the row");
   await page.screenshot({ path: join(shotDir, "16-drag.png"), fullPage: true });
   await axeScan("scenes");
+  // Let the drag's "Scene moved" toast expire: the toast is single-slot, so a stale one would
+  // absorb the lore undo below.
+  await page.getByRole("button", { name: "Undo" }).waitFor({ state: "hidden", timeout: 15000 });
+
+  // 4q. World tab (slice 6): seeded taxonomy, entry CRUD, kind-template fields, @-mentions,
+  // delete → undo. The lore wiki is the first slice where an entity can link to another.
+  await page.getByRole("link", { name: "World" }).click();
+  await page.getByRole("heading", { name: "World" }).waitFor();
+  await page.locator(".sl-tree-row").filter({ hasText: "Geography" }).waitFor();
+  await page.locator(".sl-tree-row").filter({ hasText: "Magic & Technology" }).waitFor();
+  await page.locator(".sl-tree-row").filter({ hasText: "Geography" }).click();
+
+  const addEntry = async (name) => {
+    await page.getByPlaceholder("Entry name").fill(name);
+    await page.getByRole("button", { name: "New entry", exact: true }).click();
+    await page.locator(".sl-lore-card").filter({ hasText: name }).first().waitFor();
+  };
+  await addEntry("The Sundered Coast");
+  await addEntry("Emberfall");
+
+  // The kind template (geography) seeds its fields on first entry of that kind.
+  await page.locator(".sl-lore-card").filter({ hasText: "Emberfall" }).first().click();
+  const sheet = page.getByRole("dialog", { name: "Emberfall" });
+  await sheet.waitFor();
+  await sheet.getByLabel("Climate").waitFor();
+  await sheet.getByLabel("Summary").fill("A harbour town on the glass sea");
+  const body = sheet.locator(".sl-editor-body .ProseMirror");
+  await body.click();
+  await page.keyboard.type("North of the ruins lies ");
+  await page.keyboard.type("@Emb");
+  await page
+    .locator(".sl-mention-popup .sl-mention-row")
+    .filter({ hasText: "Emberfall" })
+    .waitFor();
+  await page.locator(".sl-mention-popup .sl-mention-row").filter({ hasText: "Emberfall" }).click();
+  await sheet.locator(".sl-mention-chip").filter({ hasText: "Emberfall" }).waitFor();
+  await page.waitForTimeout(1200);
+  const rowAfterBody = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    return session.driver.query("SELECT name, summary, body_text FROM lore_entry ORDER BY name");
+  });
+  console.log(`  lore rows after body edit: ${JSON.stringify(rowAfterBody)}`);
+  await page.screenshot({ path: join(shotDir, "17-lore-sheet.png"), fullPage: true });
+  await axeScan("lore");
+  await sheet.getByRole("button", { name: "Close" }).click();
+  await page.waitForTimeout(900);
+
+  // Persistence: reopening shows the summary and the mention chip (ids, not names).
+  await page.locator(".sl-lore-card").filter({ hasText: "Emberfall" }).first().click();
+  const reopened = page.getByRole("dialog", { name: "Emberfall" });
+  await reopened.waitFor();
+  await reopened.getByLabel("Summary").waitFor();
+  const rowOnReopen = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    return session.driver.query("SELECT name, summary FROM lore_entry ORDER BY name");
+  });
+  console.log(`  lore rows on reopen: ${JSON.stringify(rowOnReopen)}`);
+  const summaryValue = await reopened.getByLabel("Summary").inputValue();
+  if (summaryValue !== "A harbour town on the glass sea")
+    throw new Error(`lore summary did not persist: "${summaryValue}"`);
+  await reopened.locator(".sl-mention-chip").filter({ hasText: "Emberfall" }).waitFor();
+
+  // Delete → undo toast → the entry comes back (trash now covers lore entries too).
+  await reopened.getByRole("button", { name: "Delete entry" }).click();
+  await reopened.getByRole("button", { name: "Tap again to delete" }).click();
+  await page.getByText("Entry deleted").waitFor();
+  await page.getByRole("button", { name: "Undo" }).click();
+  await page.waitForTimeout(700);
+  await page.locator(".sl-lore-card").filter({ hasText: "Emberfall" }).first().waitFor();
+  await page.getByRole("button", { name: "Undo" }).waitFor({ state: "hidden", timeout: 15000 });
+  await axeScan("world");
 
   // 5. Reload: back to the start screen; reopening restores the last route (hash history),
   // so tab over to Plan and check the persisted progress.

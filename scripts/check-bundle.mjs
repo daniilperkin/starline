@@ -14,9 +14,12 @@ const assets = join(dist, "assets");
 
 /**
  * Budgets in KiB of gzip — the phone-first payload that actually crosses the wire on install.
- * Measured 2026-10-09 (slice 5): app 307, css 4, worker 63. A 5 % band gives the gate teeth
- * without flapping on routine dependency patches; raise deliberately, never silently.
+ * Measured 2026-10-09 (slice 5): app 307, css 4, worker 63; slice 6 adds the lore wiki +
+ * mention picker → app 328. The gate fails only beyond the spec §5.1 tolerance (budget + 5 %)
+ * and prints TIGHT inside the band, so routine dependency patches don't flap it while a real
+ * regression still fails loudly. Raise deliberately, never silently.
  */
+const TOLERANCE = 1.05;
 const BUDGETS = [
   { match: /^index-.*\.js$/, label: "app bundle (gzip)", limitKib: 330 },
   { match: /^index-.*\.css$/, label: "styles (gzip)", limitKib: 8 },
@@ -31,6 +34,7 @@ try {
 }
 
 let failed = false;
+let tight = 0;
 for (const budget of BUDGETS) {
   const name = files.find((file) => budget.match.test(file));
   if (!name) {
@@ -40,10 +44,12 @@ for (const budget of BUDGETS) {
   }
   const raw = readFileSync(join(assets, name));
   const gzipKib = gzipSync(raw, { level: 9 }).byteLength / 1024;
-  const ok = gzipKib <= budget.limitKib;
-  if (!ok) failed = true;
+  const over = gzipKib > budget.limitKib * TOLERANCE;
+  const inBand = !over && gzipKib > budget.limitKib;
+  if (over) failed = true;
+  if (inBand) tight += 1;
   console.log(
-    `${ok ? "OK  " : "OVER"}  ${budget.label}: ${gzipKib.toFixed(1)} KiB / ${budget.limitKib} KiB (${name})`,
+    `${over ? "OVER " : inBand ? "TIGHT" : "OK   "} ${budget.label}: ${gzipKib.toFixed(1)} KiB / ${budget.limitKib} KiB (${name})`,
   );
 }
 
@@ -57,12 +63,18 @@ function dirSize(path) {
   return total;
 }
 const totalMib = dirSize(dist) / (1024 * 1024);
-const totalOk = totalMib <= 4;
+const totalOk = totalMib <= 4 * TOLERANCE;
 if (!totalOk) failed = true;
-console.log(`${totalOk ? "OK  " : "OVER"}  install payload: ${totalMib.toFixed(2)} MiB / 4 MiB`);
+console.log(
+  `${totalOk ? (totalMib > 4 ? "TIGHT" : "OK   ") : "OVER "} install payload: ${totalMib.toFixed(2)} MiB / 4 MiB`,
+);
 
 if (failed) {
   console.error("BUNDLE-BUDGET FAILED");
   process.exit(1);
 }
-console.log("BUNDLE-BUDGET OK");
+console.log(
+  tight > 0
+    ? `BUNDLE-BUDGET OK (${tight} budget(s) inside the 5 % band — plan a code-split before the next slice)`
+    : "BUNDLE-BUDGET OK",
+);

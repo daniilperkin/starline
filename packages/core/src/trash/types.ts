@@ -1,8 +1,14 @@
 import type { EntityType } from "../entities";
 import type { EpochMs, UUID } from "../primitives";
 
-/** Entity types the Trash currently manages (spec §3.9; lore/notes join when their slices land). */
-export const TRASH_ENTITY_TYPES = ["character", "scene", "chapter", "plotline"] as const;
+/** Entity types the Trash currently manages (spec §3.9; notes join when their slice lands). */
+export const TRASH_ENTITY_TYPES = [
+  "character",
+  "scene",
+  "chapter",
+  "plotline",
+  "lore_entry",
+] as const;
 export type TrashEntityType = (typeof TRASH_ENTITY_TYPES)[number];
 
 /** One row of the Trash screen (spec §3.9 `TrashItem`). */

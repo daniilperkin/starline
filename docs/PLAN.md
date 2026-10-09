@@ -160,7 +160,7 @@ round with zero data loss; all gates green; PWA + APK rebuilt.
 
 ## 3. M2 — Connected world
 
-### Slice 6 — Lore wiki v1
+### Slice 6 — Lore wiki v1 (**built 2026-10-09**; category drag-nest deferred — the row menu move up/down ships as the non-drag path, same precedent as Slice 4)
 
 **Screens**: World tab (category tree with the seeded default taxonomy — Geography,
 Factions & Organizations, Magic & Technology, History, Cultures & Religions, Politics &
@@ -172,6 +172,16 @@ aliases; image; pin; child entries; breadcrumbs).
 **Build**: lore category/entry commands, kind-template seeding via `custom_field_def`,
 `@`-mention autocomplete v1 inside rich text (chip nodes; mention table mirrored on save —
 this is the backbone for backlinks), cycle prevention (recursive CTE before write).
+
+**Shipped**: `packages/core/src/fields/` (defs + values, 10 types, per-type validation,
+`ensureFieldDefs`) and `lore/` (16 kinds + templates, 9-category taxonomy, category/entry CRUD,
+`chainContains` recursive-CTE cycle guard for both trees, delete rules — categories refuse a
+non-empty delete without `cascade`, entries re-parent their children), `mention` mirroring on
+every body save, `listMentionables` for the picker, trash extended to `lore_entry`.
+Web: WorldScreen (tree + counts + search + move up/down + cascade confirm), LoreSheet (kind
+template fields commit-on-blur, category/inside pickers, pin, delete → undo), RichTextEditor
+`@`-mentions (id-based chips + keyboard-driven popup), `UndoToast` busy-keyed fix.
+Not shipped: image attachments (deferred to M3 exports/imports) and category drag-nest.
 
 **Exit**: build a world with 20+ entries across kinds; mentions resolve live; rename an
 entity → chips re-render everywhere (ID-based).

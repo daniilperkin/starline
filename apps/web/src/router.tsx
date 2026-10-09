@@ -14,6 +14,7 @@ import { PlanScreen } from "./PlanScreen";
 import { ScenesScreen } from "./ScenesScreen";
 import { StepScreen } from "./StepScreen";
 import { TrashScreen } from "./TrashScreen";
+import { WorldScreen } from "./WorldScreen";
 
 const rootRoute = createRootRoute({ component: AppLayout });
 
@@ -64,7 +65,7 @@ const characterRoute = createRoute({
 const worldRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/world",
-  component: () => <ComingSoonScreen label={messages.tabs.world} />,
+  component: WorldScreen,
 });
 
 const notesRoute = createRoute({
