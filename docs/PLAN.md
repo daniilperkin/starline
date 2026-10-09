@@ -186,7 +186,7 @@ Not shipped: image attachments (deferred to M3 exports/imports) and category dra
 **Exit**: build a world with 20+ entries across kinds; mentions resolve live; rename an
 entity → chips re-render everywhere (ID-based).
 
-### Slice 7 — Backlinks & global search (**built 2026-10-09**; emulator QA + commit pending)
+### Slice 7 — Backlinks & global search (**shipped 2026-10-09**, `f518716`; emulator 21/21)
 
 **Screens**: backlinks sheet on every entity ("Mentioned in N places", grouped by source,
 with snippets; tap → navigate); "Possible mentions" (unlinked occurrences → one-tap Link);
