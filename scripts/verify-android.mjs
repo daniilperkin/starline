@@ -123,6 +123,18 @@ try {
   await page.getByText("0 of 9 steps complete").waitFor({ timeout: 60000 });
   console.log("PASS  library + story created");
 
+  // sahpool diagnostics (printed, not asserted). The pool's own numbers do NOT map to free
+  // slots — a clean install has reported capacity 3 / files 1 while the app kept writing, and
+  // capacity 16 / files 1 in another run — so the health signal is the write the journey does
+  // next (step 1's save, a real transaction that needs a journal file). A pool directory left
+  // over from a previous install is what makes that write fail as "SAH pool is full. Cannot
+  // create file /X.starline-journal", so if a later step times out, check these numbers and the
+  // webview console lines printed above before anything else.
+  const pool = await page.evaluate(() => window.__starlineDev.poolStats());
+  console.log(
+    `  sahpool: capacity ${pool.capacity}, files ${pool.fileCount} (${pool.files.join(", ")})`,
+  );
+
   // 2. Step 1: write the sentence and complete it.
   await page.locator(".sl-step-row").filter({ hasText: "One sentence" }).click();
   await page
