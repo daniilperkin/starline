@@ -7,23 +7,30 @@ import {
   type Command,
   type ConsistencyCheck,
   copyLineToSceneSynopsis,
+  countRelationshipsByCharacter,
   createChapter,
   createCharacter,
   createLoreCategory,
   createLoreEntry,
   createPlotline,
   createProject,
+  createRelationship,
+  createRelationshipGroup,
   createScene,
   createScenesFromList,
   deleteChapter,
   deleteCharacter,
   deleteLoreCategory,
   deleteLoreEntry,
+  deleteRelationship,
+  deleteRelationshipGroup,
   deleteScene,
   emptyTrash,
   executeCommand,
   getDashboardStats,
+  getGraphPositions,
   getLoreEntry,
+  getRelationshipMatrix,
   getSceneDetail,
   type LoreEntryPatch,
   type LoreKind,
@@ -40,7 +47,10 @@ import {
   listPlotlines,
   listPossibleMentions,
   listProjects,
+  listRelationshipGroups,
+  listRelationships,
   listScenes,
+  listSharedScenes,
   listSteps,
   listTags,
   listTrash,
@@ -51,6 +61,7 @@ import {
   type PartSummary,
   type PossibleMention,
   purgeExpiredTrash,
+  type RelationshipPatch,
   restoreEntity,
   runConsistencyChecks,
   type SceneSummary,
@@ -61,6 +72,7 @@ import {
   searchProject,
   seedLoreTaxonomy,
   setFieldValue,
+  setGraphPositions,
   setSceneCharacters,
   setSceneLore,
   setScenePlacement,
@@ -72,6 +84,8 @@ import {
   updateChapter,
   updateCharacter,
   updateLoreEntry,
+  updateRelationship,
+  updateRelationshipGroup,
   updateScene,
 } from "@starline/core";
 import type { TauriStorageDriver } from "@starline/driver-wasm";
@@ -105,6 +119,11 @@ bus.subscribe(() => {
   void queryClient.invalidateQueries({ queryKey: ["backlinks"] });
   void queryClient.invalidateQueries({ queryKey: ["possible"] });
   void queryClient.invalidateQueries({ queryKey: ["checks"] });
+  // Slice 8: edges, groups and the manual pins all feed the matrix, the web and the dossier.
+  void queryClient.invalidateQueries({ queryKey: ["relationships"] });
+  void queryClient.invalidateQueries({ queryKey: ["relationshipCounts"] });
+  void queryClient.invalidateQueries({ queryKey: ["sharedScenes"] });
+  void queryClient.invalidateQueries({ queryKey: ["graphPositions"] });
 });
 
 let lastActivityAt = Date.now();
@@ -446,6 +465,12 @@ const chaosCommands: Record<string, Command<never, unknown>> = {
   seedLoreTaxonomy: seedLoreTaxonomy as Command<never, unknown>,
   linkMention: linkMention as Command<never, unknown>,
   unlinkMention: unlinkMention as Command<never, unknown>,
+  createRelationship: createRelationship as Command<never, unknown>,
+  updateRelationship: updateRelationship as Command<never, unknown>,
+  deleteRelationship: deleteRelationship as Command<never, unknown>,
+  createRelationshipGroup: createRelationshipGroup as Command<never, unknown>,
+  deleteRelationshipGroup: deleteRelationshipGroup as Command<never, unknown>,
+  setGraphPositions: setGraphPositions as Command<never, unknown>,
 };
 
 if (import.meta.env.DEV || import.meta.env.VITE_STARLINE_DEV === "1") {
@@ -489,6 +514,17 @@ if (import.meta.env.DEV || import.meta.env.VITE_STARLINE_DEV === "1") {
       const session = useSessionStore.getState().session;
       if (!session) throw new Error("no library open");
       return runConsistencyChecks(session.driver, projectId as UUID);
+    },
+    /** Slice-8 reads for the E2E journey: the matrix (characters + edges + groups) and the pins. */
+    relationships: (projectId: string) => {
+      const session = useSessionStore.getState().session;
+      if (!session) throw new Error("no library open");
+      return getRelationshipMatrix(session.driver, projectId as UUID);
+    },
+    graphPositions: (projectId: string) => {
+      const session = useSessionStore.getState().session;
+      if (!session) throw new Error("no library open");
+      return getGraphPositions(session.driver, projectId as UUID);
     },
     /**
      * Phone-path perf check (spec §5.1): times the two slice-7 reads through the real wasm
@@ -791,4 +827,168 @@ export function useUnlinkMention() {
       return runCommand(session.driver, unlinkMention, args);
     },
   });
+}
+
+/** Relationships (PLAN slice 8): one matrix read feeds the list, the matrix and the web. */
+
+export function useRelationshipMatrix(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["relationships", session?.name ?? null, projectId, "matrix"],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return getRelationshipMatrix(session.driver, projectId);
+    },
+  });
+}
+
+export function useRelationshipGroups(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["relationships", session?.name ?? null, projectId, "groups"],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return listRelationshipGroups(session.driver, projectId);
+    },
+  });
+}
+
+/** Edge counts per character — the People cards show them and the filter reads the zeroes. */
+export function useRelationshipCounts(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["relationshipCounts", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return countRelationshipsByCharacter(session.driver, projectId);
+    },
+  });
+}
+
+export function useGraphPositions(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["graphPositions", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    staleTime: 30_000,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return getGraphPositions(session.driver, projectId);
+    },
+  });
+}
+
+export function useSharedScenes(
+  projectId: UUID | null,
+  firstId: UUID | null,
+  secondId: UUID | null,
+) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["sharedScenes", session?.name ?? null, projectId, firstId, secondId],
+    enabled:
+      session !== null &&
+      projectId !== null &&
+      firstId !== null &&
+      secondId !== null &&
+      firstId !== secondId,
+    queryFn: async () => {
+      if (!session || !projectId || !firstId || !secondId) throw new Error("no pair");
+      return listSharedScenes(session.driver, projectId, firstId, secondId);
+    },
+  });
+}
+
+export function useCreateRelationship() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: Parameters<typeof createRelationship.run>[1]) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, createRelationship, args);
+    },
+  });
+}
+
+export interface UpdateRelationshipVariables {
+  projectId: UUID;
+  relationshipId: UUID;
+  patch: RelationshipPatch;
+}
+
+export function useUpdateRelationship() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: UpdateRelationshipVariables) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, updateRelationship, args);
+    },
+  });
+}
+
+export interface DeleteRelationshipVariables {
+  projectId: UUID;
+  relationshipId: UUID;
+}
+
+export function useDeleteRelationship() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: DeleteRelationshipVariables) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, deleteRelationship, args);
+    },
+  });
+}
+
+export function useCreateRelationshipGroup() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: Parameters<typeof createRelationshipGroup.run>[1]) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, createRelationshipGroup, args);
+    },
+  });
+}
+
+export function useUpdateRelationshipGroup() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: Parameters<typeof updateRelationshipGroup.run>[1]) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, updateRelationshipGroup, args);
+    },
+  });
+}
+
+export function useDeleteRelationshipGroup() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: Parameters<typeof deleteRelationshipGroup.run>[1]) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, deleteRelationshipGroup, args);
+    },
+  });
+}
+
+/** Manual pins are written on drag-end, so the mutation stays quiet and cheap. */
+export function useSetGraphPositions() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: Parameters<typeof setGraphPositions.run>[1]) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, setGraphPositions, args);
+    },
+  });
+}
+
+/** Raw reads for the E2E journey (DEV hook only). */
+export function readRelationshipMatrix(driver: TauriStorageDriver, projectId: UUID) {
+  return getRelationshipMatrix(driver, projectId);
+}
+
+export function readRelationships(driver: TauriStorageDriver, projectId: UUID) {
+  return listRelationships(driver, projectId);
 }

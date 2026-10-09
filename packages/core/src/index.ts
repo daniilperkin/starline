@@ -6,6 +6,7 @@ export * from "./fields";
 export * from "./i18n";
 export * from "./lore";
 export * from "./primitives";
+export * from "./relationships";
 export * from "./richtext";
 export * from "./scenes";
 export * from "./search";

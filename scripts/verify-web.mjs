@@ -510,6 +510,137 @@ try {
   await axeScan("checks");
   await page.getByRole("link", { name: "Plan" }).click();
 
+  // 4s. Slice 8: the relationship matrix, the web and the edge sheet — create an edge from the
+  // matrix, edit it, see it in the graph, pin a node, and read the list twin.
+  await page.getByRole("link", { name: "People" }).click();
+  // The matrix needs a pair; the journey's step 3 usually leaves one character behind.
+  const characterCount = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query(
+      "SELECT COUNT(*) AS total FROM character WHERE deleted_at IS NULL",
+    );
+    return Number(rows[0]?.total ?? 0);
+  });
+  if (characterCount < 2) {
+    await page.getByPlaceholder("Quick add — name").fill("Tor Halden");
+    await page.getByRole("button", { name: "Add character" }).click();
+    await page.waitForTimeout(900);
+  }
+  await page.getByTestId("sl-mode-matrix").click();
+  const matrix = page.getByTestId("sl-matrix");
+  await matrix.waitFor({ timeout: 30000 });
+  const emptyCells = await page.locator('.sl-matrix-cell[data-filled="false"]').count();
+  console.log(`  matrix cells: ${emptyCells} empty`);
+  await page.screenshot({ path: join(shotDir, "21-matrix.png"), fullPage: true });
+  await axeScan("matrix");
+
+  // Create from a cell: tap an empty cell, the sheet opens with the pair prefilled.
+  await page.locator('.sl-matrix-cell[data-filled="false"]').first().click();
+  const edgeSheet = page.getByTestId("sl-edge-sheet");
+  await edgeSheet.waitFor();
+  const fromValue = await edgeSheet.getByLabel("From", { exact: true }).inputValue();
+  const toValue = await edgeSheet.getByLabel("To", { exact: true }).inputValue();
+  if (fromValue === "" || toValue === "" || fromValue === toValue) {
+    throw new Error("matrix cell did not prefill the pair");
+  }
+  await edgeSheet.getByLabel("Kind", { exact: true }).selectOption("family_sibling");
+  await edgeSheet.getByTestId("sl-edge-sentiment").fill("4");
+  await edgeSheet.getByTestId("sl-edge-secret").check();
+  await page.screenshot({ path: join(shotDir, "22-edge-sheet.png"), fullPage: true });
+  await edgeSheet.getByTestId("sl-edge-save").click();
+  await edgeSheet.waitFor({ state: "detached", timeout: 15000 });
+
+  const created = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const projects = await session.driver.query("SELECT id FROM project LIMIT 1");
+    const rows = await session.driver.query(
+      "SELECT kind, sentiment, secret, directed, source_id, target_id FROM character_relationship WHERE deleted_at IS NULL",
+    );
+    return { projectId: projects[0].id, rows };
+  });
+  const sibling = created.rows.find((row) => row.kind === "family_sibling");
+  if (!sibling) throw new Error("the edge was not written");
+  if (Number(sibling.sentiment) !== 4)
+    throw new Error(`sentiment not stored: ${sibling.sentiment}`);
+  if (Number(sibling.secret) !== 1) throw new Error("secret flag not stored");
+  if (Number(sibling.directed) !== 0)
+    throw new Error("family_sibling should default to undirected");
+  if (!(sibling.source_id < sibling.target_id))
+    throw new Error("undirected edge was not normalised");
+
+  // The matrix cell now shows the kind glyph; tapping it reopens the same edge for editing.
+  const filled = page.locator('.sl-matrix-cell[data-filled="true"]').first();
+  await filled.waitFor({ timeout: 15000 });
+  await filled.click();
+  const editSheet = page.getByTestId("sl-edge-sheet");
+  await editSheet.waitFor();
+  await editSheet.getByTestId("sl-edge-sentiment").fill("-3");
+  await editSheet.getByTestId("sl-edge-save").click();
+  await editSheet.waitFor({ state: "detached", timeout: 15000 });
+  const edited = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query(
+      "SELECT sentiment FROM character_relationship WHERE kind = 'family_sibling' AND deleted_at IS NULL",
+    );
+    return rows[0]?.sentiment ?? null;
+  });
+  if (Number(edited) !== -3) throw new Error(`edit did not land: ${edited}`);
+
+  // Groups: create one from the sheet, then read it back through the dev hook.
+  await page.getByTestId("sl-rel-groups").click();
+  const groupSheet = page.getByTestId("sl-group-sheet");
+  await groupSheet.waitFor();
+  await groupSheet.getByLabel("Group", { exact: true }).first().fill("House Voss");
+  await groupSheet.getByTestId("sl-group-add").click();
+  await page.waitForTimeout(800);
+  const groups = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    return session.driver.query("SELECT name FROM relationship_group WHERE deleted_at IS NULL");
+  });
+  if (!groups.some((row) => row.name === "House Voss")) throw new Error("group was not created");
+  await groupSheet.getByRole("button", { name: "Close" }).click();
+  await page.waitForTimeout(400);
+
+  // The web: nodes render, a node drag pins it, and the list twin is keyboard-readable.
+  await page.getByTestId("sl-mode-graph").click();
+  const graph = page.getByTestId("sl-graph");
+  await graph.waitFor({ timeout: 30000 });
+  const graphNodes = page.locator(".sl-graph-node");
+  await graphNodes.first().waitFor({ timeout: 30000 });
+  const nodeCount = await graphNodes.count();
+  if (nodeCount < 2) throw new Error(`graph rendered ${nodeCount} nodes`);
+  console.log(`  graph nodes: ${nodeCount}`);
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: join(shotDir, "23-graph.png"), fullPage: true });
+
+  // Drag the first node and assert the pin reached meta.graph_positions.
+  const box = await graphNodes.first().boundingBox();
+  if (box) {
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2 + 40, { steps: 12 });
+    await page.mouse.up();
+    await page.waitForTimeout(1200);
+    const pins = await page.evaluate(
+      async (projectId) => window.__starlineDev.graphPositions(projectId),
+      created.projectId,
+    );
+    const pinCount = Object.keys(pins).length;
+    console.log(`  pins after drag: ${pinCount}`);
+    if (pinCount === 0) throw new Error("dragging a node did not pin it");
+  }
+
+  await page.getByTestId("sl-graph-list-toggle").click();
+  const listRows = page.locator('[data-testid="sl-rel-list"] tbody tr');
+  await listRows.first().waitFor({ timeout: 15000 });
+  const listCount = await listRows.count();
+  if (listCount === 0) throw new Error("list twin rendered no rows");
+  console.log(`  list twin rows: ${listCount}`);
+  await page.getByTestId("sl-graph-list-toggle").click();
+  await page.waitForTimeout(600);
+  await axeScan("graph");
+  await page.getByRole("link", { name: "Plan" }).click();
+
   // Phone-path budgets (spec §5.1): the same reads the panels run, through the wasm driver.
   const perf = await page.evaluate(async () => {
     const session = window.__starlineDev.session();

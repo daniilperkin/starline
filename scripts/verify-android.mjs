@@ -241,7 +241,13 @@ try {
     .waitFor({ timeout: 20000 });
   console.log("PASS  undo toast restored the scene on-device");
 
-  // 2j. Trash round-trip on-device: delete, restore from the Trash screen.
+  // 2j. Trash round-trip on-device: delete, restore from the Trash screen. The undo toast from
+  // 2i sits over the bottom of the list for eight seconds and swallows a row-menu tap, so wait
+  // for it to clear first (the same single-slot toast trap the web journey documents).
+  await page
+    .locator(".sl-undo-toast")
+    .waitFor({ state: "detached", timeout: 15000 })
+    .catch(() => undefined);
   await page.getByRole("button", { name: "⋯ A knife in the dark" }).click();
   await page.getByRole("button", { name: "✕ Delete", exact: true }).click();
   await page.getByRole("button", { name: "Tap again to delete" }).click();
@@ -422,6 +428,93 @@ try {
     throw new Error(`emulator search smoke ceiling missed: ${emuPerf.searchP95} ms`);
   if (emuPerf.backlinkP95 > 60)
     throw new Error(`emulator backlink smoke ceiling missed: ${emuPerf.backlinkP95} ms`);
+
+  // 2n. Slice 8 on-device — the relationship matrix (the slice's "smooth on the emulator" exit
+  // criterion), creating an edge from a cell, and the web with a pinned node.
+  await page.getByRole("link", { name: "People" }).click();
+  // The matrix and the web need a pair; the on-device journey only creates one character.
+  const emuCharacters = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query(
+      "SELECT COUNT(*) AS total FROM character WHERE deleted_at IS NULL",
+    );
+    return Number(rows[0]?.total ?? 0);
+  });
+  if (emuCharacters < 2) {
+    await page.getByPlaceholder("Quick add — name").fill("Tor Halden");
+    await page.getByRole("button", { name: "Add character" }).click();
+    await page.waitForTimeout(1200);
+  }
+  const matrixStart = Date.now();
+  await page.getByTestId("sl-mode-matrix").click();
+  await page.getByTestId("sl-matrix").waitFor({ timeout: 60000 });
+  await page.locator(".sl-matrix-cell").first().waitFor({ timeout: 60000 });
+  const matrixMs = Date.now() - matrixStart;
+  const matrixCells = await page.locator(".sl-matrix-cell").count();
+  console.log(`PERF  matrix ready in ${matrixMs} ms (${matrixCells} cells)`);
+  if (matrixMs > 8000) throw new Error(`matrix took ${matrixMs} ms to appear on the emulator`);
+  await page.screenshot({ path: join(shotDir, "emu-slice8-matrix.png"), fullPage: true });
+
+  // Create an edge by tapping an empty cell; the sheet opens prefilled with the pair.
+  const emptyCell = page.locator('.sl-matrix-cell[data-filled="false"]').first();
+  if ((await emptyCell.count()) > 0) {
+    await emptyCell.click();
+    const emuSheet = page.getByTestId("sl-edge-sheet");
+    await emuSheet.waitFor({ timeout: 30000 });
+    await emuSheet.getByLabel("Kind", { exact: true }).selectOption("friend");
+    await emuSheet.getByTestId("sl-edge-sentiment").fill("2");
+    await page.screenshot({ path: join(shotDir, "emu-slice8-edge-sheet.png"), fullPage: true });
+    await emuSheet.getByTestId("sl-edge-save").click();
+    await emuSheet.waitFor({ state: "detached", timeout: 30000 });
+    const stored = await page.evaluate(async () => {
+      const session = window.__starlineDev.session();
+      const rows = await session.driver.query(
+        "SELECT kind, sentiment FROM character_relationship WHERE deleted_at IS NULL",
+      );
+      return rows;
+    });
+    const friend = stored.find((row) => row.kind === "friend");
+    if (!friend || Number(friend.sentiment) !== 2) {
+      throw new Error(`edge not stored on-device: ${JSON.stringify(stored)}`);
+    }
+    console.log(`PASS  edge created from a matrix cell on-device (${stored.length} edges)`);
+  }
+
+  // The web: nodes render, a drag pins one, and the list twin is there for screen readers.
+  const graphStart = Date.now();
+  await page.getByTestId("sl-mode-graph").click();
+  await page.locator(".sl-graph-node").first().waitFor({ timeout: 60000 });
+  const graphMs = Date.now() - graphStart;
+  const graphNodes = await page.locator(".sl-graph-node").count();
+  console.log(`PERF  web ready in ${graphMs} ms (${graphNodes} nodes)`);
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: join(shotDir, "emu-slice8-graph.png"), fullPage: true });
+
+  const wrapper = page.locator(".react-flow__node").first();
+  const nodeBox = await wrapper.boundingBox();
+  if (nodeBox) {
+    await page.mouse.move(nodeBox.x + nodeBox.width / 2, nodeBox.y + nodeBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(nodeBox.x + nodeBox.width / 2 + 40, nodeBox.y + nodeBox.height / 2 + 30, {
+      steps: 10,
+    });
+    await page.mouse.up();
+    await page.waitForTimeout(1200);
+    const pins = await page.evaluate(async () => {
+      const session = window.__starlineDev.session();
+      const projects = await session.driver.query("SELECT id FROM project LIMIT 1");
+      return window.__starlineDev.graphPositions(projects[0].id);
+    });
+    if (Object.keys(pins).length === 0) throw new Error("node drag did not pin on-device");
+    console.log(`PASS  web node pinned on-device (${Object.keys(pins).length} pin)`);
+  }
+
+  await page.getByTestId("sl-graph-list-toggle").click();
+  await page.locator('[data-testid="sl-rel-list"] tbody tr').first().waitFor({ timeout: 30000 });
+  console.log("PASS  relationship list twin on-device");
+  await page.getByTestId("sl-graph-list-toggle").click();
+  await page.waitForTimeout(500);
+  await page.getByRole("link", { name: "Plan" }).click();
 
   // 3. Hardware back: from a step screen back to the plan.
   await page.getByRole("link", { name: "Plan" }).click();

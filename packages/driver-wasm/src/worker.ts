@@ -122,9 +122,11 @@ async function handle(op: string, req: Record<string, unknown>): Promise<unknown
     case "open": {
       if (db) throw new Error("already open");
       const sahPool = await ensureInit();
-      // Opening creates the rollback journal immediately, and creating a library adds a file:
-      // make sure the pool has slots for both before SQLite touches the filesystem.
-      await ensurePoolHeadroom(2);
+      // Opening needs FOUR slots, not one: the database file, its rollback journal (created on
+      // the first write), plus the `-wal` and `-shm` sidecars. Reserving two was one short —
+      // the journal creation failed with "SAH pool is full. Cannot create file /X.starline-journal"
+      // and the library could no longer be opened at all.
+      await ensurePoolHeadroom(4);
       const path = String(req.path);
       const create = Boolean(req.create);
       const ro = Boolean(req.readOnly);
@@ -195,8 +197,10 @@ async function handle(op: string, req: Record<string, unknown>): Promise<unknown
     }
     case "snapshot": {
       const dest = String(req.dest);
-      // A snapshot materialises a whole new file in the pool — one free slot required.
-      await ensurePoolHeadroom(1);
+      // A snapshot needs TWO slots: the materialised file itself and the rollback journal
+      // SQLite creates while filling it. One short and the journal fails mid-snapshot, which is
+      // what poisoned the pool for every later write in the session.
+      await ensurePoolHeadroom(2);
       requireDb().exec(`VACUUM INTO '${dest.replace(/'/g, "''")}';`);
       let byteSize = 0;
       try {

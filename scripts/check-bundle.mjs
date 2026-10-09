@@ -26,6 +26,14 @@ const BUDGETS = [
   { match: /^worker-.*\.js$/, label: "storage worker (gzip)", limitKib: 72 },
 ];
 
+/**
+ * Per-route lazy chunks (spec §5.1: "per-route lazy chunks ≤ 150 KB gz (editor, graph, DOCX
+ * writer, d3-force worker loaded on demand)"). The graph screen is the first one big enough to
+ * matter — xyflow + d3-force — so the budget is asserted from here on: a route chunk that grows
+ * past it must be split further or the dependency reconsidered.
+ */
+const ROUTE_CHUNK_LIMIT_KIB = 150;
+
 let files;
 try {
   files = readdirSync(assets);
@@ -68,6 +76,24 @@ if (!totalOk) failed = true;
 console.log(
   `${totalOk ? (totalMib > 4 ? "TIGHT" : "OK   ") : "OVER "} install payload: ${totalMib.toFixed(2)} MiB / 4 MiB`,
 );
+
+// Per-route chunks: the entry, the styles and the storage worker are budgeted above; every other
+// emitted .js is a lazily-loaded route (or a shared slice of one) and must stay under 150 KiB gz.
+const routeChunks = files
+  .filter((file) => file.endsWith(".js"))
+  .filter((file) => !/^index-.*\.js$/.test(file) && !/^worker-.*\.js$/.test(file))
+  .map((file) => ({
+    name: file,
+    gzipKib: gzipSync(readFileSync(join(assets, file)), { level: 9 }).byteLength / 1024,
+  }))
+  .sort((a, b) => b.gzipKib - a.gzipKib);
+for (const chunk of routeChunks) {
+  const over = chunk.gzipKib > ROUTE_CHUNK_LIMIT_KIB * TOLERANCE;
+  if (over) failed = true;
+  console.log(
+    `${over ? "OVER " : chunk.gzipKib > ROUTE_CHUNK_LIMIT_KIB ? "TIGHT" : "OK   "} route chunk (gzip): ${chunk.gzipKib.toFixed(1)} KiB / ${ROUTE_CHUNK_LIMIT_KIB} KiB (${chunk.name})`,
+  );
+}
 
 if (failed) {
   console.error("BUNDLE-BUDGET FAILED");

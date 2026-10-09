@@ -760,3 +760,391 @@ body {
   align-items: center;
   gap: 0.5rem;
 }
+
+/* ---------- slice 8: relationships (matrix, web, sheets) ---------- */
+
+.sl-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.sl-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--sl-text);
+}
+
+.sl-slider {
+  width: 100%;
+  accent-color: var(--sl-primary);
+}
+
+.sl-danger {
+  color: var(--sl-danger);
+  border-color: var(--sl-danger);
+}
+
+.sl-dot {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  flex: none;
+}
+
+.sl-segmented {
+  display: inline-flex;
+  border: 1px solid var(--sl-border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.sl-segment {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+  color: var(--sl-muted);
+  background: transparent;
+}
+
+.sl-segment[aria-pressed="true"] {
+  background: var(--sl-primary);
+  color: var(--sl-on-primary);
+}
+
+.sl-rel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.sl-rel-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.sl-rel-table th {
+  text-align: left;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sl-muted);
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid var(--sl-border);
+}
+
+.sl-rel-table td {
+  padding: 0.35rem 0.4rem;
+  border-bottom: 1px solid var(--sl-border);
+  vertical-align: middle;
+}
+
+.sl-rel-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--sl-text);
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.sl-rel-glyph {
+  color: var(--sl-accent);
+}
+
+.sl-rel-feeling {
+  font-variant-numeric: tabular-nums;
+}
+
+.sl-rel-section,
+.sl-rel-all {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-top: 1px solid var(--sl-border);
+  padding-top: 0.9rem;
+}
+
+.sl-matrix-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.sl-matrix-hint {
+  font-size: 0.72rem;
+  color: var(--sl-muted);
+}
+
+.sl-matrix-scroll {
+  position: relative;
+  overflow: auto;
+  max-height: 62vh;
+  border: 1px solid var(--sl-border);
+  border-radius: 0.8rem;
+  background: var(--sl-surface);
+  overscroll-behavior: contain;
+}
+
+.sl-matrix-canvas {
+  position: relative;
+}
+
+.sl-matrix-colheads {
+  position: absolute;
+  top: 0;
+  z-index: 3;
+  background: var(--sl-surface-2);
+}
+
+.sl-matrix-colhead {
+  position: absolute;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 0.62rem;
+  color: var(--sl-muted);
+}
+
+.sl-matrix-rowheads {
+  position: absolute;
+  left: 0;
+  z-index: 3;
+  background: var(--sl-surface-2);
+}
+
+.sl-matrix-rowhead {
+  position: absolute;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  padding: 0 0.4rem;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sl-matrix-cell {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--sl-border);
+  border-radius: 0.35rem;
+  font-size: 0.8rem;
+  color: #10112a;
+}
+
+.sl-matrix-cell[data-filled="false"] {
+  color: var(--sl-muted);
+  background: transparent;
+}
+
+.sl-matrix-cell[data-secret="true"] {
+  border-style: dashed;
+}
+
+.sl-matrix-cell-self {
+  background: var(--sl-surface-2);
+  border-radius: 0.35rem;
+  opacity: 0.6;
+}
+
+.sl-matrix-cell sup {
+  font-size: 0.55rem;
+}
+
+.sl-matrix-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  color: var(--sl-muted);
+}
+
+.sl-matrix-legend-count {
+  margin-left: auto;
+}
+
+.sl-graph-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sl-graph-toolbar,
+.sl-graph-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sl-graph-stats {
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: var(--sl-muted);
+}
+
+.sl-graph-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.sl-graph-kind[aria-pressed="true"] {
+  border-color: var(--sl-primary);
+  color: var(--sl-text);
+  background: var(--sl-surface-2);
+}
+
+.sl-graph-pane {
+  height: 62vh;
+  border: 1px solid var(--sl-border);
+  border-radius: 0.8rem;
+  overflow: hidden;
+  background: var(--sl-surface);
+}
+
+.sl-graph-hint {
+  font-size: 0.7rem;
+  color: var(--sl-muted);
+}
+
+.sl-graph-node {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--sl-border);
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  background: var(--sl-surface);
+  color: var(--sl-text);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.sl-graph-node[data-pinned="true"] {
+  border-color: var(--sl-accent);
+}
+
+.sl-graph-node-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+}
+
+/* Handles exist so edges can attach (xyflow requirement); the pill look comes from the node. */
+.sl-graph-handle {
+  width: 6px;
+  height: 6px;
+  border: 0;
+  background: var(--sl-accent);
+  opacity: 0.55;
+}
+
+.sl-graph-hull {
+  width: 100%;
+  height: 100%;
+  border: 1px dashed;
+  border-radius: 1.2rem;
+  background: color-mix(in srgb, var(--sl-surface-2) 55%, transparent);
+}
+
+.sl-graph-hull-label {
+  position: absolute;
+  top: -0.9rem;
+  left: 0.6rem;
+  font-size: 0.7rem;
+}
+
+.sl-edge-sheet,
+.sl-group-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  max-height: 88vh;
+  overflow: auto;
+}
+
+.sl-edge-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.sl-edge-pair-hint {
+  font-size: 0.72rem;
+  color: var(--sl-muted);
+}
+
+.sl-edge-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.sl-edge-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sl-edge-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sl-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sl-group-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sl-group-name {
+  flex: 1;
+  min-height: 36px;
+}
+
+.sl-group-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sl-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.sl-swatch {
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  border: 2px solid transparent;
+}
+
+.sl-swatch[aria-pressed="true"] {
+  border-color: var(--sl-text);
+}

@@ -19,6 +19,7 @@ import {
   useUpdateCharacter,
 } from "./data";
 import { useOpenEntity } from "./openEntity";
+import { CharacterRelationships } from "./relationships/CharacterRelationships";
 import { useUndoStore } from "./undo";
 import { useAutosave } from "./useAutosave";
 
@@ -215,6 +216,8 @@ function DossierForm({ projectId, character }: { projectId: UUID; character: Cha
             onChange={(event) => set("oneParagraphText", event.target.value)}
           />
         </div>
+
+        <CharacterRelationships projectId={projectId} characterId={character.id} />
 
         <BacklinksPanel
           projectId={projectId}

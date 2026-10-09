@@ -224,7 +224,7 @@ single chunk as TIGHT (335.8/330 KiB); the app chunk is now 247.9 KiB.
 item #5); "Possible mentions" links without breaking text. — **met** (perf suite + wasm
 measurements in both E2E scripts).
 
-### Slice 8 — Relationships
+### Slice 8 — Relationships (**built 2026-10-09**; emulator QA + commit pending)
 
 **Screens**: Dossier → Relationships tab (edge table + "Add relationship" sheet: character
 picker, kind, sentiment slider, directed, secret, notes); People → Web mode: **matrix
