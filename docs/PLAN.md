@@ -255,7 +255,7 @@ plotline grid queries, balance statistics via SQL (no stored aggregates).
 **Exit**: a custom field appears on every existing entity immediately; plotline grid
 read/write; stats correct on the reference project.
 
-### Slice 10 — Timeline v1
+### Slice 10 — Timeline v1 (**shipped 2026-10-09**, `d99f3e0`; emulator QA OK, web 13 axe scans; M2 gate met)
 
 **Screens**: World → Timeline: horizontal swimlanes (World / per-character / per-plotline),
 zoom from hours to millennia (project calendar), scene blocks placed by `storyTime` +
@@ -267,6 +267,34 @@ conflict detection query.
 
 **Exit (M2 gate)**: on the reference project — backlinks, search, graph/matrix and timeline
 budgets met; all gates green; APK rebuilt.
+
+**M2 gate record (2026-10-09).** Measured, not estimated:
+
+| Gate | Budget | Measured | Where |
+| --- | --- | --- | --- |
+| Search p95 | ≤ 30 ms | 21.4 ms | wasm path, `verify-web` |
+| Backlinks p95 | ≤ 10 ms | 4.7 ms | wasm path, `verify-web` |
+| Backlink statement p95 | ≤ 10 ms | 3.94 ms (0.06 ms p50) | native harness, `slice7-perf` |
+| Timeline read (190 items, 60+ lanes) | ≤ 100 ms view switch | 9.0 ms median | native harness, `slice10-timeline` |
+| Timeline drag commit | ≤ 30 ms | 1.5 ms median | native harness, `slice10-timeline` |
+| Relationship matrix ready | ≤ 100 ms view switch | 851 ms cold | emulator, `verify-android` |
+| Character web ready | ≤ 100 ms view switch | 753 ms cold | emulator, `verify-android` |
+| App bundle (gzip) | ≤ 330 KiB | 247.2 KiB | `check:bundle` |
+| Styles (gzip) | ≤ 8 KiB | 7.3 KiB | `check:bundle` |
+| Storage worker (gzip) | ≤ 72 KiB | 63.6 KiB | `check:bundle` |
+| Install payload | ≤ 4 MiB | 2.91 MiB | `check:bundle` |
+| Per-route lazy chunk | ≤ 150 KiB | 61.8 KiB (worst) | `check:bundle` |
+| Tests | — | 228/228 | `pnpm test` |
+| Durability | no acked loss | 1002/1002, 3 kills | `pnpm chaos` + `chaos:web` |
+| Emulator journey | all steps pass | 30 PASS, APK 9.82 MB | `verify-android` |
+
+Notes on the two slow rows: the matrix/web numbers are the *whole* view switch on a cold
+emulator — wasm compile, query, layout worker and first paint on a software renderer. The
+in-process query itself is 2–5 ms (`slice7-perf`); the emulator's wasm driver is what costs.
+That is also why both views are lazy-loaded inside the People route rather than shipped in it.
+The emulator's own wasm reads run against smoke ceilings (search 120 ms / backlinks 60 ms),
+never the shipping budgets — a phone-path budget asserted through an emulator's software
+renderer would measure the emulator, not the app.
 
 ---
 
