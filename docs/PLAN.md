@@ -241,7 +241,7 @@ manual pin via `meta.graph_positions`.
 **Exit**: add/edit edges from matrix and graph; secret/directed/sentiment render correctly;
 matrix smooth on the emulator; a11y list twin complete.
 
-### Slice 9 — Tags, custom fields, plotline grid
+### Slice 9 — Tags, custom fields, plotline grid (**shipped 2026-10-09**, `PENDING`; emulator QA OK)
 
 **Screens**: tag manager (create/rename/recolour/merge); tag chips + pickers everywhere;
 Fields screen (settings → custom fields: target character/lore/scene/location, kind-scoped,

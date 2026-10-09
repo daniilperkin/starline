@@ -6,10 +6,13 @@ import {
   type CharacterRole,
   type Command,
   type ConsistencyCheck,
+  type CustomFieldTarget,
   copyLineToSceneSynopsis,
+  countFieldValuesByDef,
   countRelationshipsByCharacter,
   createChapter,
   createCharacter,
+  createFieldDef,
   createLoreCategory,
   createLoreEntry,
   createPlotline,
@@ -18,26 +21,34 @@ import {
   createRelationshipGroup,
   createScene,
   createScenesFromList,
+  createTag,
   deleteChapter,
   deleteCharacter,
+  deleteFieldDef,
   deleteLoreCategory,
   deleteLoreEntry,
   deleteRelationship,
   deleteRelationshipGroup,
   deleteScene,
+  deleteTag,
+  type EntityType,
   emptyTrash,
   executeCommand,
   getDashboardStats,
   getGraphPositions,
   getLoreEntry,
+  getPlotlineBalance,
+  getPlotlineGrid,
   getRelationshipMatrix,
   getSceneDetail,
   type LoreEntryPatch,
   type LoreKind,
   linkMention,
+  listAllFieldDefs,
   listBacklinks,
   listChapters,
   listCharacters,
+  listEntityTags,
   listFieldDefs,
   listFieldValues,
   listLoreCategories,
@@ -55,13 +66,16 @@ import {
   listTags,
   listTrash,
   markStepComplete,
+  mergeTags,
   moveChapter,
+  moveFieldDef,
   moveLoreEntry,
   moveScene,
   type PartSummary,
   type PossibleMention,
   purgeExpiredTrash,
   type RelationshipPatch,
+  renameTag,
   restoreEntity,
   runConsistencyChecks,
   type SceneSummary,
@@ -71,6 +85,7 @@ import {
   saveStepContent,
   searchProject,
   seedLoreTaxonomy,
+  setEntityTags,
   setFieldValue,
   setGraphPositions,
   setSceneCharacters,
@@ -78,11 +93,14 @@ import {
   setScenePlacement,
   setScenePlotline,
   setSceneTags,
+  setTagColor,
   type TrashEntityType,
+  toggleEntityTag,
   type UUID,
   unlinkMention,
   updateChapter,
   updateCharacter,
+  updateFieldDef,
   updateLoreEntry,
   updateRelationship,
   updateRelationshipGroup,
@@ -124,6 +142,11 @@ bus.subscribe(() => {
   void queryClient.invalidateQueries({ queryKey: ["relationshipCounts"] });
   void queryClient.invalidateQueries({ queryKey: ["sharedScenes"] });
   void queryClient.invalidateQueries({ queryKey: ["graphPositions"] });
+  // Slice 9: tag chips, the settings lists and the plotline grid.
+  void queryClient.invalidateQueries({ queryKey: ["entityTags"] });
+  void queryClient.invalidateQueries({ queryKey: ["fieldDefs"] });
+  void queryClient.invalidateQueries({ queryKey: ["plotlineGrid"] });
+  void queryClient.invalidateQueries({ queryKey: ["plotlineBalance"] });
 });
 
 let lastActivityAt = Date.now();
@@ -360,6 +383,77 @@ export const useSetSceneLore = () => useSceneCommand(setSceneLore);
 export const useSetScenePlacement = () => useSceneCommand(setScenePlacement);
 export const useCopyLineToSynopsis = () => useSceneCommand(copyLineToSceneSynopsis);
 
+// ---- Slice 9: tags, field definitions, plotline grid -------------------------------------
+
+export const useCreateTag = () => useSceneCommand(createTag);
+export const useRenameTag = () => useSceneCommand(renameTag);
+export const useSetTagColor = () => useSceneCommand(setTagColor);
+export const useDeleteTag = () => useSceneCommand(deleteTag);
+export const useMergeTags = () => useSceneCommand(mergeTags);
+export const useSetEntityTags = () => useSceneCommand(setEntityTags);
+export const useToggleEntityTag = () => useSceneCommand(toggleEntityTag);
+
+/** One entity's tags — the picker's checked state and the chips row. */
+export function useEntityTags(entityType: EntityType, entityId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["entityTags", session?.name ?? null, entityType, entityId],
+    enabled: session !== null && entityId !== null,
+    queryFn: async () => {
+      if (!session || !entityId) throw new Error("no entity");
+      return listEntityTags(session.driver, entityType, entityId);
+    },
+  });
+}
+
+/** Settings -> Fields: every definition with its usage count, whatever the target. */
+export function useFieldDefsAdmin(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["fieldDefs", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      const [defs, usage] = await Promise.all([
+        listAllFieldDefs(session.driver, projectId),
+        countFieldValuesByDef(session.driver, projectId),
+      ]);
+      return defs.map((def) => ({ ...def, usage: usage.get(def.id) ?? 0 }));
+    },
+  });
+}
+
+export const useCreateFieldDef = () => useSceneCommand(createFieldDef);
+export const useUpdateFieldDef = () => useSceneCommand(updateFieldDef);
+export const useMoveFieldDef = () => useSceneCommand(moveFieldDef);
+export const useDeleteFieldDef = () => useSceneCommand(deleteFieldDef);
+
+/** Plotline rows x scene columns with the `scene_plotline` cells. */
+export function usePlotlineGrid(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["plotlineGrid", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return getPlotlineGrid(session.driver, projectId);
+    },
+  });
+}
+
+/** Balance statistics for the grid's header line. */
+export function usePlotlineBalance(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["plotlineBalance", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return getPlotlineBalance(session.driver, projectId);
+    },
+  });
+}
+
 /** Dashboard aggregates (counts, estimate, recent edits) for one project. */
 export function useDashboardStats(projectId: UUID | null) {
   const session = useSessionStore((state) => state.session);
@@ -471,6 +565,16 @@ const chaosCommands: Record<string, Command<never, unknown>> = {
   createRelationshipGroup: createRelationshipGroup as Command<never, unknown>,
   deleteRelationshipGroup: deleteRelationshipGroup as Command<never, unknown>,
   setGraphPositions: setGraphPositions as Command<never, unknown>,
+  createTag: createTag as Command<never, unknown>,
+  renameTag: renameTag as Command<never, unknown>,
+  deleteTag: deleteTag as Command<never, unknown>,
+  mergeTags: mergeTags as Command<never, unknown>,
+  setEntityTags: setEntityTags as Command<never, unknown>,
+  toggleEntityTag: toggleEntityTag as Command<never, unknown>,
+  createFieldDef: createFieldDef as Command<never, unknown>,
+  moveFieldDef: moveFieldDef as Command<never, unknown>,
+  deleteFieldDef: deleteFieldDef as Command<never, unknown>,
+  setScenePlotline: setScenePlotline as Command<never, unknown>,
 };
 
 if (import.meta.env.DEV || import.meta.env.VITE_STARLINE_DEV === "1") {
@@ -514,6 +618,32 @@ if (import.meta.env.DEV || import.meta.env.VITE_STARLINE_DEV === "1") {
       const session = useSessionStore.getState().session;
       if (!session) throw new Error("no library open");
       return runConsistencyChecks(session.driver, projectId as UUID);
+    },
+    /** Slice-9 reads for the E2E journey: tags with counts, the grid and its balance. */
+    tags: (projectId: string) => {
+      const session = useSessionStore.getState().session;
+      if (!session) throw new Error("no library open");
+      return listTags(session.driver, projectId as UUID);
+    },
+    entityTags: (entityType: string, entityId: string) => {
+      const session = useSessionStore.getState().session;
+      if (!session) throw new Error("no library open");
+      return listEntityTags(session.driver, entityType as EntityType, entityId as UUID);
+    },
+    grid: (projectId: string) => {
+      const session = useSessionStore.getState().session;
+      if (!session) throw new Error("no library open");
+      return getPlotlineGrid(session.driver, projectId as UUID);
+    },
+    balance: (projectId: string) => {
+      const session = useSessionStore.getState().session;
+      if (!session) throw new Error("no library open");
+      return getPlotlineBalance(session.driver, projectId as UUID);
+    },
+    fieldDefs: (projectId: string) => {
+      const session = useSessionStore.getState().session;
+      if (!session) throw new Error("no library open");
+      return listAllFieldDefs(session.driver, projectId as UUID);
     },
     /** Slice-8 reads for the E2E journey: the matrix (characters + edges + groups) and the pins. */
     relationships: (projectId: string) => {
@@ -621,25 +751,39 @@ export function useMentionables(projectId: UUID | null) {
 }
 
 export function useLoreFieldDefs(projectId: UUID | null, kind: string | null) {
+  return useFieldDefsFor(projectId, "lore", kind);
+}
+
+/** Field definitions for one target — the same read the settings screen manages. */
+export function useFieldDefsFor(
+  projectId: UUID | null,
+  target: CustomFieldTarget,
+  loreKind: string | null = null,
+) {
   const session = useSessionStore((state) => state.session);
   return useQuery({
-    queryKey: ["fields", session?.name ?? null, projectId, "lore", kind],
-    enabled: session !== null && projectId !== null && kind !== null,
+    queryKey: ["fields", session?.name ?? null, projectId, target, loreKind],
+    enabled: session !== null && projectId !== null,
     queryFn: async () => {
-      if (!session || !projectId || !kind) throw new Error("no project open");
-      return listFieldDefs(session.driver, projectId, "lore", kind);
+      if (!session || !projectId) throw new Error("no project open");
+      return listFieldDefs(session.driver, projectId, target, loreKind);
     },
   });
 }
 
 export function useFieldValues(ownerId: UUID | null) {
+  return useFieldValuesFor("lore", ownerId);
+}
+
+/** Values of one owner, whatever the target — scenes, lore entries and characters alike. */
+export function useFieldValuesFor(ownerType: string, ownerId: UUID | null) {
   const session = useSessionStore((state) => state.session);
   return useQuery({
-    queryKey: ["fields", session?.name ?? null, "values", ownerId],
+    queryKey: ["fields", session?.name ?? null, "values", ownerType, ownerId],
     enabled: session !== null && ownerId !== null,
     queryFn: async () => {
       if (!session || !ownerId) throw new Error("no owner");
-      return listFieldValues(session.driver, "lore", ownerId);
+      return listFieldValues(session.driver, ownerType, ownerId);
     },
   });
 }

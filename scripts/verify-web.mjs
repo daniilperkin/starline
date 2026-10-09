@@ -641,6 +641,138 @@ try {
   await axeScan("graph");
   await page.getByRole("link", { name: "Plan" }).click();
 
+  // 4t. Slice 9: the plotline grid (attach a scene, edit its beat, read the balance), the tag
+  // manager (create, rename, recolour, merge, delete) and a custom field that appears on an
+  // existing scene the moment it is created — the slice's three exit criteria.
+  await page.getByRole("link", { name: "Scenes" }).click();
+  await page.getByTestId("sl-scenes-grid").click();
+  // The canvas only renders once a plotline exists, so create the first row before waiting.
+  await page.getByTestId("sl-grid-new-plotline").waitFor({ timeout: 30000 });
+  await page.getByTestId("sl-grid-new-plotline").fill("The debt");
+  await page.getByTestId("sl-grid-add-plotline").click();
+  await page.getByTestId("sl-grid-cell").first().waitFor({ timeout: 30000 });
+  console.log(`  grid cells rendered: ${await page.getByTestId("sl-grid-cell").count()}`);
+  await page.getByTestId("sl-grid-cell").first().click();
+  await page.waitForTimeout(900);
+  const attached = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const projects = await session.driver.query("SELECT id FROM project LIMIT 1");
+    const grid = await window.__starlineDev.grid(projects[0].id);
+    return Object.keys(grid.cells).length;
+  });
+  if (attached !== 1) throw new Error(`grid attach did not persist (${attached} cells)`);
+  console.log("  grid: cell attached and persisted");
+
+  await page.getByTestId("sl-grid-cell").first().click();
+  await page.getByTestId("sl-grid-beat-input").waitFor({ timeout: 20000 });
+  await page.getByTestId("sl-grid-beat-input").fill("The letter arrives");
+  await page.getByTestId("sl-grid-beat-save").click();
+  await page.waitForTimeout(900);
+  const beat = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const projects = await session.driver.query("SELECT id FROM project LIMIT 1");
+    const grid = await window.__starlineDev.grid(projects[0].id);
+    return Object.values(grid.cells)[0]?.beat ?? "";
+  });
+  if (beat !== "The letter arrives") throw new Error(`beat not stored: "${beat}"`);
+  const balanceText = await page.getByTestId("sl-grid-balance").first().innerText();
+  console.log(`  grid balance: ${balanceText}`);
+  if (!/^1 of \d+ scenes; longest gap 0$/.test(balanceText.trim())) {
+    throw new Error(`balance line looks wrong: ${balanceText}`);
+  }
+  const zoomBefore = await page.getByTestId("sl-grid-zoom-reset").innerText();
+  await page.getByTestId("sl-grid-zoom-in").click();
+  await page.waitForTimeout(300);
+  const zoomAfter = await page.getByTestId("sl-grid-zoom-reset").innerText();
+  if (zoomBefore === zoomAfter) throw new Error("grid zoom control did nothing");
+  console.log(`  grid zoom: ${zoomBefore.trim()} → ${zoomAfter.trim()}`);
+  await page.screenshot({ path: join(shotDir, "17-grid.png"), fullPage: true });
+  await axeScan("grid");
+
+  // Tag manager (Settings → Tags).
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByTestId("sl-open-settings").click();
+  await page.getByTestId("sl-tag-name-input").waitFor({ timeout: 20000 });
+  await page.getByTestId("sl-tag-name-input").fill("red herring");
+  await page.getByTestId("sl-tag-create").click();
+  await page.getByTestId("sl-tag-row").first().waitFor({ timeout: 20000 });
+
+  await page.getByTestId("sl-tag-name").first().click();
+  await page.getByTestId("sl-tag-rename-input").fill("mystery");
+  await page.getByTestId("sl-tag-rename-input").press("Enter");
+  await page.waitForTimeout(800);
+  await page.getByTestId("sl-tag-color").nth(3).click();
+  await page.waitForTimeout(700);
+
+  await page.getByTestId("sl-tag-name-input").fill("arc");
+  await page.getByTestId("sl-tag-create").click();
+  await page.waitForTimeout(900);
+  const mysteryRow = page.getByTestId("sl-tag-row").filter({ hasText: "mystery" });
+  await mysteryRow.getByTestId("sl-tag-merge").click();
+  await mysteryRow.getByTestId("sl-tag-merge-target").selectOption({ label: "arc" });
+  await mysteryRow.getByTestId("sl-tag-merge-confirm").click();
+  await page.waitForTimeout(900);
+  const afterMerge = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const projects = await session.driver.query("SELECT id FROM project LIMIT 1");
+    return window.__starlineDev.tags(projects[0].id);
+  });
+  if (afterMerge.length !== 1 || afterMerge[0].name !== "arc") {
+    throw new Error(`merge left ${JSON.stringify(afterMerge)}`);
+  }
+  console.log(`  tags after merge: ${afterMerge.map((tag) => tag.name).join(", ")}`);
+  await page.screenshot({ path: join(shotDir, "18-tags.png"), fullPage: true });
+  await axeScan("settings");
+
+  // Custom fields: a new scene field lands on every existing scene straight away.
+  await page.getByTestId("sl-settings-fields").click();
+  await page.getByTestId("sl-field-target").selectOption("scene");
+  await page.getByTestId("sl-field-label").fill("Tension");
+  await page.getByTestId("sl-field-type").selectOption("number");
+  await page.getByTestId("sl-field-add").click();
+  // Scope every read to the row we just made: the lore kind templates are in the same list.
+  const tensionRow = page.getByTestId("sl-field-row").filter({ hasText: "Tension" });
+  await tensionRow.waitFor({ timeout: 20000 });
+  const usageBefore = await tensionRow.getByTestId("sl-field-usage").innerText();
+
+  await page.getByRole("link", { name: "Scenes" }).click();
+  await page.getByTestId("sl-scenes-list").click();
+  await page.locator(".sl-scene-line-main").first().click();
+  await page.getByTestId("sl-custom-fields").waitFor({ timeout: 20000 });
+  const tension = page.getByLabel("Tension", { exact: true });
+  await tension.fill("7");
+  await tension.blur();
+  await page.waitForTimeout(900);
+  const stored = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query(
+      "SELECT value FROM custom_field_value WHERE owner_type = 'scene'",
+    );
+    return rows.map((row) => row.value);
+  });
+  if (!stored.includes("7")) throw new Error(`scene field not stored: ${JSON.stringify(stored)}`);
+  console.log(
+    `  custom field on an existing scene: usage before "${usageBefore.trim()}", stored ${JSON.stringify(stored)}`,
+  );
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+
+  // The settings list now counts that fill.
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByTestId("sl-open-settings").click();
+  await page.getByTestId("sl-settings-fields").click();
+  // The list renders from cache first and the count arrives with the refetch, so wait for the
+  // number itself instead of reading the first paint (that flaked once).
+  const usageCell = page
+    .getByTestId("sl-field-row")
+    .filter({ hasText: "Tension" })
+    .getByTestId("sl-field-usage");
+  await usageCell.filter({ hasText: "1" }).waitFor({ timeout: 20000 });
+  const usageAfter = await usageCell.innerText();
+  if (!/1/.test(usageAfter)) throw new Error(`usage count did not update: ${usageAfter}`);
+  console.log(`  field usage after the fill: ${usageAfter.trim()}`);
+  await page.getByRole("link", { name: "Plan" }).click();
+
   // Phone-path budgets (spec §5.1): the same reads the panels run, through the wasm driver.
   const perf = await page.evaluate(async () => {
     const session = window.__starlineDev.session();

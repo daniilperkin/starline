@@ -1,5 +1,4 @@
 import {
-  type CustomFieldDef,
   categoryPath,
   entryPath,
   LORE_ALIASES_MAX,
@@ -16,19 +15,18 @@ import {
 } from "@starline/core";
 import { useEffect, useMemo, useState } from "react";
 import { BacklinksPanel } from "./BacklinksPanel";
+import { CustomFieldsSection } from "./CustomFields";
 import {
   useDeleteLoreEntry,
-  useFieldValues,
   useLoreEntry,
-  useLoreFieldDefs,
   useMentionables,
   useMoveLoreEntry,
   useRestoreEntity,
-  useSetFieldValue,
   useUpdateLoreEntry,
 } from "./data";
 import { useOpenEntity } from "./openEntity";
 import { RichTextEditor } from "./RichTextEditor";
+import { TagPicker } from "./TagPicker";
 import { useUndoStore } from "./undo";
 import { useAutosave } from "./useAutosave";
 
@@ -69,7 +67,6 @@ export function LoreSheet({
   const pushUndo = useUndoStore((state) => state.push);
 
   const [patch, setPatch] = useState<Patch | null>(null);
-  const [fieldDrafts, setFieldDrafts] = useState<Record<string, string>>({});
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -118,18 +115,7 @@ export function LoreSheet({
       });
   });
 
-  const kindDefs = useLoreFieldDefs(projectId, patch?.kind ?? loaded?.kind ?? null);
-  const values = useFieldValues(entryId);
-  const setField = useSetFieldValue();
   const openEntity = useOpenEntity();
-
-  const fieldValueOf = (defId: UUID): unknown => values.data?.get(defId) ?? null;
-
-  const commitField = async (def: CustomFieldDef, value: unknown) => {
-    await setField
-      .mutateAsync({ defId: def.id, ownerType: "lore", ownerId: entryId, value })
-      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)));
-  };
 
   const categoryTrail = useMemo(
     () => categoryPath(categories, loaded?.categoryId ?? null),
@@ -358,6 +344,11 @@ export function LoreSheet({
           ))}
         </select>
 
+        <div className="flex flex-col gap-1">
+          <span className="sl-label">{messages.tags.picker}</span>
+          <TagPicker projectId={projectId} entityType="lore_entry" entityId={loaded.id} />
+        </div>
+
         <label className="sl-label" htmlFor="lore-aliases">
           {messages.world.aliases}
         </label>
@@ -399,24 +390,14 @@ export function LoreSheet({
           onChange={(body) => setPatch((current) => current && { ...current, body })}
         />
 
-        {(kindDefs.data ?? []).length > 0 ? (
-          <fieldset className="sl-fieldset">
-            <legend className="sl-label">{messages.world.details}</legend>
-            <div className="flex flex-col gap-3">
-              {(kindDefs.data ?? []).map((def) => (
-                <FieldControl
-                  key={def.id}
-                  def={def}
-                  value={fieldValueOf(def.id)}
-                  draft={fieldDrafts[def.id] ?? null}
-                  mentionables={mentionables.data ?? []}
-                  onDraft={(text) => setFieldDrafts({ ...fieldDrafts, [def.id]: text })}
-                  onCommit={(value) => void commitField(def, value)}
-                />
-              ))}
-            </div>
-          </fieldset>
-        ) : null}
+        <CustomFieldsSection
+          projectId={projectId}
+          ownerType="lore"
+          target="lore"
+          ownerId={entryId}
+          loreKind={patch?.kind ?? loaded?.kind ?? null}
+          legend={messages.world.details}
+        />
 
         <BacklinksPanel
           projectId={projectId}
@@ -432,145 +413,6 @@ export function LoreSheet({
           <span className="text-xs text-muted">{messages.common.saved}</span>
         </div>
       </section>
-    </>
-  );
-}
-
-/** One template field, rendered by type. Text-likes commit on blur; the rest on change. */
-function FieldControl({
-  def,
-  value,
-  draft,
-  mentionables,
-  onDraft,
-  onCommit,
-}: {
-  def: CustomFieldDef;
-  value: unknown;
-  draft: string | null;
-  mentionables: { id: UUID; label: string; type: string }[];
-  onDraft: (text: string) => void;
-  onCommit: (value: unknown) => void;
-}) {
-  const id = `field-${def.id}`;
-  const text = draft ?? (value === null ? "" : String(value));
-
-  if (def.type === "boolean") {
-    return (
-      <label className="flex items-center gap-2 text-sm" htmlFor={id}>
-        <input
-          id={id}
-          type="checkbox"
-          checked={value === true}
-          onChange={(event) => onCommit(event.target.checked)}
-        />
-        {def.label}
-      </label>
-    );
-  }
-
-  if (def.type === "select" || def.type === "multiselect") {
-    const options = def.options ?? [];
-    if (def.type === "multiselect") {
-      const selected = new Set(Array.isArray(value) ? value.map(String) : []);
-      return (
-        <fieldset className="flex flex-col gap-1">
-          <legend className="sl-label">{def.label}</legend>
-          {options.map((option) => (
-            <label key={option} className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={selected.has(option)}
-                onChange={(event) => {
-                  const next = new Set(selected);
-                  if (event.target.checked) next.add(option);
-                  else next.delete(option);
-                  onCommit([...next]);
-                }}
-              />
-              {option}
-            </label>
-          ))}
-        </fieldset>
-      );
-    }
-    return (
-      <>
-        <label className="sl-label" htmlFor={id}>
-          {def.label}
-        </label>
-        <select
-          id={id}
-          className="sl-select"
-          value={value === null ? "" : String(value)}
-          onChange={(event) => onCommit(event.target.value === "" ? null : event.target.value)}
-        >
-          <option value="">{messages.fields.empty}</option>
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </>
-    );
-  }
-
-  if (def.type === "entity_ref") {
-    return (
-      <>
-        <label className="sl-label" htmlFor={id}>
-          {def.label}
-        </label>
-        <select
-          id={id}
-          className="sl-select"
-          value={value === null ? "" : String(value)}
-          onChange={(event) => onCommit(event.target.value === "" ? null : event.target.value)}
-        >
-          <option value="">{messages.fields.empty}</option>
-          {mentionables.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.label}
-            </option>
-          ))}
-        </select>
-      </>
-    );
-  }
-
-  const inputType =
-    def.type === "number"
-      ? "number"
-      : def.type === "date"
-        ? "date"
-        : def.type === "color"
-          ? "color"
-          : "text";
-
-  return (
-    <>
-      <label className="sl-label" htmlFor={id}>
-        {def.label}
-      </label>
-      {def.type === "longtext" ? (
-        <textarea
-          id={id}
-          className="sl-textarea"
-          value={text}
-          onChange={(event) => onDraft(event.target.value)}
-          onBlur={() => onCommit(text)}
-        />
-      ) : (
-        <input
-          id={id}
-          className="sl-input"
-          type={inputType}
-          value={text}
-          onChange={(event) => onDraft(event.target.value)}
-          onBlur={() => onCommit(text)}
-        />
-      )}
     </>
   );
 }

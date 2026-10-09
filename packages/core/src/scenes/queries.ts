@@ -11,7 +11,6 @@ import type {
   SceneDetail,
   SceneSummary,
   SnowflakeSource,
-  TagSummary,
 } from "./types";
 
 /** The read-only statement surface a storage driver satisfies for queries. */
@@ -262,19 +261,6 @@ export async function listPlotlines(
     color: row.color,
     characterId: row.character_id as UUID | null,
     orderKey: row.order_key,
-  }));
-}
-
-export async function listTags(runner: SceneQueryRunner, projectId: UUID): Promise<TagSummary[]> {
-  const rows = await runner.query<{ id: string; project_id: string; name: string; color: string }>(
-    `SELECT id, project_id, name, color FROM tag WHERE project_id = ? ORDER BY name COLLATE NOCASE`,
-    [projectId],
-  );
-  return rows.map((row) => ({
-    id: row.id as UUID,
-    projectId: row.project_id as UUID,
-    name: row.name,
-    color: row.color,
   }));
 }
 

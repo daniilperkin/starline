@@ -10,6 +10,7 @@ import {
   type UUID,
 } from "@starline/core";
 import { useEffect, useState } from "react";
+import { CustomFieldsSection } from "./CustomFields";
 import {
   useCharacters,
   useCreatePlotline,
@@ -19,11 +20,9 @@ import {
   useSceneDetail,
   useSetSceneCharacters,
   useSetScenePlotline,
-  useSetSceneTags,
-  useTags,
   useUpdateScene,
 } from "./data";
-import { RichTextEditor } from "./RichTextEditor";
+import { TagPicker } from "./TagPicker";
 import { useUndoStore } from "./undo";
 import { useAutosave } from "./useAutosave";
 
@@ -114,19 +113,16 @@ function SceneSheetBody({
   const sceneId = detail.id;
   const characters = useCharacters(projectId);
   const plotlines = usePlotlines(projectId);
-  const tags = useTags(projectId);
   const updateScene = useUpdateScene();
   const deleteScene = useDeleteScene();
   const restore = useRestoreEntity();
   const pushUndo = useUndoStore((state) => state.push);
   const setCharacters = useSetSceneCharacters();
   const setPlotline = useSetScenePlotline();
-  const setTags = useSetSceneTags();
   const createPlotline = useCreatePlotline();
 
   const [draft, setDraft] = useState<SheetDraft>(() => draftOf(detail));
   const [newPlotline, setNewPlotline] = useState("");
-  const [newTag, setNewTag] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const flush = useAutosave(draft, async (value) => {
@@ -140,10 +136,6 @@ function SceneSheetBody({
 
   const patch = (partial: Partial<SheetDraft>) =>
     setDraft((previous) => ({ ...previous, ...partial }));
-
-  const tagNames = detail.tagIds
-    .map((id) => tags.data?.find((tag) => tag.id === id)?.name)
-    .filter((name): name is string => name !== undefined);
 
   const toggleCharacter = (characterId: UUID) => {
     const current = new Set(detail.presentCharacterIds);
@@ -500,58 +492,16 @@ function SceneSheetBody({
 
       <div className="flex flex-col gap-1">
         <span className="sl-label">{messages.sceneSheet.tags}</span>
-        <div className="flex flex-wrap items-center gap-2">
-          {tagNames.map((name) => (
-            <button
-              key={name}
-              type="button"
-              className="sl-chip-toggle"
-              data-on={true}
-              aria-label={`${messages.scenes.delete} ${name}`}
-              onClick={() =>
-                setTags.mutate({
-                  projectId,
-                  sceneId,
-                  names: tagNames.filter((tag) => tag !== name),
-                })
-              }
-            >
-              {name} ✕
-            </button>
-          ))}
-        </div>
-        <div className="mt-1 flex gap-2">
-          <input
-            className="sl-input flex-1"
-            value={newTag}
-            placeholder={messages.sceneSheet.tagPlaceholder}
-            aria-label={messages.sceneSheet.tagPlaceholder}
-            onChange={(event) => setNewTag(event.target.value)}
-          />
-          <button
-            type="button"
-            className="sl-btn"
-            disabled={newTag.trim().length === 0}
-            onClick={() => {
-              const name = newTag.trim();
-              if (name.length === 0) return;
-              setNewTag("");
-              setTags.mutate({ projectId, sceneId, names: [...tagNames, name] });
-            }}
-          >
-            {messages.sceneSheet.tagAdd}
-          </button>
-        </div>
+        <TagPicker projectId={projectId} entityType="scene" entityId={sceneId} />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <span className="sl-label">{messages.sceneSheet.synopsis}</span>
-        <RichTextEditor
-          initial={draft.synopsis}
-          ariaLabel={messages.sceneSheet.synopsis}
-          onChange={(value) => patch({ synopsis: value })}
-        />
-      </div>
+      <CustomFieldsSection
+        projectId={projectId}
+        ownerType="scene"
+        target="scene"
+        ownerId={sceneId}
+        legend={messages.fieldDefs.heading}
+      />
 
       <div className="flex flex-col gap-1">
         <label className="sl-label" htmlFor="scene-target-words">

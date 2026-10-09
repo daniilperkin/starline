@@ -34,6 +34,7 @@ import {
   useUpdateChapter,
 } from "./data";
 import { useNavigationStore } from "./navigation";
+import { PlotlineGrid } from "./PlotlineGrid";
 import { SceneSheet } from "./SceneSheet";
 import { useUndoStore } from "./undo";
 
@@ -65,6 +66,7 @@ export function ScenesScreen() {
   const setPlacement = useSetScenePlacement();
   const pushUndo = useUndoStore((state) => state.push);
 
+  const [mode, setMode] = useState<"list" | "grid">("list");
   const [sheetSceneId, setSheetSceneId] = useState<UUID | null>(null);
   const [activeSceneId, setActiveSceneId] = useState<UUID | null>(null);
   const [sceneMenuFor, setSceneMenuFor] = useState<UUID | null>(null);
@@ -236,348 +238,370 @@ export function ScenesScreen() {
             {format(messages.scenes.wordsEst, { words: numberFormat.format(estimate) })}
           </p>
         </div>
+        <fieldset className="sl-segmented sl-fieldset">
+          <legend className="sr-only">{messages.grid.heading}</legend>
+          {(["list", "grid"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              className="sl-segment"
+              aria-pressed={mode === option}
+              data-testid={`sl-scenes-${option}`}
+              onClick={() => setMode(option)}
+            >
+              {option === "list" ? messages.grid.list : messages.grid.grid}
+            </button>
+          ))}
+        </fieldset>
       </header>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          className="sl-btn"
-          disabled={createScene.isPending}
-          onClick={() => createScene.mutate({ projectId, chapterId: null })}
-        >
-          + {messages.scenes.newScene}
-        </button>
-        <div className="flex flex-1 items-center gap-2">
-          <input
-            className="sl-input min-w-0 flex-1"
-            value={newChapterTitle}
-            placeholder={messages.scenes.newChapter}
-            aria-label={messages.scenes.newChapter}
-            onChange={(event) => setNewChapterTitle(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && newChapterTitle.trim().length > 0) {
-                createChapter.mutate({ projectId, title: newChapterTitle.trim() });
-                setNewChapterTitle("");
-              }
-            }}
-          />
-          <button
-            type="button"
-            className="sl-btn"
-            disabled={newChapterTitle.trim().length === 0 || createChapter.isPending}
-            onClick={() => {
-              createChapter.mutate({ projectId, title: newChapterTitle.trim() });
-              setNewChapterTitle("");
-            }}
-          >
-            {messages.scenes.addChapter}
-          </button>
-        </div>
-      </div>
-
-      {scenes.length === 0 && chapters.length === 0 ? (
-        <p className="text-sm text-muted">{messages.scenes.empty}</p>
-      ) : null}
-
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={(event) => setActiveSceneId(event.active.id as UUID)}
-        onDragEnd={onDragEnd}
-      >
-        {groups.map((group) => {
-          const chapter = group.chapter;
-          const groupWords = group.scenes.reduce(
-            (sum, scene) =>
-              sum + (scene.bodyWordCount > 0 ? scene.bodyWordCount : (scene.targetWordCount ?? 0)),
-            0,
-          );
-          return (
-            <section key={chapter?.id ?? "unassigned"} className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                {chapter !== null && renamingChapter === chapter.id ? (
-                  <input
-                    className="sl-input min-w-0 flex-1"
-                    value={renameText}
-                    aria-label={messages.scenes.chapterRenamed}
-                    onChange={(event) => setRenameText(event.target.value)}
-                    onBlur={() => {
-                      const title = renameText.trim();
-                      if (title.length > 0 && title !== chapter.title) {
-                        updateChapter.mutate({
-                          projectId,
-                          chapterId: chapter.id,
-                          patch: { title },
-                        });
-                      }
-                      setRenamingChapter(null);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") (event.target as HTMLInputElement).blur();
-                      if (event.key === "Escape") setRenamingChapter(null);
-                    }}
-                  />
-                ) : (
-                  <h2 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-wide uppercase">
-                    {chapter !== null ? chapter.title : messages.scenes.unassigned}
-                  </h2>
-                )}
-                <span className="shrink-0 text-xs text-muted">
-                  {format(messages.scenes.sceneCount, { n: group.scenes.length })} ·{" "}
-                  {format(messages.scenes.wordsEst, { words: numberFormat.format(groupWords) })}
-                </span>
-                {chapter !== null ? (
-                  <button
-                    type="button"
-                    className="sl-btn sl-btn-small"
-                    aria-label={`${chapter.title} ⋯`}
-                    onClick={() => {
-                      setChapterMenuFor(chapterMenuFor === chapter.id ? null : chapter.id);
-                      setSceneMenuFor(null);
-                      setMoveMenuFor(null);
-                      setChapterDeleteConfirm(null);
-                    }}
-                  >
-                    ⋯
-                  </button>
-                ) : null}
-              </div>
-
-              {chapter !== null && chapterMenuFor === chapter.id ? (
-                <div className="sl-row-menu">
-                  <button
-                    type="button"
-                    className="sl-btn sl-btn-small"
-                    onClick={() => moveChapterBy(chapter, -1)}
-                  >
-                    ↑ {messages.scenes.moveUp}
-                  </button>
-                  <button
-                    type="button"
-                    className="sl-btn sl-btn-small"
-                    onClick={() => moveChapterBy(chapter, 1)}
-                  >
-                    ↓ {messages.scenes.moveDown}
-                  </button>
-                  <button
-                    type="button"
-                    className="sl-btn sl-btn-small"
-                    onClick={() => {
-                      setRenamingChapter(chapter.id);
-                      setRenameText(chapter.title);
-                      closeMenus();
-                    }}
-                  >
-                    ✎ {messages.scenes.rename}
-                  </button>
-                  <button
-                    type="button"
-                    className="sl-btn sl-btn-small"
-                    data-danger={chapterDeleteConfirm === chapter.id}
-                    onClick={() => {
-                      if (chapterDeleteConfirm !== chapter.id) {
-                        setChapterDeleteConfirm(chapter.id);
-                        window.setTimeout(() => setChapterDeleteConfirm(null), 2500);
-                        return;
-                      }
-                      // Capture the chapter's scenes + their keys first: deleteChapter moves
-                      // them to Unassigned, so a real undo restores the chapter and puts every
-                      // scene back where it was (spec §2.3.3 undo).
-                      const placement = group.scenes.map((scene) => ({
-                        sceneId: scene.id,
-                        orderKey: scene.orderKey,
-                      }));
-                      closeMenus();
-                      void deleteChapter
-                        .mutateAsync({ projectId, chapterId: chapter.id })
-                        .then(() => {
-                          pushUndo(messages.undo.chapterDeleted, async () => {
-                            await restore.mutateAsync({
-                              projectId,
-                              entityType: "chapter",
-                              entityId: chapter.id,
-                            });
-                            for (const item of placement) {
-                              await setPlacement.mutateAsync({
-                                projectId,
-                                sceneId: item.sceneId,
-                                chapterId: chapter.id,
-                                orderKey: item.orderKey,
-                              });
-                            }
-                          });
-                        })
-                        .catch(() => undefined);
-                    }}
-                  >
-                    {chapterDeleteConfirm === chapter.id
-                      ? format(messages.scenes.chapterDeleteConfirm, { n: group.scenes.length })
-                      : `✕ ${messages.scenes.delete}`}
-                  </button>
-                </div>
-              ) : null}
-
-              <SortableContext
-                items={group.scenes.map((candidate) => candidate.id)}
-                strategy={verticalListSortingStrategy}
+      {mode === "grid" ? (
+        <PlotlineGrid projectId={projectId} />
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="sl-btn"
+              disabled={createScene.isPending}
+              onClick={() => createScene.mutate({ projectId, chapterId: null })}
+            >
+              + {messages.scenes.newScene}
+            </button>
+            <div className="flex flex-1 items-center gap-2">
+              <input
+                className="sl-input min-w-0 flex-1"
+                value={newChapterTitle}
+                placeholder={messages.scenes.newChapter}
+                aria-label={messages.scenes.newChapter}
+                onChange={(event) => setNewChapterTitle(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && newChapterTitle.trim().length > 0) {
+                    createChapter.mutate({ projectId, title: newChapterTitle.trim() });
+                    setNewChapterTitle("");
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="sl-btn"
+                disabled={newChapterTitle.trim().length === 0 || createChapter.isPending}
+                onClick={() => {
+                  createChapter.mutate({ projectId, title: newChapterTitle.trim() });
+                  setNewChapterTitle("");
+                }}
               >
-                <ul className="flex flex-col gap-1.5">
-                  {group.scenes.map((scene) => (
-                    <SortableSceneRow key={scene.id} id={scene.id}>
-                      {({ listeners, isDragging }) => (
-                        <>
-                          <div className="sl-scene-line" data-dragging={isDragging}>
-                            <button
-                              type="button"
-                              className="sl-scene-line-main"
-                              {...listeners}
-                              onClick={() => setSheetSceneId(scene.id)}
-                            >
-                              <span className="w-6 shrink-0 text-right text-xs text-muted tabular-nums">
-                                {bookIndex.get(scene.id) ?? ""}
-                              </span>
-                              <span className="min-w-0 flex-1 truncate text-sm">
-                                {scene.title.length > 0
-                                  ? scene.title
-                                  : scene.synopsis.text.length > 0
-                                    ? scene.synopsis.text
-                                    : messages.sceneSheet.titlePlaceholder}
-                              </span>
-                              <span className="shrink-0 text-xs text-muted">
-                                {scene.povName ?? messages.scenes.noPov}
-                              </span>
-                              <span
-                                className="sl-chip shrink-0"
-                                style={{ color: SCENE_STATUS_COLORS[scene.status] }}
-                              >
-                                {messages.scenes.status[scene.status]}
-                              </span>
-                              <span className="w-16 shrink-0 text-right text-xs text-muted tabular-nums">
-                                {scene.bodyWordCount > 0
-                                  ? numberFormat.format(scene.bodyWordCount)
-                                  : scene.targetWordCount !== null
-                                    ? `≈${numberFormat.format(scene.targetWordCount)}`
-                                    : ""}
-                              </span>
-                            </button>
-                            <button
-                              type="button"
-                              className="sl-btn sl-btn-small"
-                              aria-label={`⋯ ${scene.title || scene.synopsis.text}`}
-                              onClick={() => {
-                                setSceneMenuFor(sceneMenuFor === scene.id ? null : scene.id);
-                                setMoveMenuFor(null);
-                                setSceneDeleteConfirm(null);
-                                setChapterMenuFor(null);
-                              }}
-                            >
-                              ⋯
-                            </button>
-                          </div>
+                {messages.scenes.addChapter}
+              </button>
+            </div>
+          </div>
 
-                          {sceneMenuFor === scene.id ? (
-                            <div className="sl-row-menu">
-                              <button
-                                type="button"
-                                className="sl-btn sl-btn-small"
-                                onClick={() => void moveSceneBy(scene, group, -1)}
-                              >
-                                ↑ {messages.scenes.moveUp}
-                              </button>
-                              <button
-                                type="button"
-                                className="sl-btn sl-btn-small"
-                                onClick={() => void moveSceneBy(scene, group, 1)}
-                              >
-                                ↓ {messages.scenes.moveDown}
-                              </button>
-                              <button
-                                type="button"
-                                className="sl-btn sl-btn-small"
-                                onClick={() =>
-                                  setMoveMenuFor(moveMenuFor === scene.id ? null : scene.id)
+          {scenes.length === 0 && chapters.length === 0 ? (
+            <p className="text-sm text-muted">{messages.scenes.empty}</p>
+          ) : null}
+
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={(event) => setActiveSceneId(event.active.id as UUID)}
+            onDragEnd={onDragEnd}
+          >
+            {groups.map((group) => {
+              const chapter = group.chapter;
+              const groupWords = group.scenes.reduce(
+                (sum, scene) =>
+                  sum +
+                  (scene.bodyWordCount > 0 ? scene.bodyWordCount : (scene.targetWordCount ?? 0)),
+                0,
+              );
+              return (
+                <section key={chapter?.id ?? "unassigned"} className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    {chapter !== null && renamingChapter === chapter.id ? (
+                      <input
+                        className="sl-input min-w-0 flex-1"
+                        value={renameText}
+                        aria-label={messages.scenes.chapterRenamed}
+                        onChange={(event) => setRenameText(event.target.value)}
+                        onBlur={() => {
+                          const title = renameText.trim();
+                          if (title.length > 0 && title !== chapter.title) {
+                            updateChapter.mutate({
+                              projectId,
+                              chapterId: chapter.id,
+                              patch: { title },
+                            });
+                          }
+                          setRenamingChapter(null);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") (event.target as HTMLInputElement).blur();
+                          if (event.key === "Escape") setRenamingChapter(null);
+                        }}
+                      />
+                    ) : (
+                      <h2 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-wide uppercase">
+                        {chapter !== null ? chapter.title : messages.scenes.unassigned}
+                      </h2>
+                    )}
+                    <span className="shrink-0 text-xs text-muted">
+                      {format(messages.scenes.sceneCount, { n: group.scenes.length })} ·{" "}
+                      {format(messages.scenes.wordsEst, { words: numberFormat.format(groupWords) })}
+                    </span>
+                    {chapter !== null ? (
+                      <button
+                        type="button"
+                        className="sl-btn sl-btn-small"
+                        aria-label={`${chapter.title} ⋯`}
+                        onClick={() => {
+                          setChapterMenuFor(chapterMenuFor === chapter.id ? null : chapter.id);
+                          setSceneMenuFor(null);
+                          setMoveMenuFor(null);
+                          setChapterDeleteConfirm(null);
+                        }}
+                      >
+                        ⋯
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {chapter !== null && chapterMenuFor === chapter.id ? (
+                    <div className="sl-row-menu">
+                      <button
+                        type="button"
+                        className="sl-btn sl-btn-small"
+                        onClick={() => moveChapterBy(chapter, -1)}
+                      >
+                        ↑ {messages.scenes.moveUp}
+                      </button>
+                      <button
+                        type="button"
+                        className="sl-btn sl-btn-small"
+                        onClick={() => moveChapterBy(chapter, 1)}
+                      >
+                        ↓ {messages.scenes.moveDown}
+                      </button>
+                      <button
+                        type="button"
+                        className="sl-btn sl-btn-small"
+                        onClick={() => {
+                          setRenamingChapter(chapter.id);
+                          setRenameText(chapter.title);
+                          closeMenus();
+                        }}
+                      >
+                        ✎ {messages.scenes.rename}
+                      </button>
+                      <button
+                        type="button"
+                        className="sl-btn sl-btn-small"
+                        data-danger={chapterDeleteConfirm === chapter.id}
+                        onClick={() => {
+                          if (chapterDeleteConfirm !== chapter.id) {
+                            setChapterDeleteConfirm(chapter.id);
+                            window.setTimeout(() => setChapterDeleteConfirm(null), 2500);
+                            return;
+                          }
+                          // Capture the chapter's scenes + their keys first: deleteChapter moves
+                          // them to Unassigned, so a real undo restores the chapter and puts every
+                          // scene back where it was (spec §2.3.3 undo).
+                          const placement = group.scenes.map((scene) => ({
+                            sceneId: scene.id,
+                            orderKey: scene.orderKey,
+                          }));
+                          closeMenus();
+                          void deleteChapter
+                            .mutateAsync({ projectId, chapterId: chapter.id })
+                            .then(() => {
+                              pushUndo(messages.undo.chapterDeleted, async () => {
+                                await restore.mutateAsync({
+                                  projectId,
+                                  entityType: "chapter",
+                                  entityId: chapter.id,
+                                });
+                                for (const item of placement) {
+                                  await setPlacement.mutateAsync({
+                                    projectId,
+                                    sceneId: item.sceneId,
+                                    chapterId: chapter.id,
+                                    orderKey: item.orderKey,
+                                  });
                                 }
-                              >
-                                ⇥ {messages.scenes.moveToChapter}
-                              </button>
-                              <button
-                                type="button"
-                                className="sl-btn sl-btn-small"
-                                data-danger={sceneDeleteConfirm === scene.id}
-                                onClick={() => {
-                                  if (sceneDeleteConfirm !== scene.id) {
-                                    setSceneDeleteConfirm(scene.id);
-                                    window.setTimeout(() => setSceneDeleteConfirm(null), 2500);
-                                    return;
-                                  }
-                                  closeMenus();
-                                  void deleteScene
-                                    .mutateAsync({ projectId, sceneId: scene.id })
-                                    .then(() => {
-                                      pushUndo(messages.undo.sceneDeleted, async () => {
-                                        await restore.mutateAsync({
-                                          projectId,
-                                          entityType: "scene",
-                                          entityId: scene.id,
-                                        });
-                                      });
-                                    })
-                                    .catch(() => undefined);
-                                }}
-                              >
-                                {sceneDeleteConfirm === scene.id
-                                  ? messages.scenes.deleteConfirm
-                                  : `✕ ${messages.scenes.delete}`}
-                              </button>
-                            </div>
-                          ) : null}
+                              });
+                            })
+                            .catch(() => undefined);
+                        }}
+                      >
+                        {chapterDeleteConfirm === chapter.id
+                          ? format(messages.scenes.chapterDeleteConfirm, { n: group.scenes.length })
+                          : `✕ ${messages.scenes.delete}`}
+                      </button>
+                    </div>
+                  ) : null}
 
-                          {moveMenuFor === scene.id ? (
-                            <div className="sl-row-menu">
-                              {chapters
-                                .filter((candidate) => candidate.id !== scene.chapterId)
-                                .map((candidate) => (
-                                  <button
-                                    key={candidate.id}
-                                    type="button"
-                                    className="sl-btn sl-btn-small"
-                                    onClick={() => void reassignScene(scene, candidate.id)}
+                  <SortableContext
+                    items={group.scenes.map((candidate) => candidate.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <ul className="flex flex-col gap-1.5">
+                      {group.scenes.map((scene) => (
+                        <SortableSceneRow key={scene.id} id={scene.id}>
+                          {({ listeners, isDragging }) => (
+                            <>
+                              <div className="sl-scene-line" data-dragging={isDragging}>
+                                <button
+                                  type="button"
+                                  className="sl-scene-line-main"
+                                  {...listeners}
+                                  onClick={() => setSheetSceneId(scene.id)}
+                                >
+                                  <span className="w-6 shrink-0 text-right text-xs text-muted tabular-nums">
+                                    {bookIndex.get(scene.id) ?? ""}
+                                  </span>
+                                  <span className="min-w-0 flex-1 truncate text-sm">
+                                    {scene.title.length > 0
+                                      ? scene.title
+                                      : scene.synopsis.text.length > 0
+                                        ? scene.synopsis.text
+                                        : messages.sceneSheet.titlePlaceholder}
+                                  </span>
+                                  <span className="shrink-0 text-xs text-muted">
+                                    {scene.povName ?? messages.scenes.noPov}
+                                  </span>
+                                  <span
+                                    className="sl-chip shrink-0"
+                                    style={{ color: SCENE_STATUS_COLORS[scene.status] }}
                                   >
-                                    {candidate.title}
-                                  </button>
-                                ))}
-                              {scene.chapterId !== null ? (
+                                    {messages.scenes.status[scene.status]}
+                                  </span>
+                                  <span className="w-16 shrink-0 text-right text-xs text-muted tabular-nums">
+                                    {scene.bodyWordCount > 0
+                                      ? numberFormat.format(scene.bodyWordCount)
+                                      : scene.targetWordCount !== null
+                                        ? `≈${numberFormat.format(scene.targetWordCount)}`
+                                        : ""}
+                                  </span>
+                                </button>
                                 <button
                                   type="button"
                                   className="sl-btn sl-btn-small"
-                                  onClick={() => void reassignScene(scene, null)}
+                                  aria-label={`⋯ ${scene.title || scene.synopsis.text}`}
+                                  onClick={() => {
+                                    setSceneMenuFor(sceneMenuFor === scene.id ? null : scene.id);
+                                    setMoveMenuFor(null);
+                                    setSceneDeleteConfirm(null);
+                                    setChapterMenuFor(null);
+                                  }}
                                 >
-                                  {messages.scenes.moveToUnassigned}
+                                  ⋯
                                 </button>
+                              </div>
+
+                              {sceneMenuFor === scene.id ? (
+                                <div className="sl-row-menu">
+                                  <button
+                                    type="button"
+                                    className="sl-btn sl-btn-small"
+                                    onClick={() => void moveSceneBy(scene, group, -1)}
+                                  >
+                                    ↑ {messages.scenes.moveUp}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="sl-btn sl-btn-small"
+                                    onClick={() => void moveSceneBy(scene, group, 1)}
+                                  >
+                                    ↓ {messages.scenes.moveDown}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="sl-btn sl-btn-small"
+                                    onClick={() =>
+                                      setMoveMenuFor(moveMenuFor === scene.id ? null : scene.id)
+                                    }
+                                  >
+                                    ⇥ {messages.scenes.moveToChapter}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="sl-btn sl-btn-small"
+                                    data-danger={sceneDeleteConfirm === scene.id}
+                                    onClick={() => {
+                                      if (sceneDeleteConfirm !== scene.id) {
+                                        setSceneDeleteConfirm(scene.id);
+                                        window.setTimeout(() => setSceneDeleteConfirm(null), 2500);
+                                        return;
+                                      }
+                                      closeMenus();
+                                      void deleteScene
+                                        .mutateAsync({ projectId, sceneId: scene.id })
+                                        .then(() => {
+                                          pushUndo(messages.undo.sceneDeleted, async () => {
+                                            await restore.mutateAsync({
+                                              projectId,
+                                              entityType: "scene",
+                                              entityId: scene.id,
+                                            });
+                                          });
+                                        })
+                                        .catch(() => undefined);
+                                    }}
+                                  >
+                                    {sceneDeleteConfirm === scene.id
+                                      ? messages.scenes.deleteConfirm
+                                      : `✕ ${messages.scenes.delete}`}
+                                  </button>
+                                </div>
                               ) : null}
-                            </div>
-                          ) : null}
-                        </>
-                      )}
-                    </SortableSceneRow>
-                  ))}
-                </ul>
-              </SortableContext>
-            </section>
-          );
-        })}
-        <DragOverlay dropAnimation={null}>
-          {activeScene !== null ? (
-            <div className="sl-card p-3 text-sm shadow-lg">
-              {activeScene.title.length > 0
-                ? activeScene.title
-                : activeScene.synopsis.text.length > 0
-                  ? activeScene.synopsis.text
-                  : messages.sceneSheet.titlePlaceholder}
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+
+                              {moveMenuFor === scene.id ? (
+                                <div className="sl-row-menu">
+                                  {chapters
+                                    .filter((candidate) => candidate.id !== scene.chapterId)
+                                    .map((candidate) => (
+                                      <button
+                                        key={candidate.id}
+                                        type="button"
+                                        className="sl-btn sl-btn-small"
+                                        onClick={() => void reassignScene(scene, candidate.id)}
+                                      >
+                                        {candidate.title}
+                                      </button>
+                                    ))}
+                                  {scene.chapterId !== null ? (
+                                    <button
+                                      type="button"
+                                      className="sl-btn sl-btn-small"
+                                      onClick={() => void reassignScene(scene, null)}
+                                    >
+                                      {messages.scenes.moveToUnassigned}
+                                    </button>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                            </>
+                          )}
+                        </SortableSceneRow>
+                      ))}
+                    </ul>
+                  </SortableContext>
+                </section>
+              );
+            })}
+            <DragOverlay dropAnimation={null}>
+              {activeScene !== null ? (
+                <div className="sl-card p-3 text-sm shadow-lg">
+                  {activeScene.title.length > 0
+                    ? activeScene.title
+                    : activeScene.synopsis.text.length > 0
+                      ? activeScene.synopsis.text
+                      : messages.sceneSheet.titlePlaceholder}
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        </>
+      )}
 
       {sheetSceneId !== null ? (
         <SceneSheet

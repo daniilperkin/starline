@@ -75,6 +75,12 @@ export default defineConfig({
       "@tanstack/react-virtual",
       "@xyflow/react",
       "d3-force",
+      // The workspace packages are dependencies like any other: adding an export to core
+      // (slice 9's tags/grid) re-optimises them and reloads the page mid-journey unless they
+      // are pinned here too. Only `core` can be pre-bundled — `@starline/db` imports its
+      // migration SQL with `?raw`, which the optimizer cannot load, and pre-bundling it kills
+      // the dev server outright ("UNLOADABLE_DEPENDENCY").
+      "@starline/core",
     ],
   },
 });

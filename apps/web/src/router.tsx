@@ -76,6 +76,12 @@ const notesRoute = createRoute({
   component: () => <ComingSoonScreen label={messages.tabs.notes} />,
 });
 
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/settings",
+  component: lazyRouteComponent(() => import("./SettingsScreen"), "SettingsScreen"),
+});
+
 const checksRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/checks",
@@ -93,6 +99,7 @@ const routeTree = rootRoute.addChildren([
   worldRoute,
   notesRoute,
   checksRoute,
+  settingsRoute,
 ]);
 
 /**

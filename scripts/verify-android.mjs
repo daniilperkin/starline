@@ -248,9 +248,22 @@ try {
     .locator(".sl-undo-toast")
     .waitFor({ state: "detached", timeout: 15000 })
     .catch(() => undefined);
-  await page.getByRole("button", { name: "⋯ A knife in the dark" }).click();
-  await page.getByRole("button", { name: "✕ Delete", exact: true }).click();
-  await page.getByRole("button", { name: "Tap again to delete" }).click();
+  // The two-tap delete flakes on the emulator when the first tap lands while the menu is still
+  // animating in: retry the pair instead of failing the whole run on a swallowed tap.
+  let confirmClicked = false;
+  for (let attempt = 0; attempt < 3 && !confirmClicked; attempt += 1) {
+    await page.getByRole("button", { name: "⋯ A knife in the dark" }).click();
+    await page.waitForTimeout(400);
+    await page.getByRole("button", { name: "✕ Delete", exact: true }).click();
+    try {
+      await page.getByRole("button", { name: "Tap again to delete" }).click({ timeout: 6000 });
+      confirmClicked = true;
+    } catch {
+      await page.keyboard.press("Escape").catch(() => undefined);
+      await page.waitForTimeout(600);
+    }
+  }
+  if (!confirmClicked) throw new Error("delete confirm never appeared on-device");
   await page.waitForTimeout(700);
   await page.getByRole("link", { name: "Plan" }).click();
   await page.getByRole("button", { name: /^Trash/ }).click();
@@ -514,6 +527,63 @@ try {
   console.log("PASS  relationship list twin on-device");
   await page.getByTestId("sl-graph-list-toggle").click();
   await page.waitForTimeout(500);
+  await page.getByRole("link", { name: "Plan" }).click();
+
+  // 2o. Slice 9 on-device: the plotline grid (attach, beat, balance) and the tag manager —
+  // the phone is where the grid's tap targets and pinch zoom actually matter.
+  await page.getByRole("link", { name: "Scenes" }).click();
+  await page.getByTestId("sl-scenes-grid").click();
+  await page.getByTestId("sl-grid-new-plotline").waitFor({ timeout: 60000 });
+  await page.getByTestId("sl-grid-new-plotline").fill("The debt");
+  await page.getByTestId("sl-grid-add-plotline").click();
+  await page.getByTestId("sl-grid-cell").first().waitFor({ timeout: 60000 });
+  const emuCells = await page.getByTestId("sl-grid-cell").count();
+  console.log(`PERF  grid rendered ${emuCells} cells on-device`);
+  await page.screenshot({ path: join(shotDir, "emu-slice9-grid.png"), fullPage: true });
+
+  await page.getByTestId("sl-grid-cell").first().click();
+  await page.waitForTimeout(1200);
+  const emuAttached = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const projects = await session.driver.query("SELECT id FROM project LIMIT 1");
+    const grid = await window.__starlineDev.grid(projects[0].id);
+    return Object.keys(grid.cells).length;
+  });
+  if (emuAttached !== 1) throw new Error(`grid attach did not persist on-device: ${emuAttached}`);
+  await page.getByTestId("sl-grid-cell").first().click();
+  await page.getByTestId("sl-grid-beat-input").waitFor({ timeout: 30000 });
+  await page.getByTestId("sl-grid-beat-input").fill("The letter arrives");
+  await page.getByTestId("sl-grid-beat-save").click();
+  await page.waitForTimeout(1200);
+  const emuBeat = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const projects = await session.driver.query("SELECT id FROM project LIMIT 1");
+    const grid = await window.__starlineDev.grid(projects[0].id);
+    return Object.values(grid.cells)[0]?.beat ?? "";
+  });
+  if (emuBeat !== "The letter arrives") throw new Error(`beat not stored on-device: "${emuBeat}"`);
+  const emuBalance = await page.getByTestId("sl-grid-balance").first().innerText();
+  console.log(`PASS  grid cell + beat on-device (${emuBalance.trim()})`);
+  await page.getByTestId("sl-scenes-list").click();
+  await page.waitForTimeout(500);
+
+  // Tag manager on the phone.
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByTestId("sl-open-settings").click();
+  await page.getByTestId("sl-tag-name-input").waitFor({ timeout: 30000 });
+  await page.getByTestId("sl-tag-name-input").fill("red herring");
+  await page.getByTestId("sl-tag-create").click();
+  await page.getByTestId("sl-tag-row").first().waitFor({ timeout: 30000 });
+  const emuTags = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const projects = await session.driver.query("SELECT id FROM project LIMIT 1");
+    return window.__starlineDev.tags(projects[0].id);
+  });
+  if (emuTags.length !== 1 || emuTags[0].name !== "red herring") {
+    throw new Error(`tag not stored on-device: ${JSON.stringify(emuTags)}`);
+  }
+  await page.screenshot({ path: join(shotDir, "emu-slice9-tags.png"), fullPage: true });
+  console.log("PASS  tag manager on-device");
   await page.getByRole("link", { name: "Plan" }).click();
 
   // 3. Hardware back: from a step screen back to the plan.

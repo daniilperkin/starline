@@ -20,6 +20,7 @@ import {
 } from "./data";
 import { useOpenEntity } from "./openEntity";
 import { CharacterRelationships } from "./relationships/CharacterRelationships";
+import { TagPicker } from "./TagPicker";
 import { useUndoStore } from "./undo";
 import { useAutosave } from "./useAutosave";
 
@@ -215,6 +216,11 @@ function DossierForm({ projectId, character }: { projectId: UUID; character: Cha
             value={draft.oneParagraphText}
             onChange={(event) => set("oneParagraphText", event.target.value)}
           />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <span className="sl-label">{messages.tags.picker}</span>
+          <TagPicker projectId={projectId} entityType="character" entityId={character.id} />
         </div>
 
         <CharacterRelationships projectId={projectId} characterId={character.id} />

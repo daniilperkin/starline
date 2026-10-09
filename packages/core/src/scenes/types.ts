@@ -157,10 +157,3 @@ export interface PlotlineSummary {
   characterId: UUID | null;
   orderKey: OrderKey;
 }
-
-export interface TagSummary {
-  id: UUID;
-  projectId: UUID;
-  name: string;
-  color: string;
-}

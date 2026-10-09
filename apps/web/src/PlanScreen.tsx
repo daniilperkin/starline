@@ -229,6 +229,14 @@ export function PlanScreen() {
                 <button
                   type="button"
                   className="sl-btn-small"
+                  data-testid="sl-open-settings"
+                  onClick={() => void navigate({ to: "/settings" })}
+                >
+                  {messages.settings.open}
+                </button>
+                <button
+                  type="button"
+                  className="sl-btn-small"
                   data-testid="sl-checks-open"
                   onClick={() => void navigate({ to: "/checks" })}
                 >

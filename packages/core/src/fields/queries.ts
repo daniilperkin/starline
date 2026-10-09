@@ -65,3 +65,73 @@ export async function listFieldValues(
   for (const row of rows) values.set(row.def_id, parseFieldValue(row.value));
   return values;
 }
+
+/**
+ * Every definition of the project, whatever the target — the Settings → Fields screen (spec
+ * §4.4). Ordered so the screen can group by target, then section, then manual order.
+ */
+export async function listAllFieldDefs(
+  runner: FieldQueryRunner,
+  projectId: UUID,
+): Promise<CustomFieldDef[]> {
+  const rows = await runner.query<{
+    id: string;
+    project_id: string;
+    target: string;
+    lore_kind: string | null;
+    label: string;
+    type: string;
+    options: string | null;
+    entity_ref_target: string | null;
+    required: number;
+    order_key: string;
+    section: string;
+  }>(
+    `SELECT id, project_id, target, lore_kind, label, type, options, entity_ref_target,
+            required, order_key, section
+       FROM custom_field_def
+      WHERE project_id = ? AND deleted_at IS NULL
+      ORDER BY target, section, order_key`,
+    [projectId],
+  );
+  return rows.map((row) => ({
+    id: row.id as UUID,
+    projectId: row.project_id as UUID,
+    target: row.target as CustomFieldTarget,
+    loreKind: row.lore_kind,
+    label: row.label,
+    type: row.type as CustomFieldType,
+    options: row.options ? (JSON.parse(row.options) as string[]) : null,
+    entityRefTarget: row.entity_ref_target,
+    required: row.required === 1,
+    orderKey: row.order_key,
+    section: row.section,
+  }));
+}
+
+/** How many entities already fill this field — the delete confirmation's number. */
+export async function countFieldValues(runner: FieldQueryRunner, defId: UUID): Promise<number> {
+  const rows = await runner.query<{ total: number }>(
+    "SELECT COUNT(*) AS total FROM custom_field_value WHERE def_id = ?",
+    [defId],
+  );
+  return Number(rows[0]?.total ?? 0);
+}
+
+/** Per-definition usage counts for a whole project, keyed by def id (Fields screen). */
+export async function countFieldValuesByDef(
+  runner: FieldQueryRunner,
+  projectId: UUID,
+): Promise<Map<string, number>> {
+  const rows = await runner.query<{ def_id: string; total: number }>(
+    `SELECT v.def_id AS def_id, COUNT(*) AS total
+       FROM custom_field_value v
+       JOIN custom_field_def d ON d.id = v.def_id
+      WHERE d.project_id = ? AND d.deleted_at IS NULL
+      GROUP BY v.def_id`,
+    [projectId],
+  );
+  const counts = new Map<string, number>();
+  for (const row of rows) counts.set(row.def_id, Number(row.total));
+  return counts;
+}

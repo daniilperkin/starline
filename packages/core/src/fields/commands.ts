@@ -139,6 +139,69 @@ export const deleteFieldDef: Command<DeleteFieldDefArgs, void> = {
   },
 };
 
+export interface MoveFieldDefArgs {
+  projectId: UUID;
+  defId: UUID;
+  direction: "up" | "down";
+}
+
+/**
+ * Reorders one definition among its siblings — the same target, and the same lore kind when the
+ * def is scoped, because those are the two lists the form actually renders.
+ */
+export const moveFieldDef: Command<MoveFieldDefArgs, void> = {
+  name: "field.move",
+  async run(ctx, args) {
+    const rows = await ctx.tx.query<{
+      id: string;
+      target: string;
+      lore_kind: string | null;
+      order_key: string;
+    }>(
+      `SELECT id, target, lore_kind, order_key FROM custom_field_def
+        WHERE id = ? AND project_id = ? AND deleted_at IS NULL`,
+      [args.defId, args.projectId],
+    );
+    const def = rows[0];
+    if (!def) throw new Error("field not found");
+    const siblings = await ctx.tx.query<{ id: string; order_key: string }>(
+      `SELECT id, order_key FROM custom_field_def
+        WHERE project_id = ? AND target = ? AND deleted_at IS NULL
+          AND (lore_kind IS ? OR (lore_kind IS NULL AND ? IS NULL))
+        ORDER BY order_key`,
+      [args.projectId, def.target, def.lore_kind, def.lore_kind],
+    );
+    const index = siblings.findIndex((row) => row.id === args.defId);
+    if (index < 0) throw new Error("field not found");
+    const swapWith = args.direction === "up" ? index - 1 : index + 1;
+    if (swapWith < 0 || swapWith >= siblings.length) {
+      return { result: undefined, changes: [] };
+    }
+    // The new key must land between the two neighbours the def is moving past — not merely
+    // somewhere before/after its swap partner, which is what a naive between(prev, next) does.
+    const beforeKey =
+      args.direction === "up"
+        ? (siblings[index - 2]?.order_key ?? null)
+        : (siblings[index + 1]?.order_key ?? null);
+    const afterKey =
+      args.direction === "up"
+        ? (siblings[index - 1]?.order_key ?? null)
+        : (siblings[index + 2]?.order_key ?? null);
+    const orderKey = orderKeyBetween(beforeKey, afterKey);
+    await ctx.tx.query("UPDATE custom_field_def SET order_key = ?, updated_at = ? WHERE id = ?", [
+      orderKey,
+      epochNow(),
+      args.defId,
+    ]);
+    return {
+      result: undefined,
+      changes: [
+        { table: "custom_field_def", op: "update", id: args.defId, parentIds: [args.projectId] },
+      ],
+    };
+  },
+};
+
 export interface SetFieldValueArgs {
   defId: UUID;
   ownerType: string;
