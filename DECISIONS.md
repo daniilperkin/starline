@@ -105,3 +105,11 @@ everything not listed here; entries are folded back into the spec on owner reque
     sign-in, off by default, module disabled entirely without build config. v1 core keeps the
     zero-network stance; implementing this requires its own go-ahead and amends the
     no-network invariant wording (default build = no network; the module is opt-in).
+19. **Fabula-parity directive (2026-10-09).** StarLine must contain every feature Fabula's
+    paid tier offers and may exceed it — "better clone". Analysis + checklist in
+    `docs/FABULA-PARITY.md`. Owner confirmed on the same day: client-side encryption of cloud
+    snapshots **yes**, one personal Firebase project **yes**, cloud retention mirrors local
+    thinning (~1 GB cap), cloud-backup sequencing delegated (kept as Slice 15 after S14; can
+    move right after S11 if backup urgency appears). Store revised to Drive `appDataFolder`
+    (CatBookTracker's verified recipe, `docs/CLOUD-BACKUP.md` §8). Free/unlimited/no-ads
+    stance reconfirmed: nothing in StarLine is ever gated.

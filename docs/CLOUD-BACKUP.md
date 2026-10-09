@@ -92,3 +92,37 @@
    mirror the thinning, cap ~1 GB)
 4. Provider note: Firebase is the owner's request; the module sits behind one
    `CloudBackupProvider` interface so S3/WebDAV could follow later without a rewrite.
+
+## 8. Verified recipe (from CatBookTracker, 2026-10-09)
+
+Researched with the CatBookTracker bot; its recipe is implemented, audited and written down in
+that repo (`docs/GOOGLE_SYNC_SETUP.md` — the console steps; `docs/LOGIN_SYNC_BACKUP_REVIEW.md`
+§0 — 14 audited findings). What changes or firms up in the design above:
+
+- **Store: use Drive `appDataFolder`, not Cloud Storage.** Hidden, app-scoped, survives
+  reinstall, needs no billing and no Storage rules; the `drive.appdata` scope is
+  non-sensitive (no OAuth verification). The snapshot manifest is a JSON file in the same
+  folder; uploads are plain REST. This replaces §4's Cloud Storage layout.
+- **Skip Firestore entirely** (as already decided — record sync stays rejected).
+- **Auth: Google provider only.** Android: `@capacitor-firebase/authentication` (native
+  picker → idToken → `signInWithCredential`). Never the JS SDK popup/redirect inside the
+  WebView — Google blocks it with `disallowed_useragent`.
+- **Config without `google-services.json`**: values (apiKey, appId, projectId, webClientId)
+  live in an untracked local config → build-time fields → manual
+  `FirebaseApp.initialize(FirebaseOptions)`; an empty config disables the module at runtime.
+  Client keys are not secrets — security is the consent screen, the keystore and the rules.
+- **Sign-in is optional and never gates the UI.** Couple it to "enable backup", not to app
+  entry (CatBookTracker's mandatory login wall is a product choice that would contradict our
+  offline-first stance). **Sign-out must never touch local `.starline` files.**
+- **Two tokens, two systems**: Firebase holds the ID token; Drive needs its own OAuth access
+  token (Identity AuthorizationClient, scope `drive.appdata`, ~1 h lifetime) — cache the grant
+  per signed-in account and drop it on sign-out.
+- **Setup pitfalls that cost them real time** (all transfer to us): register **SHA-1 and
+  SHA-256 for both debug and release** (4 fingerprints; Android Studio can silently recreate
+  the debug keystore → fingerprints change); `google.webClientId` must be the **Web** client
+  ID (the Android one fails silently); enable the **Drive API** (else every call is `403
+  accessNotConfigured`); **publish the OAuth consent screen to "In production"** — in Testing,
+  grants expire every **7 days**; emulator QA needs a Play-Store system image with a Google
+  account added.
+- **No background uploads on the web/WebView**: upload on app open + a manual "Back up now";
+  a failed token refresh queues rather than errors (snapshots are immutable, retries are safe).
