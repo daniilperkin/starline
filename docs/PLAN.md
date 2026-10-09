@@ -140,7 +140,7 @@ plotline joins, merge-on-reimport by `snowflakeSource.line` (no duplicates on re
 **Exit**: paste 40 lines → 40 scenes; reorder and reassign chapters; scene editor
 round-trips; the "40-scene outline" milestone is reachable end-to-end.
 
-### Slice 5 — Step 9 + dashboard + M1 hardening (**built**; phones verified via `verify-android`)
+### Slice 5 — Step 9 + dashboard + M1 hardening (**shipped 2026-10-09**, `61008be`; emulator 15/15)
 
 **Screens**: Step 9 (accordion over the scene list; synopsis expansion per scene; "Copy to
 scene synopsis" trigger); Plan dashboard (progress ring, entity counts, words vs target,
@@ -160,7 +160,7 @@ round with zero data loss; all gates green; PWA + APK rebuilt.
 
 ## 3. M2 — Connected world
 
-### Slice 6 — Lore wiki v1 (**built 2026-10-09**; category drag-nest deferred — the row menu move up/down ships as the non-drag path, same precedent as Slice 4)
+### Slice 6 — Lore wiki v1 (**shipped 2026-10-09**, `9540c90`; emulator 18/18; category drag-nest deferred — the row menu move up/down ships as the non-drag path, same precedent as Slice 4)
 
 **Screens**: World tab (category tree with the seeded default taxonomy — Geography,
 Factions & Organizations, Magic & Technology, History, Cultures & Religions, Politics &
