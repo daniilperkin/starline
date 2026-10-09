@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -11,6 +12,10 @@ use crate::error::Result;
 pub struct LockGuard {
     pub path: PathBuf,
     pub started_at: u128,
+    /// Last time the lock file was rewritten. Every operation calls `touch()`, and a file write
+    /// is milliseconds on Windows — the heartbeat is therefore throttled to a quarter of the
+    /// stale window instead of running per query (it was 4 ms on every single read).
+    last_beat: Cell<u128>,
 }
 
 fn now_ms() -> u128 {
@@ -66,13 +71,23 @@ pub fn acquire(path: &Path) -> Result<(Option<LockGuard>, bool)> {
         Some(LockGuard {
             path: lock_path,
             started_at,
+            last_beat: Cell::new(started_at),
         }),
         false,
     ))
 }
 
+/// Rewrites the lock file at most every `stale_ms / 4`, so four heartbeats fit inside the stale
+/// window while a read-heavy session does not pay a file write per operation.
 pub fn heartbeat(guard: &LockGuard) {
-    let _ = write_lock(&guard.path, guard.started_at);
+    let now = now_ms();
+    let interval = (stale_ms() / 4).max(1);
+    if now.saturating_sub(guard.last_beat.get()) < interval {
+        return;
+    }
+    if write_lock(&guard.path, guard.started_at).is_ok() {
+        guard.last_beat.set(now);
+    }
 }
 
 pub fn release(guard: LockGuard) {

@@ -19,7 +19,7 @@ import {
   type SceneSummary,
   type UUID,
 } from "@starline/core";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
   useCreateChapter,
   useCreateScene,
@@ -33,6 +33,7 @@ import {
   useSetScenePlacement,
   useUpdateChapter,
 } from "./data";
+import { useNavigationStore } from "./navigation";
 import { SceneSheet } from "./SceneSheet";
 import { useUndoStore } from "./undo";
 
@@ -74,6 +75,15 @@ export function ScenesScreen() {
   const [renamingChapter, setRenamingChapter] = useState<UUID | null>(null);
   const [renameText, setRenameText] = useState("");
   const [newChapterTitle, setNewChapterTitle] = useState("");
+
+  // A search hit, backlink row or check item can ask for one specific scene (slice 7).
+  const pendingTarget = useNavigationStore((state) => state.target);
+  const clearTarget = useNavigationStore((state) => state.clear);
+  useEffect(() => {
+    if (pendingTarget?.kind !== "scene") return;
+    setSheetSceneId(pendingTarget.id);
+    clearTarget();
+  }, [pendingTarget, clearTarget]);
 
   // Long-press (220 ms) drag on touch; a 6 px distance threshold for mouse so clicks pass
   // through. Keyboard users keep the row-menu move/reassign path — drag is never the only way

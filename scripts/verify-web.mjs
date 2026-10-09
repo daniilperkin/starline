@@ -435,6 +435,104 @@ try {
   await page.getByRole("button", { name: "Undo" }).waitFor({ state: "hidden", timeout: 15000 });
   await axeScan("world");
 
+  // 4r. Slice 7: backlinks, possible mentions (one-tap Link), global search, checks screen,
+  // and the phone-path perf budgets measured through the real wasm driver in this page.
+  await page.locator(".sl-lore-card").filter({ hasText: "The Sundered Coast" }).first().click();
+  const coast = page.getByRole("dialog", { name: "The Sundered Coast" });
+  await coast.waitFor();
+  const coastBody = coast.locator(".sl-editor-body .ProseMirror");
+  await coastBody.click();
+  // Plain text on purpose: this is the unlinked occurrence the "Link" button rewrites.
+  await page.keyboard.type("Emberfall is west of the strait.");
+  await page.waitForTimeout(1200);
+  await coast.getByRole("button", { name: "Close" }).click();
+  await page.waitForTimeout(600);
+
+  await page.locator(".sl-lore-card").filter({ hasText: "Emberfall" }).first().click();
+  const ember = page.getByRole("dialog", { name: "Emberfall" });
+  await ember.waitFor();
+  const backlinkRows = page.locator('[data-testid="sl-backlinks"] .sl-backlink-row');
+  await backlinkRows.first().waitFor();
+  const possibleRows = page.locator('[data-testid="sl-possible-mentions"] .sl-possible-row');
+  await possibleRows.first().waitFor();
+  const beforeLinks = await backlinkRows.count();
+  const beforePossible = await possibleRows.count();
+  console.log(`  backlinks before: ${beforeLinks} · possible mentions: ${beforePossible}`);
+  await page.screenshot({ path: join(shotDir, "18-backlinks.png"), fullPage: true });
+
+  // One-tap Link: the plain range becomes a chip, the mirror gains the source, text intact.
+  await possibleRows.first().getByRole("button", { name: "Link" }).click();
+  await page.waitForTimeout(900);
+  await page.getByText("Mention linked").waitFor();
+  const afterPossible = await page
+    .locator('[data-testid="sl-possible-mentions"] .sl-possible-row')
+    .count();
+  const afterLinks = await page.locator('[data-testid="sl-backlinks"] .sl-backlink-row').count();
+  if (afterPossible >= beforePossible) throw new Error("possible mention was not consumed by Link");
+  if (afterLinks <= beforeLinks) throw new Error("linking did not add a backlink");
+  const coastText = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query(
+      "SELECT body_text FROM lore_entry WHERE name = 'The Sundered Coast'",
+    );
+    return rows[0]?.body_text ?? "";
+  });
+  if (!coastText.includes("Emberfall is west of the strait."))
+    throw new Error(`link rewrite damaged the prose: "${coastText}"`);
+  await ember.getByRole("button", { name: "Close" }).click();
+  await page.waitForTimeout(500);
+
+  // Global search: the app-bar button opens the sheet; a fuzzy-ish prefix finds the entry.
+  await page.getByTestId("sl-search-open").click();
+  const searchInput = page.locator("#sl-search-input");
+  await searchInput.waitFor();
+  await searchInput.fill("Ember");
+  const hit = page
+    .locator('.sl-search-hit[data-entity-type="lore"]')
+    .filter({ hasText: "Emberfall" });
+  await hit.first().waitFor();
+  await page.screenshot({ path: join(shotDir, "19-search.png"), fullPage: true });
+  await axeScan("search");
+  await hit.first().click();
+  await page.getByRole("dialog", { name: "Emberfall" }).waitFor();
+  await page
+    .getByRole("dialog", { name: "Emberfall" })
+    .getByRole("button", { name: "Close" })
+    .click();
+  await page.waitForTimeout(400);
+
+  // Checks screen: advisory list, reachable from the plan dashboard.
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByTestId("sl-checks-open").click();
+  await page.getByRole("heading", { name: "Consistency checks" }).waitFor();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: join(shotDir, "20-checks.png"), fullPage: true });
+  await axeScan("checks");
+  await page.getByRole("link", { name: "Plan" }).click();
+
+  // Phone-path budgets (spec §5.1): the same reads the panels run, through the wasm driver.
+  const perf = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const projects = await session.driver.query("SELECT id FROM project LIMIT 1");
+    const entries = await session.driver.query(
+      "SELECT id FROM lore_entry WHERE name = 'Emberfall'",
+    );
+    return window.__starlineDev.perf(projects[0].id, "lore", entries[0].id, [
+      "ember",
+      "harbour",
+      "coast",
+      "scene",
+      "character",
+    ]);
+  });
+  console.log(
+    `  wasm perf: search p50 ${perf.searchP50} ms / p95 ${perf.searchP95} ms · backlinks p50 ${perf.backlinkP50} ms / p95 ${perf.backlinkP95} ms`,
+  );
+  if (perf.searchP95 > 30)
+    throw new Error(`search budget missed on the wasm path: ${perf.searchP95} ms`);
+  if (perf.backlinkP95 > 10)
+    throw new Error(`backlink budget missed on the wasm path: ${perf.backlinkP95} ms`);
+
   // 5. Reload: back to the start screen; reopening restores the last route (hash history),
   // so tab over to Plan and check the persisted progress.
   await page.reload();

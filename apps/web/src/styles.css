@@ -87,6 +87,9 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
 }
 
 .sl-btn {
@@ -643,4 +646,117 @@ body {
   padding: 0.5rem;
   color: var(--sl-muted);
   font-size: 0.8rem;
+}
+
+/* Slice 7 — app bar, global search, backlinks and the checks list */
+
+.sl-appbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2rem;
+}
+
+.sl-search-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 88dvh;
+}
+
+.sl-search-input {
+  font-size: 1rem;
+}
+
+.sl-search-recents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sl-search-recent {
+  border: 1px solid var(--sl-border);
+  border-radius: 999px;
+  background: var(--sl-surface-2);
+  color: inherit;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.7rem;
+}
+
+.sl-search-list,
+.sl-backlink-list,
+.sl-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sl-search-hit,
+.sl-backlink-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 0.8rem;
+  background: var(--sl-surface-2);
+  color: inherit;
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+}
+
+.sl-search-hit:hover,
+.sl-backlink-row:hover {
+  border-color: var(--sl-border);
+}
+
+.sl-search-glyph {
+  flex: none;
+  color: var(--sl-accent);
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.sl-search-title {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sl-search-detail {
+  display: block;
+  color: var(--sl-muted);
+  font-size: 0.72rem;
+  text-transform: capitalize;
+}
+
+.sl-search-snippet {
+  display: block;
+  color: var(--sl-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.sl-backlinks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-top: 1px solid var(--sl-border);
+  padding-top: 0.9rem;
+}
+
+.sl-possible-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }

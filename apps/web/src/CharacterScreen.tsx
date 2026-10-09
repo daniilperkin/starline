@@ -9,6 +9,7 @@ import {
 } from "@starline/core";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
+import { BacklinksPanel } from "./BacklinksPanel";
 import { draftOf, patchOf } from "./characterDraft";
 import {
   useCharacters,
@@ -17,6 +18,7 @@ import {
   useRestoreEntity,
   useUpdateCharacter,
 } from "./data";
+import { useOpenEntity } from "./openEntity";
 import { useUndoStore } from "./undo";
 import { useAutosave } from "./useAutosave";
 
@@ -54,6 +56,7 @@ function DossierForm({ projectId, character }: { projectId: UUID; character: Cha
   const remove = useDeleteCharacter();
   const restore = useRestoreEntity();
   const pushUndo = useUndoStore((state) => state.push);
+  const openEntity = useOpenEntity();
 
   useAutosave(draft, async (value) => {
     const patch = patchOf(value);
@@ -212,6 +215,13 @@ function DossierForm({ projectId, character }: { projectId: UUID; character: Cha
             onChange={(event) => set("oneParagraphText", event.target.value)}
           />
         </div>
+
+        <BacklinksPanel
+          projectId={projectId}
+          targetType="character"
+          targetId={character.id}
+          onNavigate={(source) => openEntity(source.sourceType, source.sourceId)}
+        />
       </section>
 
       <button type="button" className="sl-btn" onClick={() => void onDelete()}>

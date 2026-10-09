@@ -267,10 +267,7 @@ try {
   // an @-mention inserted from the picker, then delete → undo from the toast.
   await page.getByRole("link", { name: "World" }).click();
   await page.getByRole("heading", { name: "World" }).waitFor({ timeout: 30000 });
-  await page
-    .locator(".sl-tree-row")
-    .filter({ hasText: "Geography" })
-    .waitFor({ timeout: 30000 });
+  await page.locator(".sl-tree-row").filter({ hasText: "Geography" }).waitFor({ timeout: 30000 });
   await page.locator(".sl-tree-row").filter({ hasText: "Geography" }).click();
   await page.getByPlaceholder("Entry name").fill("Emberfall");
   await page.getByRole("button", { name: "New entry", exact: true }).click();
@@ -312,6 +309,107 @@ try {
     .waitFor({ timeout: 20000 });
   await page.getByRole("button", { name: "Undo" }).waitFor({ state: "hidden", timeout: 20000 });
   console.log("PASS  lore delete → undo on-device");
+
+  // 2m. Slice 7 on-device — backlinks, one-tap Link for a possible mention, the global search
+  // sheet, the checks screen, and the two spec §5.1 budgets measured on the wasm path.
+  await page.locator(".sl-lore-card").filter({ hasText: "Emberfall" }).first().click();
+  const ember = page.getByRole("dialog", { name: "Emberfall" });
+  await ember.waitFor({ timeout: 30000 });
+  // The @-mention typed above is a self-reference: the panel must show at least one place.
+  await ember.locator('[data-testid="sl-backlinks"] .sl-backlink-row').first().waitFor({
+    timeout: 30000,
+  });
+  console.log("PASS  backlinks panel on-device");
+  await ember.getByRole("button", { name: "Close" }).click();
+  await page.waitForTimeout(800);
+
+  // A plain-text mention in another entry becomes the "Possible mentions" row we can Link.
+  await page.getByPlaceholder("Entry name").fill("The Sundered Coast");
+  await page.getByRole("button", { name: "New entry", exact: true }).click();
+  await page
+    .locator(".sl-lore-card")
+    .filter({ hasText: "The Sundered Coast" })
+    .first()
+    .waitFor({ timeout: 30000 });
+  await page.locator(".sl-lore-card").filter({ hasText: "The Sundered Coast" }).first().click();
+  const coast = page.getByRole("dialog", { name: "The Sundered Coast" });
+  await coast.waitFor({ timeout: 30000 });
+  await coast.locator(".sl-editor-body .ProseMirror").click();
+  await page.keyboard.type("Emberfall is west of the strait.");
+  await page.waitForTimeout(1500);
+  await coast.getByRole("button", { name: "Close" }).click();
+  await page.waitForTimeout(800);
+
+  await page.locator(".sl-lore-card").filter({ hasText: "Emberfall" }).first().click();
+  const emberAgain = page.getByRole("dialog", { name: "Emberfall" });
+  await emberAgain.waitFor({ timeout: 30000 });
+  const possibleRow = emberAgain.locator('[data-testid="sl-possible-mentions"] .sl-possible-row');
+  await possibleRow.first().waitFor({ timeout: 30000 });
+  const linksBefore = await emberAgain
+    .locator('[data-testid="sl-backlinks"] .sl-backlink-row')
+    .count();
+  await possibleRow.first().getByRole("button", { name: "Link" }).click();
+  await page.getByText("Mention linked").waitFor({ timeout: 20000 });
+  await page.waitForTimeout(900);
+  const linksAfter = await emberAgain
+    .locator('[data-testid="sl-backlinks"] .sl-backlink-row')
+    .count();
+  if (linksAfter <= linksBefore) throw new Error("on-device Link did not add a backlink");
+  await page.screenshot({ path: join(shotDir, "emu-slice7-backlinks.png"), fullPage: true });
+  console.log("PASS  possible mention → Link on-device");
+  await emberAgain.getByRole("button", { name: "Close" }).click();
+  await page.waitForTimeout(600);
+
+  // Global search sheet from the app bar.
+  await page.getByTestId("sl-search-open").click();
+  const searchInput = page.locator("#sl-search-input");
+  await searchInput.waitFor({ timeout: 20000 });
+  await searchInput.fill("Ember");
+  await page
+    .locator('.sl-search-hit[data-entity-type="lore"]')
+    .filter({ hasText: "Emberfall" })
+    .first()
+    .waitFor({ timeout: 20000 });
+  await page.screenshot({ path: join(shotDir, "emu-slice7-search.png"), fullPage: true });
+  console.log("PASS  global search sheet on-device");
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.waitForTimeout(500);
+
+  // Checks screen from the plan dashboard.
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByTestId("sl-checks-open").click();
+  await page.getByRole("heading", { name: "Consistency checks" }).waitFor({ timeout: 30000 });
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: join(shotDir, "emu-slice7-checks.png"), fullPage: true });
+  console.log("PASS  checks screen on-device");
+
+  // Phone-path budgets through the wasm driver on this emulator (spec §5.1).
+  const emuPerf = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const projects = await session.driver.query("SELECT id FROM project LIMIT 1");
+    const entries = await session.driver.query(
+      "SELECT id FROM lore_entry WHERE name = 'Emberfall'",
+    );
+    return window.__starlineDev.perf(projects[0].id, "lore", entries[0].id, [
+      "ember",
+      "harbour",
+      "coast",
+      "scene",
+      "character",
+    ]);
+  });
+  // Phone-path numbers through the wasm driver on this emulator. The spec §5.1 budgets (10/30 ms)
+  // are asserted where the reference machine lives — the native perf suite (in-process SQL) and
+  // verify-web (Chromium with the same wasm driver); this emulator is a software-rendered VM
+  // whose single-threaded wasm runs several times slower, so it guards against pathological
+  // regressions (a 10× smoke ceiling) instead of pretending to be the reference machine.
+  console.log(
+    `PERF  emulator wasm: search p50 ${emuPerf.searchP50} ms / p95 ${emuPerf.searchP95} ms · backlinks p50 ${emuPerf.backlinkP50} ms / p95 ${emuPerf.backlinkP95} ms (smoke ceilings 120/60 ms)`,
+  );
+  if (emuPerf.searchP95 > 120)
+    throw new Error(`emulator search smoke ceiling missed: ${emuPerf.searchP95} ms`);
+  if (emuPerf.backlinkP95 > 60)
+    throw new Error(`emulator backlink smoke ceiling missed: ${emuPerf.backlinkP95} ms`);
 
   // 3. Hardware back: from a step screen back to the plan.
   await page.getByRole("link", { name: "Plan" }).click();

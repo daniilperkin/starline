@@ -1,6 +1,7 @@
 import type { ChangeEvent } from "../changes";
 import type { Command } from "../commands";
 import type { SceneOutcome, SceneStatus, TimeOfDay } from "../entities";
+import { syncMentions } from "../lore/mentions";
 import { epochNow, newUuid, type OrderKey, orderKeyBetween, type UUID } from "../primitives";
 import { EMPTY_RICH_TEXT, type RichText, richTextFromPlain } from "../richtext";
 import { parseSceneList } from "./parse";
@@ -148,6 +149,10 @@ export const updateScene: Command<UpdateSceneArgs, void> = {
         WHERE id = ? AND project_id = ? AND deleted_at IS NULL`,
       params,
     );
+    // Mirror the synopsis's mention chips (spec §3.9) — backlinks read this, not the JSON.
+    if (synopsis !== undefined) {
+      await syncMentions(ctx.tx, "scene", args.sceneId, "synopsis", synopsis.json);
+    }
     return {
       result: undefined,
       changes: [{ table: "scene", op: "update", id: args.sceneId, parentIds: [args.projectId] }],

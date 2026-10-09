@@ -15,6 +15,7 @@ import {
   type UUID,
 } from "@starline/core";
 import { useEffect, useMemo, useState } from "react";
+import { BacklinksPanel } from "./BacklinksPanel";
 import {
   useDeleteLoreEntry,
   useFieldValues,
@@ -26,6 +27,7 @@ import {
   useSetFieldValue,
   useUpdateLoreEntry,
 } from "./data";
+import { useOpenEntity } from "./openEntity";
 import { RichTextEditor } from "./RichTextEditor";
 import { useUndoStore } from "./undo";
 import { useAutosave } from "./useAutosave";
@@ -119,6 +121,7 @@ export function LoreSheet({
   const kindDefs = useLoreFieldDefs(projectId, patch?.kind ?? loaded?.kind ?? null);
   const values = useFieldValues(entryId);
   const setField = useSetFieldValue();
+  const openEntity = useOpenEntity();
 
   const fieldValueOf = (defId: UUID): unknown => values.data?.get(defId) ?? null;
 
@@ -414,6 +417,13 @@ export function LoreSheet({
             </div>
           </fieldset>
         ) : null}
+
+        <BacklinksPanel
+          projectId={projectId}
+          targetType="lore"
+          targetId={entryId}
+          onNavigate={(source) => openEntity(source.sourceType, source.sourceId)}
+        />
 
         <div className="flex items-center justify-between gap-2">
           <button type="button" className="sl-btn" onClick={() => void onDelete()}>

@@ -42,13 +42,13 @@ refused with a clear error.
 ## Gates (all green means shippable)
 
 - `pnpm typecheck` · `pnpm lint`
-- `pnpm test` — the same contract suite on both drivers + core domain unit tests (113, incl. slice-5 trash/undo and slice-6 lore integration on rusqlite)
+- `pnpm test` — the same contract suite on both drivers + core domain unit tests (141, incl. slice-5 trash/undo, slice-6 lore and slice-7 search/backlink/perf integration on rusqlite)
 - `pnpm chaos` — kill-9 chaos harness (durability of acknowledged writes, native driver)
 - `pnpm chaos:web` — web crash harness (random writes killed mid-flight + reopen assertions: crash banner, integrity, FK sanity)
-- `node scripts/verify-web.mjs` — wizard E2E: library + story + steps 1–6 (character card, extraction, dossier edit, step-4 seed, storylines, sections, Stale badge) + step 8 (paste 40 scenes, merge re-import) + Scenes tab (reorder, reassign, editor round-trip) + slice 5 (step 9, dashboard, trash, undo, drag) + slice 6 (World taxonomy, entry + kind-template fields, `@`-mentions, delete → undo) + axe scans + pool no-leak assertion + persistence across reload/reopen (serves its own dev build)
+- `node scripts/verify-web.mjs` — wizard E2E: library + story + steps 1–6 (character card, extraction, dossier edit, step-4 seed, storylines, sections, Stale badge) + step 8 (paste 40 scenes, merge re-import) + Scenes tab (reorder, reassign, editor round-trip) + slice 5 (step 9, dashboard, trash, undo, drag) + slice 6 (World taxonomy, entry + kind-template fields, `@`-mentions, delete → undo) + slice 7 (backlinks, possible mention → Link, search sheet, checks screen, §5.1 budgets on the wasm path) + axe scans (8) + pool no-leak assertion + persistence across reload/reopen (serves its own dev build)
 - `node scripts/verify-pwa.mjs` — service-worker + offline reopen keeping the plan (serves its own preview build)
 - `node scripts/check-contrast.mjs` — WCAG pin for the star-library palette (accent-is-decoration rule)
 - `node scripts/check-no-network.mjs` — offline-complete invariant (no network primitives in apps/*/src or packages/*/src)
 - `pnpm check:bundle` — gzip budgets (spec §5.1: app 330 KiB, css 8, worker 72, payload 4 MiB; fails beyond +5 %)
-- `node scripts/verify-android.mjs` — scripted emulator QA: fresh APK install → wizard steps 1–4 (character card, step-4 seed, rich-text editors) → step-8 paste import → Scenes tab + scene-sheet round-trip → slice 5 on-device (step 9, dashboard + snapshot, trash, undo, drag) → slice 6 on-device (World, kind template, `@`-mention, delete → undo) → back-button/minimise → cold relaunch (booted emulator required)
+- `node scripts/verify-android.mjs` — scripted emulator QA: fresh APK install → wizard steps 1–4 (character card, step-4 seed, rich-text editors) → step-8 paste import → Scenes tab + scene-sheet round-trip → slice 5 on-device (step 9, dashboard + snapshot, trash, undo, drag) → slice 6 on-device (World, kind template, `@`-mention, delete → undo) → slice 7 on-device (backlinks, possible mention → Link, search sheet, checks, budgets on the emulator wasm path) → back-button/minimise → cold relaunch (booted emulator required)
 - `node scripts/cargo.mjs build` — native storage crate

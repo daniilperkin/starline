@@ -3,18 +3,23 @@ import { Capacitor } from "@capacitor/core";
 import { format, messages } from "@starline/core";
 import { Outlet, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { lastActivityTime, onActivity, queryClient } from "./data";
+import { lastActivityTime, onActivity, queryClient, useProjects } from "./data";
+import { useOpenEntity } from "./openEntity";
+import { SearchSheet } from "./SearchSheet";
 import { useSessionStore } from "./session";
 import { snapshotAfterActivity, snapshotOnOpenIfStale } from "./snapshots";
 import { TabBar } from "./TabBar";
 import { relativeTime } from "./time";
 import { UndoToast } from "./UndoToast";
 
-/** Route shell: content outlet + bottom tab bar + native lifecycle wiring. */
+/** Route shell: app bar with search, content outlet, bottom tab bar + native lifecycle wiring. */
 export function AppLayout() {
   const router = useRouter();
   const session = useSessionStore((state) => state.session);
+  const projects = useProjects();
+  const openEntity = useOpenEntity();
   const [healthDismissed, setHealthDismissed] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // Android back button: step back through history, then minimise the app (decision 12).
   useEffect(() => {
@@ -76,6 +81,19 @@ export function AppLayout() {
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-5 px-4 pt-6 pb-28">
+      <header className="sl-appbar">
+        <span className="sl-wordmark">StarLine</span>
+        {session ? (
+          <button
+            type="button"
+            className="sl-btn-small"
+            data-testid="sl-search-open"
+            onClick={() => setSearchOpen(true)}
+          >
+            <span aria-hidden="true">⌕</span> {messages.search.open}
+          </button>
+        ) : null}
+      </header>
       {showHealth && health !== null ? (
         <div className="sl-banner" role="alert">
           <div className="min-w-0 flex-1">
@@ -100,6 +118,13 @@ export function AppLayout() {
         </div>
       ) : null}
       <Outlet />
+      {searchOpen ? (
+        <SearchSheet
+          projectId={projects.data?.[0]?.id ?? null}
+          onClose={() => setSearchOpen(false)}
+          onOpenHit={(hit) => openEntity(hit.entityType, hit.entityId)}
+        />
+      ) : null}
       <UndoToast />
       <TabBar />
     </div>

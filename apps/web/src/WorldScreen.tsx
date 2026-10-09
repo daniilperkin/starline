@@ -19,6 +19,7 @@ import {
   useSeedLoreTaxonomy,
 } from "./data";
 import { LoreSheet } from "./LoreSheet";
+import { useNavigationStore } from "./navigation";
 
 /** World tab v1 (PLAN slice 6): the category tree plus the entry list of the chosen node. */
 
@@ -51,6 +52,15 @@ export function WorldScreen() {
   const [cascadeFor, setCascadeFor] = useState<{ id: UUID; count: number } | null>(null);
 
   const projectId = project?.id ?? null;
+
+  // A search hit, backlink row or check item can ask for one specific entry (slice 7).
+  const pendingTarget = useNavigationStore((state) => state.target);
+  const clearTarget = useNavigationStore((state) => state.clear);
+  useEffect(() => {
+    if (pendingTarget?.kind !== "lore") return;
+    setOpenEntryId(pendingTarget.id);
+    clearTarget();
+  }, [pendingTarget, clearTarget]);
 
   // First visit seeds the nine default categories (idempotent command, spec §3.7 taxonomy).
   const categoryList = categories.data;

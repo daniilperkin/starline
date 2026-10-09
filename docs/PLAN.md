@@ -186,7 +186,7 @@ Not shipped: image attachments (deferred to M3 exports/imports) and category dra
 **Exit**: build a world with 20+ entries across kinds; mentions resolve live; rename an
 entity → chips re-render everywhere (ID-based).
 
-### Slice 7 — Backlinks & global search
+### Slice 7 — Backlinks & global search (**built 2026-10-09**; emulator QA + commit pending)
 
 **Screens**: backlinks sheet on every entity ("Mentioned in N places", grouped by source,
 with snippets; tap → navigate); "Possible mentions" (unlinked occurrences → one-tap Link);
@@ -198,8 +198,31 @@ near-duplicate names).
 unlinked-mention rewrite (text range → mention node, one undoable transaction), FTS wiring
 (`§3.10` tables already exist), search budget test.
 
+**Built**: `packages/core/src/search/` — `types` (hit/backlink/possible-mention/check shapes +
+the two budget constants), `text` (FTS query building that strips syntax, trigram queries,
+label matching, snippet windows, Levenshtein near-duplicates), `search` (two indexed passes as
+one round trip each — token UNION ALL over the five entity types, then trigram — plus one
+context query), `possible` (unlinked-occurrence scan over the `*_text` columns minus the
+mirror, `rewriteDocWithMention` / `removeMentionNodes`), `backlinks` (three queries whatever the
+source count, capped at `BACKLINK_MAX_SOURCES = 40` with a `truncated` flag), `commands`
+(`linkMention` / `unlinkMention` — one transaction, one undo step), `checks` (six advisory
+checks, never auto-fixed). `updateScene` (synopsis) and `updateCharacter` (storyline) now mirror
+mentions, so backlinks cover step-5/step-8 prose too.
+Web: app-bar search sheet (grouped hits, fuzzy chips, localStorage recents), `BacklinksPanel`
+("Mentioned in N places" + possible mentions with Link/Link all + undo toast running the exact
+inverse), `ChecksScreen` at `/checks` (reachable from the dashboard), `openEntity` navigation
+helper + `navigation` store for sheet targets, eight axe-clean screens.
+Perf: the storage CLI gained a `bench` op (times statements in-process) and the perf suite
+asserts the §5.1 budgets against a generated reference project. It caught a real bug — the lock
+heartbeat rewrote the `.lock` file on **every** query (~4 ms per operation); it is now throttled
+to a quarter of the stale window. Result: backlinks 0.06 ms, search 3.94 ms in-process;
+wasm path in-browser p95 search 3.2 ms / backlinks 1.4 ms.
+Also: routes are code-split per screen (`lazyRouteComponent`) — the bundle gate had flagged the
+single chunk as TIGHT (335.8/330 KiB); the app chunk is now 247.9 KiB.
+
 **Exit**: backlink ≤ 10 ms and search ≤ 30 ms on the reference dataset (phone target: open
-item #5); "Possible mentions" links without breaking text.
+item #5); "Possible mentions" links without breaking text. — **met** (perf suite + wasm
+measurements in both E2E scripts).
 
 ### Slice 8 — Relationships
 

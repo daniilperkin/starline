@@ -159,6 +159,53 @@ fn handle(op: &str, req: &Value, store: &mut Option<Store>) -> Result<Value, Str
             let (ok, messages) = s.integrity_check().map_err(|e| e.to_string())?;
             Ok(json!({ "ok": ok, "messages": messages }))
         }
+        // Test-support op: runs statements inside this process and reports their own timing, so
+        // the perf suites can measure the SQL without the NDJSON pipe in the number.
+        "bench" => {
+            let s = store.as_mut().ok_or("bench: not open")?;
+            let statements = req
+                .get("statements")
+                .and_then(Value::as_array)
+                .ok_or("bench: statements required")?;
+            let runs = req
+                .get("runs")
+                .and_then(Value::as_u64)
+                .unwrap_or(10)
+                .clamp(1, 500) as usize;
+            let mut results = Vec::with_capacity(statements.len());
+            for statement in statements {
+                let sql = statement
+                    .get("sql")
+                    .and_then(Value::as_str)
+                    .ok_or("bench: sql required")?;
+                let params = statement
+                    .get("params")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
+                let mut samples: Vec<f64> = Vec::with_capacity(runs);
+                let mut rows = 0usize;
+                for _ in 0..runs {
+                    let started = std::time::Instant::now();
+                    let result = s.query(sql, &params).map_err(|e| e.to_string())?;
+                    samples.push(started.elapsed().as_secs_f64() * 1000.0);
+                    rows = result.len();
+                }
+                samples.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                let percentile = |p: f64| {
+                    let index = ((p / 100.0) * samples.len() as f64).ceil() as usize;
+                    samples[index.saturating_sub(1).min(samples.len() - 1)]
+                };
+                results.push(json!({
+                    "rows": rows,
+                    "minMs": samples[0],
+                    "p50Ms": percentile(50.0),
+                    "p95Ms": percentile(95.0),
+                    "maxMs": samples[samples.len() - 1],
+                }));
+            }
+            Ok(json!({ "results": results, "runs": runs }))
+        }
         "mtime" => {
             let s = store.as_ref().ok_or("mtime: not open")?;
             Ok(json!({ "mtimeMs": s.mtime_ms().map_err(|e| e.to_string())? }))

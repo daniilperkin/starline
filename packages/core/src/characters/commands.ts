@@ -1,6 +1,7 @@
 import type { ChangeEvent } from "../changes";
 import type { Command } from "../commands";
 import type { ArcType, CharacterRole } from "../entities";
+import { syncMentions } from "../lore/mentions";
 import { epochNow, newUuid, orderKeyBetween, type UUID } from "../primitives";
 import type { RichText } from "../richtext";
 import { CHARACTER_ROLE_COLORS, CHARACTER_ROLES, type CharacterDraft } from "./types";
@@ -108,6 +109,10 @@ export const updateCharacter: Command<UpdateCharacterArgs, void> = {
         WHERE id = ? AND project_id = ? AND deleted_at IS NULL`,
       params,
     );
+    // Mirror the storyline's mention chips (spec §3.9) so backlinks cover the step-5 text too.
+    if (storyline !== undefined) {
+      await syncMentions(ctx.tx, "character", args.characterId, "storyline", storyline.json);
+    }
     return {
       result: undefined,
       changes: [

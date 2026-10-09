@@ -13,6 +13,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
+  useConsistencyChecks,
   useCreateProject,
   useDashboardStats,
   useProjects,
@@ -41,6 +42,7 @@ export function PlanScreen() {
   const snapshots = useSnapshots();
   const takeSnapshot = useTakeSnapshot();
   const trash = useTrash(projects.data?.[0]?.id ?? null);
+  const checks = useConsistencyChecks(projects.data?.[0]?.id ?? null);
   const [title, setTitle] = useState("");
   const [closing, setClosing] = useState(false);
 
@@ -223,6 +225,16 @@ export function PlanScreen() {
                   {trash.data && trash.data.length > 0
                     ? `${messages.trash.open} · ${trash.data.length}`
                     : messages.trash.open}
+                </button>
+                <button
+                  type="button"
+                  className="sl-btn-small"
+                  data-testid="sl-checks-open"
+                  onClick={() => void navigate({ to: "/checks" })}
+                >
+                  {checks.data && checks.data.length > 0
+                    ? `${messages.checks.open} · ${checks.data.reduce((sum, check) => sum + check.items.length, 0)}`
+                    : messages.checks.open}
                 </button>
               </div>
             </div>

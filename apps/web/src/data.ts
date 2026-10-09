@@ -1,9 +1,11 @@
 import {
+  type Backlinks,
   ChangeBus,
   type ChapterSummary,
   type CharacterPatch,
   type CharacterRole,
   type Command,
+  type ConsistencyCheck,
   copyLineToSceneSynopsis,
   createChapter,
   createCharacter,
@@ -25,6 +27,8 @@ import {
   getSceneDetail,
   type LoreEntryPatch,
   type LoreKind,
+  linkMention,
+  listBacklinks,
   listChapters,
   listCharacters,
   listFieldDefs,
@@ -34,6 +38,7 @@ import {
   listMentionables,
   listParts,
   listPlotlines,
+  listPossibleMentions,
   listProjects,
   listScenes,
   listSteps,
@@ -44,12 +49,16 @@ import {
   moveLoreEntry,
   moveScene,
   type PartSummary,
+  type PossibleMention,
   purgeExpiredTrash,
   restoreEntity,
+  runConsistencyChecks,
   type SceneSummary,
+  type SearchResults,
   type SnowflakeStepContent,
   type SnowflakeStepNumber,
   saveStepContent,
+  searchProject,
   seedLoreTaxonomy,
   setFieldValue,
   setSceneCharacters,
@@ -59,6 +68,7 @@ import {
   setSceneTags,
   type TrashEntityType,
   type UUID,
+  unlinkMention,
   updateChapter,
   updateCharacter,
   updateLoreEntry,
@@ -90,6 +100,11 @@ bus.subscribe(() => {
   void queryClient.invalidateQueries({ queryKey: ["trash"] });
   void queryClient.invalidateQueries({ queryKey: ["lore"] });
   void queryClient.invalidateQueries({ queryKey: ["fields"] });
+  // Slice 7: a mention, a rename or a delete all change what search and the panels show.
+  void queryClient.invalidateQueries({ queryKey: ["search"] });
+  void queryClient.invalidateQueries({ queryKey: ["backlinks"] });
+  void queryClient.invalidateQueries({ queryKey: ["possible"] });
+  void queryClient.invalidateQueries({ queryKey: ["checks"] });
 });
 
 let lastActivityAt = Date.now();
@@ -408,10 +423,12 @@ export function useTakeSnapshot() {
 }
 
 /**
- * Dev-only test hook for scripts/chaos/web.mjs: exposes the open session's driver plus the
- * command set, so the chaos harness can hammer random writes and simulate mid-write crashes
- * without driving the UI. `import.meta.env.DEV` is statically false in production builds, so
- * none of this ships (the offline/no-network gate also stays green — no fetch anywhere).
+ * Dev-only test hook for scripts/chaos/web.mjs and scripts/verify-android.mjs: exposes the open
+ * session's driver, the command set and the slice-7 reads, so the harnesses can drive random
+ * writes, simulate mid-write crashes and measure the §5.1 budgets without going through the UI.
+ * `import.meta.env.DEV` is statically false in production builds, so none of this ships; the
+ * sideloaded QA APK is built with `VITE_STARLINE_DEV=1` to keep the hook available on-device
+ * (the offline/no-network gate also stays green — no fetch anywhere).
  */
 const chaosCommands: Record<string, Command<never, unknown>> = {
   createScene: createScene as Command<never, unknown>,
@@ -427,9 +444,11 @@ const chaosCommands: Record<string, Command<never, unknown>> = {
   updateLoreEntry: updateLoreEntry as Command<never, unknown>,
   deleteLoreEntry: deleteLoreEntry as Command<never, unknown>,
   seedLoreTaxonomy: seedLoreTaxonomy as Command<never, unknown>,
+  linkMention: linkMention as Command<never, unknown>,
+  unlinkMention: unlinkMention as Command<never, unknown>,
 };
 
-if (import.meta.env.DEV) {
+if (import.meta.env.DEV || import.meta.env.VITE_STARLINE_DEV === "1") {
   (window as unknown as Record<string, unknown>).__starlineDev = {
     session: () => useSessionStore.getState().session,
     run: (name: string, args: unknown) => {
@@ -449,6 +468,68 @@ if (import.meta.env.DEV) {
       const session = useSessionStore.getState().session;
       if (!session) throw new Error("no library open");
       return session.transport.request("pool_stats", {});
+    },
+    /** Slice-7 reads, straight off the driver, for the e2e journey and the perf check. */
+    search: (projectId: string, query: string) => {
+      const session = useSessionStore.getState().session;
+      if (!session) throw new Error("no library open");
+      return searchProject(session.driver, projectId as UUID, query);
+    },
+    backlinks: (projectId: string, targetType: string, targetId: string) => {
+      const session = useSessionStore.getState().session;
+      if (!session) throw new Error("no library open");
+      return listBacklinks(session.driver, projectId as UUID, targetType, targetId as UUID);
+    },
+    possibleMentions: (projectId: string, targetType: string, targetId: string) => {
+      const session = useSessionStore.getState().session;
+      if (!session) throw new Error("no library open");
+      return listPossibleMentions(session.driver, projectId as UUID, targetType, targetId as UUID);
+    },
+    checks: (projectId: string) => {
+      const session = useSessionStore.getState().session;
+      if (!session) throw new Error("no library open");
+      return runConsistencyChecks(session.driver, projectId as UUID);
+    },
+    /**
+     * Phone-path perf check (spec §5.1): times the two slice-7 reads through the real wasm
+     * driver on this device, with the same payload shape the UI uses.
+     */
+    perf: async (projectId: string, targetType: string, targetId: string, queries: string[]) => {
+      const session = useSessionStore.getState().session;
+      if (!session) throw new Error("no library open");
+      const time = async <T>(fn: () => Promise<T>): Promise<number> => {
+        const started = performance.now();
+        await fn();
+        return Math.round((performance.now() - started) * 100) / 100;
+      };
+      const searchSamples: number[] = [];
+      for (const query of queries) {
+        searchSamples.push(
+          await time(() => searchProject(session.driver, projectId as UUID, query)),
+        );
+      }
+      const backlinkSamples: number[] = [];
+      // One warm-up call, then enough samples that p95 is a percentile and not the maximum.
+      await time(() =>
+        listBacklinks(session.driver, projectId as UUID, targetType, targetId as UUID),
+      );
+      for (let run = 0; run < 15; run++) {
+        backlinkSamples.push(
+          await time(() =>
+            listBacklinks(session.driver, projectId as UUID, targetType, targetId as UUID),
+          ),
+        );
+      }
+      const pick = (samples: number[], p: number) => {
+        const sorted = [...samples].sort((a, b) => a - b);
+        return sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)] ?? 0;
+      };
+      return {
+        searchP50: pick(searchSamples, 50),
+        searchP95: pick(searchSamples, 95),
+        backlinkP50: pick(backlinkSamples, 50),
+        backlinkP95: pick(backlinkSamples, 95),
+      };
     },
   };
 }
@@ -616,6 +697,98 @@ export function useSetFieldValue() {
     mutationFn: async (args: { defId: UUID; ownerType: string; ownerId: UUID; value: unknown }) => {
       if (!session) throw new Error("no library open");
       return runCommand(session.driver, setFieldValue, args);
+    },
+  });
+}
+
+/** Search, backlinks, possible mentions and the consistency checks (PLAN slice 7). */
+
+export function useSearch(projectId: UUID | null, query: string) {
+  const session = useSessionStore((state) => state.session);
+  const trimmed = query.trim();
+  return useQuery({
+    queryKey: ["search", session?.name ?? null, projectId, trimmed],
+    enabled: session !== null && projectId !== null && trimmed.length >= 2,
+    staleTime: 30_000,
+    queryFn: async (): Promise<SearchResults> => {
+      if (!session || !projectId) throw new Error("no project open");
+      return searchProject(session.driver, projectId, trimmed);
+    },
+  });
+}
+
+export function useBacklinks(
+  projectId: UUID | null,
+  targetType: string | null,
+  targetId: UUID | null,
+) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["backlinks", session?.name ?? null, projectId, targetType, targetId],
+    enabled: session !== null && projectId !== null && targetType !== null && targetId !== null,
+    staleTime: 10_000,
+    queryFn: async (): Promise<Backlinks> => {
+      if (!session || !projectId || !targetType || !targetId) throw new Error("no target");
+      return listBacklinks(session.driver, projectId, targetType, targetId);
+    },
+  });
+}
+
+export function usePossibleMentions(
+  projectId: UUID | null,
+  targetType: string | null,
+  targetId: UUID | null,
+) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["possible", session?.name ?? null, projectId, targetType, targetId],
+    enabled: session !== null && projectId !== null && targetType !== null && targetId !== null,
+    staleTime: 10_000,
+    queryFn: async (): Promise<PossibleMention[]> => {
+      if (!session || !projectId || !targetType || !targetId) throw new Error("no target");
+      return listPossibleMentions(session.driver, projectId, targetType, targetId);
+    },
+  });
+}
+
+export function useConsistencyChecks(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["checks", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    staleTime: 15_000,
+    queryFn: async (): Promise<ConsistencyCheck[]> => {
+      if (!session || !projectId) throw new Error("no project open");
+      return runConsistencyChecks(session.driver, projectId);
+    },
+  });
+}
+
+export interface LinkMentionVariables {
+  projectId: UUID;
+  sourceType: string;
+  sourceId: UUID;
+  field: string;
+  targetType: string;
+  targetId: UUID;
+}
+
+export function useLinkMention() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: LinkMentionVariables) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, linkMention, args);
+    },
+  });
+}
+
+export function useUnlinkMention() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: LinkMentionVariables) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, unlinkMention, args);
     },
   });
 }
