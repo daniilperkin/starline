@@ -4,6 +4,7 @@ export * from "./commands";
 export * from "./entities";
 export * from "./fields";
 export * from "./i18n";
+export * from "./interchange";
 export * from "./lore";
 export * from "./primitives";
 export * from "./relationships";

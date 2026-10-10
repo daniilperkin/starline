@@ -349,19 +349,63 @@ reported it as "resolved to hidden"); the card's footer is now stacked with a wr
 row.
 
 
-### Slice 12 — Export & import
+### Slice 12 — Export & import (**shipped 2026-10-10**, `<sha>`; emulator QA OK, web 17 axe scans)
 
-**Screens**: Export sheet (format presets: manuscript / planning / interchange; scope
-filters: whole project, chapters, only `done` scenes; include synopsis/notes toggles;
-progress + cancel; share/save via Android share sheet or SAF); Import flows (StarLine
-JSON/MD folder → new project; CSV column-mapping with dry-run "N to create, M skipped";
-manuscript split wizard: heading level → chapters, scene breaks → scenes).
+**Screens**: Export & import screen (`/export`, reached from the dashboard): format presets
+(JSON / Markdown folder / DOCX manuscript / DOCX planning / HTML / Markdown / plain text / CSV
+tables), scope filter (all scenes / drafted or later / only done), include-synopsis and
+include-body toggles, progress + cancel, and a result line saying where the file went;
+import flows: StarLine JSON / Markdown folder as a **new library** (start screen), CSV
+column-mapping with dry-run "N to create, M skipped", and a manuscript split wizard
+(heading level → chapters, scene breaks → scenes).
 
 **Build**: MD zip (Obsidian-compatible layout per §4.5.1), JSON (versioned + upgraders),
 HTML single-file, CSV tables, plain-text manuscript, DOCX in a worker; the **round-trip
 gate**: `export → import → export` byte-identical.
 
 **Exit**: round-trip gate green in CI; a real export opens cleanly in Obsidian.
+
+**Slice 12 record (2026-10-10).** Measured, not estimated:
+
+| Gate | Result | Where |
+| --- | --- | --- |
+| Round trip (native) | `export → import → export` byte-identical, 26-table document | `slice12-interchange.test.ts` |
+| Round trip (web UI) | export JSON (4 characters · 43 scenes) → import as a new library → **43 scenes · 4 characters** | `verify-web` 4w + 7 |
+| JSON export | flat versioned document, 86 KB for 2 ch · 41 scenes, 92 KB after the imports | `verify-web` 4w |
+| Markdown folder | 68 files: `starline.json` + 45 `outline/**` + `characters/**` + CSV sidecars | `verify-web` 4w |
+| DOCX | 6 OOXML parts; manuscript 4.7 kB XML (chapters + written scenes), planning 7.2 kB (plan lines) | `verify-web` 4w |
+| CSV tables | 6 tables; 42 scene rows, `characters.csv` carries the cast | `verify-web` 4w |
+| CSV import | dry run "2 to create" → "2 created", roles/tags/aliases written through commands | `verify-web` 4w |
+| Manuscript split | "# Chapter nine" + `***` → "2 chapters · 2 scenes · 10 words" | `verify-web` 4w |
+| On-device export | 25.7 KB JSON in the app-scoped files folder (`Android/data/app.starline/files/StarLine Exports`), share sheet opened | `verify-android` 2r |
+| On-device QA | **38 PASS**, EMULATOR-QA OK | `verify-android` |
+| Tests | 251/251 | `pnpm test` |
+| Bundle | app 261.4/330 KiB, css 7.8/8, storage worker 63.8/72, **export worker 12.8/40**, payload 3.41/4 MiB | `check:bundle` |
+
+Five real bugs the gates found and this slice fixed:
+
+1. **The character whitelist blocked the importer.** `updateCharacter` only whitelisted
+   `CharacterDraft` keys, so a CSV import that carried pronouns, age, occupation or aliases
+   produced `no such column: undefined` (the column name came out of the map as `undefined`).
+   The whitelist now covers the three dossier basics and the alias list, which the command
+   stringifies — the importer writes through commands instead of reaching around them.
+2. **The export read a cached project.** The screen held the project rows in a query cache, so
+   an export right after an import exported the pre-import project (0 characters in a project
+   with three). Every export now reads the rows fresh, and the importer's refresh also
+   invalidates the export key.
+3. **A manuscript printed a chapter heading per scene** whenever the outline numbered scenes
+   per chapter (which the step-8 paste does): the manuscript walk sorted scenes by their bare
+   `order_key` and so interleaved chapters. It now sorts part → chapter → scene, the same
+   reading order the outliner shows.
+4. **The phone's save path wrote where Android refuses.** The export (and, it turned out, slice
+   11's snapshot mirror) wrote to `Directory.Documents` — the *shared* `/sdcard/Documents` — which
+   fails with `EACCES` on Android 11+ without `MANAGE_EXTERNAL_STORAGE`. Both now go through one
+   `deviceStorage.ts` into the app-scoped files folder, and the FileProvider gained the matching
+   `external-files-path` entry without which the share sheet could never open. The on-device gate
+   asserts the file on disk *and* the share sheet.
+5. **The backlink p95 gate was measuring the maximum.** 15 samples put the p95 index on the last
+   value, so one GC pause or a background snapshot failed the budget; it now takes 40 samples and
+   reads 2.6 ms p50 / 3.1 ms p95 (budget 10 ms).
 
 ### Slice 13 — Writing mode
 
@@ -416,7 +460,9 @@ written end-to-end; all gates green; PWA + APK rebuilt.
   - ✅ `scripts/verify-android.mjs` — scripted emulator flow, shipped with Slice 1: fresh
     install → wizard step 1 → hardware back/minimise → cold relaunch (drives the WebView
     over CDP; needs a booted emulator and `artifacts/starline-debug.apk`).
-  - export round-trip gate — arrives with Slice 12 and stays in CI.
+  - ✅ export round-trip gate — shipped with Slice 12: `slice12-interchange.test.ts` runs
+    `export → import → export` on the real rusqlite driver and asserts the bytes are identical;
+    `verify-web` 4w + 7 drives the same loop through the real UI.
   - no-network invariant check — shipped with Slice 1 (`scripts/check-no-network.mjs`, source grep).
 - **Strings**: `packages/core/src/i18n/` with typed keys and `en` as the base catalogue; a
   test fails the build on missing keys or unused keys. No literal UI copy in components.

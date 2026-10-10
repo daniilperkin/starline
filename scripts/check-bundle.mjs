@@ -24,6 +24,9 @@ const BUDGETS = [
   { match: /^index-.*\.js$/, label: "app bundle (gzip)", limitKib: 330 },
   { match: /^index-.*\.css$/, label: "styles (gzip)", limitKib: 8 },
   { match: /^worker-.*\.js$/, label: "storage worker (gzip)", limitKib: 72 },
+  // The export worker builds DOCX/ZIP bytes off the main thread (spec §4.5.1). Its own budget:
+  // it must never grow into the generic route-chunk allowance unnoticed.
+  { match: /^export\.worker-.*\.js$/, label: "export worker (gzip)", limitKib: 40 },
 ];
 
 /**

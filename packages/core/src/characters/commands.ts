@@ -53,8 +53,16 @@ export const createCharacter: Command<CreateCharacterArgs, { characterId: UUID }
   },
 };
 
-/** Whitelisted column map for `updateCharacter` — the only fields v1 forms may write. */
-const UPDATABLE_COLUMNS: Record<keyof CharacterDraft, string> = {
+/**
+ * Whitelisted column map for `updateCharacter` — the only fields v1 forms may write. The three
+ * dossier basics and the alias list sit outside `CharacterDraft` (the character *forms* do not
+ * edit them yet) but the CSV importer writes them, so they are whitelisted here rather than
+ * reaching around the command layer.
+ */
+const UPDATABLE_COLUMNS: Record<
+  keyof CharacterDraft | "pronouns" | "age" | "occupation" | "aliases",
+  string
+> = {
   name: "name",
   role: "role",
   color: "color",
@@ -65,9 +73,19 @@ const UPDATABLE_COLUMNS: Record<keyof CharacterDraft, string> = {
   goal: "goal",
   conflict: "conflict",
   epiphany: "epiphany",
+  pronouns: "pronouns",
+  age: "age",
+  occupation: "occupation",
+  aliases: "aliases",
 };
 
 export type CharacterPatch = Partial<CharacterDraft> & {
+  /** Dossier basics the character forms do not edit yet (the CSV importer does). */
+  pronouns?: string;
+  age?: string;
+  occupation?: string;
+  /** The alias list is a JSON column; the command stringifies it. */
+  aliases?: string[];
   /** Step 5 storyline — written as both `storyline_json` and `storyline_text`. */
   storyline?: RichText;
 };
@@ -81,8 +99,14 @@ export interface UpdateCharacterArgs {
 export const updateCharacter: Command<UpdateCharacterArgs, void> = {
   name: "character.update",
   async run(ctx, args) {
-    const { storyline, ...draftPatch } = args.patch;
-    const entries = Object.entries(draftPatch) as Array<[keyof CharacterDraft, string]>;
+    const { storyline, aliases, ...draftPatch } = args.patch;
+    const entries = Object.entries(draftPatch) as Array<[keyof typeof UPDATABLE_COLUMNS, string]>;
+    if (aliases !== undefined) {
+      entries.push([
+        "aliases",
+        JSON.stringify(aliases.map((alias) => alias.trim()).filter((alias) => alias.length > 0)),
+      ]);
+    }
     if (entries.length === 0 && storyline === undefined) throw new Error("empty character patch");
     if (args.patch.name !== undefined) {
       const name = args.patch.name.trim();

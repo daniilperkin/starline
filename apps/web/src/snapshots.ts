@@ -13,6 +13,7 @@ import {
   type SnapshotReason,
   type SnapshotRestoreResult,
 } from "@starline/core";
+import { ensureDeviceFolder, MIRROR_SUBDIR, writeDeviceFile } from "./deviceStorage";
 import type { LibrarySession } from "./session";
 import { type OpenedLibrary, openLibraryFully } from "./storage";
 
@@ -348,12 +349,11 @@ export async function snapshotAfterActivity(
 
 /**
  * The mirror is a second, immutable copy of every snapshot in a folder the writer owns. Android
- * writes into the app's Documents folder through Capacitor Filesystem (no permissions, no SAF
+ * writes into the app's own files folder through Capacitor Filesystem (no permissions, no SAF
  * picker — decision 20); the web uses the File System Access API where the browser has it and
  * otherwise reports that mirroring is unavailable rather than pretending.
  */
 const MIRROR_KEY = "starline.mirrorFolder";
-const MIRROR_SUBDIR = "StarLine Backups";
 
 export type MirrorKind = "capacitor" | "filesystem" | "unavailable";
 
@@ -388,14 +388,11 @@ export function mirrorState(): MirrorState {
 export async function chooseMirrorFolder(): Promise<MirrorState> {
   const { Capacitor } = await import("@capacitor/core");
   if (Capacitor.isNativePlatform()) {
-    // Android: the app-scoped Documents folder — visible to a file manager, no permission
-    // prompt, and the files are plain snapshots the writer can copy anywhere.
-    const { Directory, Filesystem } = await import("@capacitor/filesystem");
-    await Filesystem.mkdir({
-      path: MIRROR_SUBDIR,
-      directory: Directory.Documents,
-      recursive: true,
-    }).catch(() => undefined);
+    // Android: the app-scoped files folder — visible to a file manager or over USB, no permission
+    // prompt, and the files are plain snapshots the writer can copy anywhere. Writing to the
+    // shared /sdcard/Documents instead fails with EACCES on Android 11+ (caught by the slice-12
+    // on-device export, which fixed the same mistake here).
+    await ensureDeviceFolder(MIRROR_SUBDIR);
     const state: StoredMirror = { kind: "capacitor", folder: MIRROR_SUBDIR };
     localStorage.setItem(MIRROR_KEY, JSON.stringify(state));
     return state;
@@ -428,15 +425,7 @@ export async function mirrorSnapshot(entry: SnapshotEntry): Promise<boolean> {
   try {
     const bytes = await readSnapshotBytes(entry.name);
     if (state.kind === "capacitor") {
-      const { Directory, Filesystem } = await import("@capacitor/filesystem");
-      let binary = "";
-      for (const byte of bytes) binary += String.fromCharCode(byte);
-      await Filesystem.writeFile({
-        path: `${MIRROR_SUBDIR}/${entry.name}`,
-        data: btoa(binary),
-        directory: Directory.Documents,
-        recursive: true,
-      });
+      await writeDeviceFile(MIRROR_SUBDIR, entry.name, bytes);
       return true;
     }
     if (state.kind === "filesystem") {

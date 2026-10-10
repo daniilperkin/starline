@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Paths the FileProvider may hand to other apps.
+
+  `external-files-path` is what the snapshot mirror and the exports use: their files live in the
+  app's own external files directory (`Android/data/<pkg>/files/…`), which needs no permission.
+  Without that entry `FileProvider.getUriForFile` throws and the share sheet never opens — which
+  is exactly how the slice-12 on-device export caught it.
+  `external-path` and `cache-path` are Capacitor's defaults and stay for compatibility.
+-->
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <external-files-path name="my_files" path="." />
     <external-path name="my_images" path="." />
     <cache-path name="my_cache_images" path="." />
 </paths>

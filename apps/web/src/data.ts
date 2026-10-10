@@ -727,11 +727,13 @@ if (import.meta.env.DEV || import.meta.env.VITE_STARLINE_DEV === "1") {
         );
       }
       const backlinkSamples: number[] = [];
-      // One warm-up call, then enough samples that p95 is a percentile and not the maximum.
+      // One warm-up call, then enough samples that p95 is a percentile and not the maximum:
+      // with 15 samples the p95 index IS the maximum, so a single GC pause or a background
+      // snapshot failed the budget without the read ever being slow.
       await time(() =>
         listBacklinks(session.driver, projectId as UUID, targetType, targetId as UUID),
       );
-      for (let run = 0; run < 15; run++) {
+      for (let run = 0; run < 40; run++) {
         backlinkSamples.push(
           await time(() =>
             listBacklinks(session.driver, projectId as UUID, targetType, targetId as UUID),

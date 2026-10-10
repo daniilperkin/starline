@@ -8,15 +8,19 @@
 // check the dashboard cards (counts, words, continue, snapshot), delete → restore via Trash,
 // undo a delete from the toast, drag-reorder with a mouse long-press, then axe-scan every
 // screen for serious/critical a11y violations, and finally reload/close/reopen to prove
-// everything persisted.
+// everything persisted. Slice 12 adds the interchange loop: export JSON / Markdown folder /
+// DOCX / CSV tables from the open project, check the bytes, then import the JSON into a NEW
+// library and prove the chapters, scenes and characters arrived — the M3 exit criterion
+// (export → import → export identical, checked byte-for-byte by the native driver test).
 // By default the script serves the dev build itself (vite dev, port 5183); pass --no-serve
 // with a URL to use an already-running server.
 // Usage: node scripts/verify-web.mjs [url] [--no-serve]
 import { spawn } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { strFromU8, unzipSync } from "fflate";
 import { chromium } from "playwright";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -24,6 +28,10 @@ const serve = !process.argv.includes("--no-serve");
 const url = process.argv.find((arg) => arg.startsWith("http")) ?? "http://localhost:5183/";
 const shotDir = join(tmpdir(), "starline-shots");
 mkdirSync(shotDir, { recursive: true });
+// Exported files land here: Playwright deletes its own download directory with the browser, and
+// step 7 imports the JSON after the first page is gone.
+const exportDir = join(tmpdir(), "starline-exports");
+mkdirSync(exportDir, { recursive: true });
 
 let server = null;
 if (serve) {
@@ -1041,6 +1049,175 @@ try {
   if (perf.backlinkP95 > 10)
     throw new Error(`backlink budget missed on the wasm path: ${perf.backlinkP95} ms`);
 
+  // 4w. Slice 12: export the project in every format and check what actually came out. Each
+  // export runs in its own worker and is saved through the browser download path in this build.
+  // An array, not a map: the same format exported twice has the same file name, and the round
+  // trip below needs the LAST JSON export, not whichever one won the key.
+  const exported = [];
+  page.on("download", async (download) => {
+    const target = join(exportDir, download.suggestedFilename());
+    await download.saveAs(target);
+    exported.push({ name: download.suggestedFilename(), path: target });
+  });
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByTestId("sl-open-export").click();
+  await page.getByTestId("sl-export-panel").waitFor({ timeout: 20000 });
+  await axeScan("export");
+
+  async function runExport(preset) {
+    await page.getByTestId(`sl-preset-${preset}`).click();
+    const before = exported.length;
+    await page.getByTestId("sl-export-run").click();
+    for (let attempt = 0; attempt < 120 && exported.length === before; attempt++) {
+      await page.waitForTimeout(500);
+    }
+    if (exported.length === before) {
+      const shown = await page
+        .getByTestId("sl-export-error")
+        .textContent()
+        .catch(() => "(no error)");
+      throw new Error(`export ${preset} produced no file — screen says: ${shown}`);
+    }
+    const latest = exported.at(-1);
+    const bytes = readFileSync(latest.path);
+    console.log(`  export ${preset}: ${latest.name} (${(bytes.byteLength / 1024).toFixed(1)} KB)`);
+    return { name: latest.name, path: latest.path, bytes };
+  }
+
+  const jsonExport = await runExport("json");
+  const jsonDocument = JSON.parse(jsonExport.bytes.toString("utf8"));
+  const jsonScenes = jsonDocument.scenes.length;
+  const jsonCharacters = jsonDocument.characters.length;
+  if (jsonScenes < 40) throw new Error(`JSON export carries ${jsonScenes} scenes, expected 40+`);
+  if (jsonCharacters < 1) throw new Error("JSON export carries no characters");
+  if (jsonDocument.project.title !== "The Cartographer's Sea") {
+    throw new Error(`JSON export title is ${JSON.stringify(jsonDocument.project.title)}`);
+  }
+  console.log(
+    `  json: ${jsonCharacters} characters · ${jsonScenes} scenes · format ${jsonDocument.format}`,
+  );
+
+  const folderExport = await runExport("markdown-folder");
+  const folderFiles = Object.keys(unzipSync(new Uint8Array(folderExport.bytes)));
+  if (!folderFiles.some((file) => file.endsWith("starline.json"))) {
+    throw new Error("Markdown folder has no starline.json manifest");
+  }
+  const folderScenes = folderFiles.filter(
+    (file) => file.includes("/outline/") && file.endsWith(".md"),
+  );
+  const folderCharacters = folderFiles.filter((file) => file.includes("/characters/"));
+  if (folderScenes.length < 40) {
+    throw new Error(`Markdown folder carries ${folderScenes.length} scene files, expected 40+`);
+  }
+  if (folderCharacters.length < 1) throw new Error("Markdown folder carries no character files");
+  console.log(
+    `  markdown folder: ${folderFiles.length} files · ${folderScenes.length} scenes · ${folderCharacters.length} characters`,
+  );
+
+  const docxExport = await runExport("docx-manuscript");
+  const docxZip = unzipSync(new Uint8Array(docxExport.bytes));
+  const documentXml = strFromU8(docxZip["word/document.xml"] ?? new Uint8Array());
+  for (const part of [
+    "[Content_Types].xml",
+    "_rels/.rels",
+    "word/document.xml",
+    "word/styles.xml",
+  ]) {
+    if (docxZip[part] === undefined) throw new Error(`DOCX is missing ${part}`);
+  }
+  // The manuscript preset prints chapters and the scenes that have prose; the planning preset
+  // prints the synopses. Chapter 1 and "The Ferry" (the scene written in the editor round-trip)
+  // must be in the manuscript, and the step-8 lines must be in the planning document.
+  if (!documentXml.includes("Chapter 1") || !documentXml.includes("The Ferry")) {
+    throw new Error(`DOCX manuscript does not carry the outline (${documentXml.length} chars)`);
+  }
+  const planningExport = await runExport("docx-planning");
+  const planningXml = strFromU8(
+    unzipSync(new Uint8Array(planningExport.bytes))["word/document.xml"] ?? new Uint8Array(),
+  );
+  if (!planningXml.includes("Scene 1 pushes the story forward")) {
+    throw new Error(`DOCX planning document carries no synopses (${planningXml.length} chars)`);
+  }
+  console.log(
+    `  docx: manuscript ${documentXml.length} chars · planning ${planningXml.length} chars · ${Object.keys(docxZip).length} parts`,
+  );
+
+  const csvExport = await runExport("csv");
+  const csvFiles = unzipSync(new Uint8Array(csvExport.bytes));
+  const scenesCsv = strFromU8(csvFiles["scenes.csv"] ?? new Uint8Array());
+  const charactersCsv = strFromU8(csvFiles["characters.csv"] ?? new Uint8Array());
+  if (scenesCsv.split("\n").length < 41) {
+    throw new Error(`scenes.csv has ${scenesCsv.split("\n").length - 1} rows, expected 40`);
+  }
+  if (!charactersCsv.includes("Mira Holt"))
+    throw new Error("characters.csv does not carry Mira Holt");
+  console.log(
+    `  csv tables: ${Object.keys(csvFiles).length} tables · ${scenesCsv.split("\n").length - 1} scene rows`,
+  );
+
+  // The importer's other half: paste a CSV and split a manuscript, both through the real UI.
+  await page.getByTestId("sl-mode-csv").click();
+  await page
+    .getByTestId("sl-csv-text")
+    .fill(
+      [
+        "name,role,one line",
+        "Nerissa Quill,supporting,The harbour clerk who keeps two ledgers",
+        "Bram Kestrel,minor,The lighthouse keeper nobody believes",
+      ].join("\n"),
+    );
+  await page.getByTestId("sl-csv-check").click();
+  await page.getByTestId("sl-csv-summary").waitFor();
+  const csvSummary = await page.getByTestId("sl-csv-summary").textContent();
+  if (!csvSummary?.includes("2 to create")) {
+    throw new Error(`CSV dry run said ${JSON.stringify(csvSummary)}, expected 2 to create`);
+  }
+  await page.getByTestId("sl-csv-import").click();
+  await page.getByTestId("sl-csv-done").waitFor({ timeout: 20000 });
+  const csvDone = await page.getByTestId("sl-csv-done").textContent();
+  if (!csvDone?.includes("2 created"))
+    throw new Error(`CSV import said ${JSON.stringify(csvDone)}`);
+  console.log(`  csv import: ${csvDone.trim()}`);
+
+  await page.getByTestId("sl-mode-manuscript").click();
+  await page
+    .getByTestId("sl-manuscript-text")
+    .fill(
+      [
+        "# Chapter nine",
+        "",
+        "The strait was quiet at last.",
+        "",
+        "***",
+        "",
+        "Mira closed the ledger.",
+      ].join("\n"),
+    );
+  await page.getByTestId("sl-split-preview").click();
+  await page.getByTestId("sl-split-summary").waitFor();
+  const splitSummary = await page.getByTestId("sl-split-summary").textContent();
+  if (!splitSummary?.includes("2 scenes")) {
+    throw new Error(`split preview said ${JSON.stringify(splitSummary)}, expected 2 scenes`);
+  }
+  await axeScan("export-import");
+  await page.getByTestId("sl-split-import").click();
+  await page.getByTestId("sl-split-done").waitFor({ timeout: 20000 });
+  console.log(
+    `  manuscript split: ${(await page.getByTestId("sl-split-done").textContent())?.trim()}`,
+  );
+
+  // The two CSV imports and the split added rows; the round trip below needs a project whose
+  // counts match between the JSON export and the imported copy, so re-export JSON now. Back to
+  // the export tab first — the importer panes replaced it.
+  await page.getByTestId("sl-mode-export").click();
+  await page.getByTestId("sl-export-panel").waitFor({ timeout: 15000 });
+  const jsonFinal = await runExport("json");
+  const jsonFinalDocument = JSON.parse(jsonFinal.bytes.toString("utf8"));
+  console.log(
+    `  json (final): ${jsonFinalDocument.scenes.length} scenes · ${jsonFinalDocument.characters.length} characters`,
+  );
+  await page.screenshot({ path: join(shotDir, "22-export.png"), fullPage: true });
+
   // 5. Reload: back to the start screen; reopening restores the last route (hash history),
   // so tab over to Plan and check the persisted progress.
   await page.reload();
@@ -1056,6 +1233,68 @@ try {
   await page.getByRole("button", { name: "Open" }).click();
   await page.getByText("8 of 9 steps complete").waitFor();
   await page.screenshot({ path: join(shotDir, "5-reopened.png"), fullPage: true });
+
+  // 7. Slice 12: the other half of the round trip — import the JSON exported in step 4w as a
+  // brand-new library and prove the chapters, scenes and characters arrived. Runs with the first
+  // library closed (the pool's access handles belong to the page that opened it).
+  await page.getByRole("button", { name: "Close library" }).click();
+  await page.getByText("Your libraries").waitFor();
+  // Opening a second library in the same page can lose a race for the pool's access handles
+  // (the previous session's worker releases them asynchronously). Retry with a reload: the
+  // importer creates a fresh library name on the second try, which is deliberate and harmless.
+  let imported = false;
+  for (let attempt = 0; attempt < 3 && !imported; attempt += 1) {
+    if (attempt > 0) {
+      await page.reload();
+      await page.getByText("Your libraries").waitFor({ timeout: 30000 });
+    }
+    await page.getByTestId("sl-import-input").setInputFiles(jsonFinal.path);
+    try {
+      await page.getByRole("link", { name: "Plan" }).waitFor({ timeout: 25000 });
+      imported = true;
+    } catch {
+      const text = await page.innerText("body").catch(() => "<no body>");
+      console.log(`  import attempt ${attempt + 1} stayed on the start screen:
+${text.slice(0, 400)}`);
+    }
+  }
+  if (!imported) throw new Error("the exported JSON never opened as a new library");
+  const importedTitle = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query("SELECT title FROM project");
+    return rows.map((row) => row.title);
+  });
+  if (!importedTitle.includes("The Cartographer's Sea")) {
+    throw new Error(`imported library holds projects ${JSON.stringify(importedTitle)}`);
+  }
+  await page.getByRole("link", { name: "Scenes" }).click();
+  await page.waitForTimeout(2500);
+  const importedScenes = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query(
+      "SELECT COUNT(*) AS n FROM scene WHERE deleted_at IS NULL",
+    );
+    return rows[0].n;
+  });
+  if (importedScenes !== jsonFinalDocument.scenes.length) {
+    throw new Error(
+      `imported ${importedScenes} scenes, the export carried ${jsonFinalDocument.scenes.length}`,
+    );
+  }
+  await page.getByRole("link", { name: "People" }).click();
+  await page.waitForTimeout(2000);
+  const peopleText = await page.innerText("body");
+  if (!peopleText.includes("Mira Holt"))
+    throw new Error("the imported characters are not on the People screen");
+  const importedCharacters = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query(
+      "SELECT COUNT(*) AS n FROM character WHERE deleted_at IS NULL",
+    );
+    return rows[0].n;
+  });
+  console.log(`  imported library: ${importedScenes} scenes · ${importedCharacters} characters`);
+  await page.screenshot({ path: join(shotDir, "23-imported.png"), fullPage: true });
 
   console.log("WEB-VERIFY OK");
   console.log(`screenshots: ${shotDir}`);

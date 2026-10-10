@@ -230,6 +230,14 @@ export function PlanScreen() {
                 <button
                   type="button"
                   className="sl-btn-small"
+                  data-testid="sl-open-export"
+                  onClick={() => void navigate({ to: "/export" })}
+                >
+                  {messages.export.open}
+                </button>
+                <button
+                  type="button"
+                  className="sl-btn-small"
                   onClick={() => void navigate({ to: "/trash" })}
                 >
                   {trash.data && trash.data.length > 0

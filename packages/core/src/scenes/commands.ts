@@ -3,7 +3,7 @@ import type { Command } from "../commands";
 import type { SceneOutcome, SceneStatus, TimeOfDay } from "../entities";
 import { syncMentions } from "../lore/mentions";
 import { epochNow, newUuid, type OrderKey, orderKeyBetween, type UUID } from "../primitives";
-import { EMPTY_RICH_TEXT, type RichText, richTextFromPlain } from "../richtext";
+import { countWords, EMPTY_RICH_TEXT, type RichText, richTextFromPlain } from "../richtext";
 import { parseSceneList } from "./parse";
 import {
   PLOTLINE_KIND_COLORS,
@@ -97,6 +97,42 @@ export interface UpdateSceneArgs {
   sceneId: UUID;
   patch: ScenePatch;
 }
+
+export interface SetSceneBodyArgs {
+  projectId: UUID;
+  sceneId: UUID;
+  /** The draft body, as rich text; `null` json clears it back to an empty draft. */
+  body: RichText;
+}
+
+/**
+ * The draft body (spec §3.6 `body_json`/`body_text`/`body_word_count`). The editor autosaves
+ * through this, and the manuscript importer writes a whole chapter's worth of prose with it, so
+ * the word count and the search index stay correct in one place instead of three.
+ */
+export const setSceneBody: Command<SetSceneBodyArgs, { wordCount: number }> = {
+  name: "scene.setBody",
+  async run(ctx, args) {
+    const wordCount = args.body.wordCount ?? countWords(args.body.text);
+    const updated = await ctx.tx.query(
+      `UPDATE scene SET body_json = ?, body_text = ?, body_word_count = ?, updated_at = ?
+         WHERE id = ? AND project_id = ? AND deleted_at IS NULL`,
+      [
+        args.body.json === null ? null : JSON.stringify(args.body.json),
+        args.body.text,
+        wordCount,
+        epochNow(),
+        args.sceneId,
+        args.projectId,
+      ],
+    );
+    void updated;
+    return {
+      result: { wordCount },
+      changes: [{ table: "scene", op: "update", id: args.sceneId, parentIds: [args.projectId] }],
+    };
+  },
+};
 
 export const updateScene: Command<UpdateSceneArgs, void> = {
   name: "scene.update",

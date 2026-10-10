@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { importIntoNewLibrary } from "./export/importLibrary";
 import type { LibrarySession } from "./session";
 import { cleanupTempFiles, listLibraries, openLibraryFully } from "./storage";
 import { ThemeButton } from "./ThemeButton";
@@ -8,6 +9,9 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [importing, setImporting] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -44,6 +48,37 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
   );
 
   const createName = newName.trim().replace(/\.starline$/i, "");
+
+  /** Opens a `*.starline.json` / `*.starline.zip` as a new library and switches to it. */
+  const importFile = useCallback(
+    async (file: File) => {
+      setBusy(true);
+      setError(null);
+      setNotice(null);
+      try {
+        setImporting("Reading the file…");
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const result = await importIntoNewLibrary(bytes, file.name, (stage) => {
+          setImporting(
+            stage === "reading"
+              ? "Reading the file…"
+              : stage === "creating"
+                ? "Creating the library…"
+                : "Writing the project…",
+          );
+        });
+        const rows = Object.values(result.report.counts).reduce((sum, count) => sum + count, 0);
+        setNotice(`${result.libraryName}: ${rows} rows imported`);
+        onOpen(result.session);
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : String(cause));
+      } finally {
+        setBusy(false);
+        setImporting(null);
+      }
+    },
+    [onOpen],
+  );
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col justify-center gap-6 px-5 py-10">
@@ -84,6 +119,39 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
         <p className="mt-2 text-xs text-muted">
           Reusing an existing name opens that library instead of overwriting it.
         </p>
+      </section>
+
+      <section className="sl-card p-5">
+        <h2 className="text-sm font-medium text-muted">Import a project</h2>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="sl-btn"
+            data-testid="sl-import-file"
+            disabled={busy}
+            onClick={() => fileInput.current?.click()}
+          >
+            {importing ?? "Choose a file…"}
+          </button>
+          <span className="text-xs text-muted">.starline.json or .starline.zip</span>
+        </div>
+        <input
+          ref={fileInput}
+          type="file"
+          className="hidden"
+          data-testid="sl-import-input"
+          accept=".json,.zip,application/json,application/zip"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) void importFile(file);
+          }}
+        />
+        {notice ? (
+          <p className="sl-notice mt-3" data-testid="sl-import-notice" role="status">
+            {notice}
+          </p>
+        ) : null}
       </section>
 
       <section className="sl-card p-5">

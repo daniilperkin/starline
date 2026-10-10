@@ -268,7 +268,37 @@ try {
   await page.getByRole("link", { name: "Plan" }).click();
   await page.getByRole("button", { name: /^Trash/ }).click();
   await page.getByRole("heading", { name: "Trash" }).waitFor({ timeout: 20000 });
-  await page.getByText("A knife in the dark").waitFor({ timeout: 20000 });
+  // The row menu can swallow the confirm tap without any visible signal, so the trash list is the
+  // only honest source of truth: if the scene is not there, go back, delete it again, come back.
+  let trashed = false;
+  for (let attempt = 0; attempt < 3 && !trashed; attempt += 1) {
+    try {
+      await page.getByText("A knife in the dark").waitFor({ timeout: 8000 });
+      trashed = true;
+    } catch {
+      const rows = await page.evaluate(async () => {
+        const session = window.__starlineDev.session();
+        return session.driver.query(
+          "SELECT title, deleted_at FROM scene WHERE title = 'A knife in the dark'",
+        );
+      });
+      console.log(`  trash retry ${attempt + 1}: db says ${JSON.stringify(rows)}`);
+      await page.getByRole("link", { name: "Scenes" }).click();
+      await page.waitForTimeout(800);
+      await page.getByRole("button", { name: "⋯ A knife in the dark" }).click();
+      await page.waitForTimeout(400);
+      await page.getByRole("button", { name: "✕ Delete", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Tap again to delete" })
+        .click({ timeout: 6000 })
+        .catch(() => undefined);
+      await page.waitForTimeout(800);
+      await page.getByRole("link", { name: "Plan" }).click();
+      await page.getByRole("button", { name: /^Trash/ }).click();
+      await page.getByRole("heading", { name: "Trash" }).waitFor({ timeout: 20000 });
+    }
+  }
+  if (!trashed) throw new Error("the deleted scene never showed up in the Trash screen");
   await page.getByRole("button", { name: "Restore" }).click();
   await page.getByText("Nothing in the trash.").waitFor({ timeout: 20000 });
   console.log("PASS  trash round-trip on-device");
@@ -380,7 +410,31 @@ try {
     .locator('[data-testid="sl-backlinks"] .sl-backlink-row')
     .count();
   await possibleRow.first().getByRole("button", { name: "Link" }).click();
-  await page.getByText("Mention linked").waitFor({ timeout: 20000 });
+  // The software-rendered device can swallow the tap, and a double delivery races two transactions
+  // ("begin: already in a transaction"): retry and accept either outcome as progress.
+  let linked = false;
+  for (let attempt = 0; attempt < 3 && !linked; attempt += 1) {
+    try {
+      await page.getByText("Mention linked").waitFor({ timeout: 8000 });
+      linked = true;
+    } catch {
+      await possibleRow
+        .first()
+        .getByRole("button", { name: "Link" })
+        .click({ timeout: 5000 })
+        .catch(() => undefined);
+    }
+  }
+  if (!linked) {
+    const stillPossible = await possibleRow.count();
+    const rows = await page.evaluate(async () => {
+      const session = window.__starlineDev.session();
+      return session.driver.query("SELECT COUNT(*) AS n FROM mention WHERE linked = 1");
+    });
+    throw new Error(
+      `on-device Link never reported success (possible rows left ${stillPossible}, linked mentions ${JSON.stringify(rows)})`,
+    );
+  }
   await page.waitForTimeout(900);
   const linksAfter = await emberAgain
     .locator('[data-testid="sl-backlinks"] .sl-backlink-row')
@@ -729,6 +783,56 @@ try {
   await page.getByRole("link", { name: "Plan" }).click();
   await page.waitForTimeout(500);
 
+  // 2r. Slice 12 on-device: export through the phone UI. The JSON must land in the app's
+  // Documents folder through Capacitor Filesystem (decision 20: app-scoped, zero permissions)
+  // and the share sheet must come up for a file URI. Neither half exists on the web build, so
+  // this is the only place the native save path is exercised.
+  await page.getByTestId("sl-open-export").click();
+  await page.getByTestId("sl-export-panel").waitFor({ timeout: 60000 });
+  await page.getByTestId("sl-preset-json").click();
+  await page.getByTestId("sl-export-run").click();
+  await page.getByTestId("sl-export-result").waitFor({ timeout: 180000 });
+  const exportLine = (await page.getByTestId("sl-export-result").innerText()).trim();
+  console.log(`PASS  export on-device ("${exportLine}")`);
+  // The share sheet is a native window on top of the WebView: its activity must be up, and back
+  // closes it again. The app fires it without waiting, so poll briefly before giving up.
+  // Newer Android reports it as `topResumedActivity=… com.android.intentresolver/.ChooserActivityLauncher`.
+  let sheet = "";
+  for (let attempt = 0; attempt < 10 && !/ChooserActivity|ResolverActivity/.test(sheet); attempt++) {
+    await sleep(400);
+    const dump = adb(["shell", "dumpsys", "activity", "activities"]);
+    sheet = dump.match(/topResumedActivity=[^\n]*/)?.[0] ?? dump.match(/[^\n]*Chooser[^\n]*/)?.[0] ?? "";
+  }
+  if (!/ChooserActivity|ResolverActivity/.test(sheet)) {
+    throw new Error(`the share sheet did not open after the export: ${sheet}`);
+  }
+  console.log("PASS  share sheet opened for the exported file");
+  adb(["shell", "input", "keyevent", "4"]);
+  await sleep(1200);
+  const exportFile = `${exportLine.split(" ")[0]}`;
+  const candidates = [
+    `/sdcard/Android/data/${PACKAGE}/files/StarLine Exports`,
+    "/sdcard/Documents/StarLine Exports",
+  ];
+  let found = null;
+  const listings = [];
+  for (const dir of candidates) {
+    if (found !== null) break;
+    const listing = adb(["shell", "ls", "-la", `'${dir}'`]).trim();
+    listings.push(`${dir}:\n${listing}`);
+    if (listing.includes(exportFile)) found = dir;
+  }
+  if (found === null) {
+    throw new Error(`the exported file is not on the device:\n${listings.join("\n")}`);
+  }
+  console.log(`PASS  export file on-device at ${found}/${exportFile}`);
+  const size = adb(["shell", "stat", "-c", "%s", `'${found}/${exportFile}'`]).trim();
+  if (Number(size) < 1000) throw new Error(`the exported file is only ${size} bytes`);
+  console.log(`PASS  export file is ${(Number(size) / 1024).toFixed(1)} KB`);
+  await page.screenshot({ path: join(shotDir, "emu-slice12-export.png"), fullPage: true });
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.waitForTimeout(500);
+
   // 3. Hardware back: from a step screen back to the plan.
   await page.getByRole("link", { name: "Plan" }).click();
   await page.locator(".sl-step-row").filter({ hasText: "Character descriptions" }).click();
@@ -740,16 +844,24 @@ try {
   // 4. Hardware back walks out of history, then minimises the app at the root. The cap is
   // generous: every step/route visit pushes a history entry (this journey leaves ~15+).
   let minimised = false;
-  for (let press = 0; press < 40 && !minimised; press++) {
+  const seen = [];
+  for (let press = 0; press < 60 && !minimised; press++) {
     adb(["shell", "input", "keyevent", "4"]);
     await sleep(1200);
-    const focus = adb(["shell", "dumpsys", "window"]).match(/mCurrentFocus=[^\n]*/)?.[0] ?? "";
+    const dump = adb(["shell", "dumpsys", "window"]);
+    const focus = dump.match(/mCurrentFocus=[^\n]*/)?.[0] ?? "(no focus line)";
+    seen.push(`${press + 1}: ${focus}`);
+    // The launcher in front means the app left the foreground — that is the minimise we want.
     if (!focus.includes(PACKAGE)) {
       minimised = true;
       console.log(`PASS  back at root minimises after ${press + 1} press(es)`);
     }
   }
-  if (!minimised) throw new Error("back presses never left the app");
+  if (!minimised) {
+    throw new Error(
+      `back presses never left the app; last focus readings:\n${seen.slice(-5).join("\n")}`,
+    );
+  }
 
   // 5. Cold relaunch: the library is listed and the plan survived (6 of 9).
   adb(["shell", "am", "force-stop", PACKAGE]);
