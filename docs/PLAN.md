@@ -349,7 +349,7 @@ reported it as "resolved to hidden"); the card's footer is now stacked with a wr
 row.
 
 
-### Slice 12 — Export & import (**shipped 2026-10-10**, `<sha>`; emulator QA OK, web 17 axe scans)
+### Slice 12 — Export & import (**shipped 2026-10-10**, `8dfb251`; emulator QA OK 38 PASS, web 17 axe scans)
 
 **Screens**: Export & import screen (`/export`, reached from the dashboard): format presets
 (JSON / Markdown folder / DOCX manuscript / DOCX planning / HTML / Markdown / plain text / CSV
