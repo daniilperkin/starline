@@ -462,7 +462,7 @@ Design notes worth keeping:
   rules and the sheet cannot be code-split; the raise is documented in the script and the next
   UI-heavy slice should trim before raising again.
 
-### Slice 14 — Notes incubator (full) + attachments (**shipped 2026-10-10**; emulator QA OK 43 PASS, web 23 axe scans; **M3 gate met**)
+### Slice 14 — Notes incubator (full) + attachments (**shipped 2026-10-10**, `64cc1aa`; emulator QA OK 43 PASS, web 23 axe scans; **M3 gate met**)
 
 **Screens**: Notes board (Inbox → Incubating → Used → Archived; phone: segmented columns,
 swipe between; drag or swipe actions to move); quick capture (FAB long-press or shortcut);
