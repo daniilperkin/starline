@@ -19,6 +19,7 @@ import {
   type SceneSummary,
   type UUID,
 } from "@starline/core";
+import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
   useCreateChapter,
@@ -55,6 +56,7 @@ export function ScenesScreen() {
   const project = projects.data?.[0] ?? null;
   const projectId = project?.id ?? null;
   const tree = useSceneTree(projectId);
+  const navigate = useNavigate();
   const createScene = useCreateScene();
   const createChapter = useCreateChapter();
   const updateChapter = useUpdateChapter();
@@ -499,6 +501,20 @@ export function ScenesScreen() {
 
                               {sceneMenuFor === scene.id ? (
                                 <div className="sl-row-menu">
+                                  <button
+                                    type="button"
+                                    className="sl-btn sl-btn-small"
+                                    data-testid={`sl-scene-write-${scene.id}`}
+                                    onClick={() => {
+                                      closeMenus();
+                                      void navigate({
+                                        to: "/write/$sceneId",
+                                        params: { sceneId: scene.id },
+                                      });
+                                    }}
+                                  >
+                                    ✍ {messages.write.action}
+                                  </button>
                                   <button
                                     type="button"
                                     className="sl-btn sl-btn-small"

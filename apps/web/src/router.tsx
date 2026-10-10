@@ -100,6 +100,17 @@ const checksRoute = createRoute({
   component: lazyRouteComponent(() => import("./ChecksScreen"), "ChecksScreen"),
 });
 
+/**
+ * Writing mode (PLAN slice 13). Immersive: the layout drops the app bar and the tab bar for
+ * this route, so the prose owns the screen; the screen itself hides its own chrome in focus
+ * mode. Code-split like every other tab — a writer who never opens it never downloads it.
+ */
+const writeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/write/$sceneId",
+  component: lazyRouteComponent(() => import("./WriteScreen"), "WriteScreen"),
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   planRoute,
@@ -114,6 +125,7 @@ const routeTree = rootRoute.addChildren([
   exportRoute,
   backupsRoute,
   settingsRoute,
+  writeRoute,
 ]);
 
 /**

@@ -1491,3 +1491,172 @@ body {
   background: var(--sl-surface-2);
   font-size: 0.8rem;
 }
+
+/* Writing mode (slice 13): the prose owns the screen; focus mode hides every other control. */
+.sl-immersive {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+.sl-write {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+}
+.sl-write-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.sl-write-context {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1;
+}
+.sl-write-crumb {
+  font-size: 0.8rem;
+  color: var(--sl-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sl-write-status {
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.68rem;
+  color: #0b0b12;
+}
+.sl-write-title {
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: inherit;
+  padding: 0;
+  outline: none;
+}
+.sl-write-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.sl-write-page .sl-editor {
+  flex: 1;
+}
+.sl-editor-plain .sl-editor-body {
+  flex: 1;
+  display: flex;
+}
+.sl-editor-plain .ProseMirror {
+  flex: 1;
+  min-height: 60dvh;
+  padding: 0.5rem 0;
+  border: none;
+  border-radius: 0;
+  font-size: inherit;
+  line-height: 1.7;
+  max-width: 72ch;
+}
+.sl-write-serif .ProseMirror {
+  font-family: var(--sl-font-serif);
+}
+.sl-write-focus .sl-write-page {
+  padding-top: 1.5rem;
+}
+.sl-write-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--sl-border);
+}
+.sl-write-words {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.sl-write-saved {
+  font-size: 0.72rem;
+  color: var(--sl-muted);
+  flex: 1;
+}
+.sl-write-actions {
+  display: flex;
+  gap: 0.375rem;
+}
+.sl-write-focus-exit {
+  position: fixed;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 40;
+}
+.sl-write-float {
+  position: fixed;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  right: 1rem;
+  z-index: 40;
+  font-size: 0.75rem;
+  color: var(--sl-muted);
+}
+.sl-write-type-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--sl-border);
+  border-radius: 0.9rem;
+  background: var(--sl-surface-2);
+}
+.sl-write-type-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+}
+.sl-write-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-top: 0.5rem;
+}
+.sl-write-switcher-heading {
+  margin-top: 0.6rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sl-muted);
+}
+.sl-write-switcher-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border: none;
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+}
+.sl-write-switcher-row:hover {
+  background: var(--sl-surface-2);
+}
+.sl-write-switcher-current {
+  background: var(--sl-surface-2);
+  font-weight: 600;
+}
+.sl-write-switcher-words {
+  color: var(--sl-muted);
+  font-size: 0.72rem;
+  flex-shrink: 0;
+}

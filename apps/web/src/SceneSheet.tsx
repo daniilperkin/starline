@@ -9,6 +9,7 @@ import {
   TIME_OF_DAY_OPTIONS,
   type UUID,
 } from "@starline/core";
+import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { CustomFieldsSection } from "./CustomFields";
 import {
@@ -111,6 +112,7 @@ function SceneSheetBody({
   onClose: () => void;
 }) {
   const sceneId = detail.id;
+  const navigate = useNavigate();
   const characters = useCharacters(projectId);
   const plotlines = usePlotlines(projectId);
   const updateScene = useUpdateScene();
@@ -161,14 +163,27 @@ function SceneSheetBody({
     <div className="flex flex-col gap-4">
       <header className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold tracking-tight">{messages.sceneSheet.heading}</h2>
-        <button
-          type="button"
-          className="sl-btn"
-          aria-label={messages.common.close}
-          onClick={onClose}
-        >
-          ✕
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="sl-btn"
+            data-testid="sl-scene-write"
+            onClick={() => {
+              onClose();
+              void navigate({ to: "/write/$sceneId", params: { sceneId } });
+            }}
+          >
+            ✍ {messages.write.action}
+          </button>
+          <button
+            type="button"
+            className="sl-btn"
+            aria-label={messages.common.close}
+            onClick={onClose}
+          >
+            ✕
+          </button>
+        </div>
       </header>
 
       <div className="flex flex-col gap-1">

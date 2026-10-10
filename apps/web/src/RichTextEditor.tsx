@@ -6,9 +6,9 @@ import {
   type RichText,
 } from "@starline/core";
 import Mention from "@tiptap/extension-mention";
-import { EditorContent, useEditor } from "@tiptap/react";
+import { type Editor, EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 /**
  * Rich-text v1 (PLAN slices 3 + 6): TipTap with bold / italic / heading / undo, plus optional
@@ -163,12 +163,18 @@ export function RichTextEditor({
   ariaLabel,
   onChange,
   mentionables,
+  plain = false,
+  onEditor,
 }: {
   initial: RichText;
   ariaLabel: string;
   onChange: (value: RichText) => void;
   /** When provided, typing `@` opens the entity picker and inserts id-based chips. */
   mentionables?: Mentionable[];
+  /** Writing mode (PLAN slice 13): no toolbar — the prose is the whole surface. */
+  plain?: boolean;
+  /** Hands the TipTap instance to the host so it can restore and persist the caret. */
+  onEditor?: (editor: Editor | null) => void;
 }) {
   // The suggestion reads items at call time; a ref keeps the editor instance stable while the
   // entity list refreshes underneath it.
@@ -226,50 +232,62 @@ export function RichTextEditor({
     [withMentions],
   );
 
+  // The host reads and restores the caret through the instance; a ref keeps the callback from
+  // re-firing on every parent render (it is an inline arrow in writing mode).
+  const onEditorRef = useRef(onEditor);
+  onEditorRef.current = onEditor;
+  useEffect(() => {
+    if (!editor) return undefined;
+    onEditorRef.current?.(editor);
+    return () => onEditorRef.current?.(null);
+  }, [editor]);
+
   if (!editor) return null;
 
   const buttonClass = "sl-btn";
 
   return (
-    <div className="sl-editor">
-      <div className="sl-editor-toolbar" role="toolbar" aria-label={messages.editor.toolbar}>
-        <button
-          type="button"
-          className={buttonClass}
-          aria-label={messages.editor.bold}
-          aria-pressed={editor.isActive("bold")}
-          onClick={() => editor.chain().focus().toggleBold().run()}
-        >
-          <strong aria-hidden="true">B</strong>
-        </button>
-        <button
-          type="button"
-          className={buttonClass}
-          aria-label={messages.editor.italic}
-          aria-pressed={editor.isActive("italic")}
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-        >
-          <em aria-hidden="true">I</em>
-        </button>
-        <button
-          type="button"
-          className={buttonClass}
-          aria-label={messages.editor.headingLabel}
-          aria-pressed={editor.isActive("heading", { level: 2 })}
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        >
-          <span aria-hidden="true">H2</span>
-        </button>
-        <button
-          type="button"
-          className={buttonClass}
-          aria-label={messages.editor.undo}
-          disabled={!editor.can().undo()}
-          onClick={() => editor.chain().focus().undo().run()}
-        >
-          <span aria-hidden="true">↶</span>
-        </button>
-      </div>
+    <div className={plain ? "sl-editor sl-editor-plain" : "sl-editor"}>
+      {plain ? null : (
+        <div className="sl-editor-toolbar" role="toolbar" aria-label={messages.editor.toolbar}>
+          <button
+            type="button"
+            className={buttonClass}
+            aria-label={messages.editor.bold}
+            aria-pressed={editor.isActive("bold")}
+            onClick={() => editor.chain().focus().toggleBold().run()}
+          >
+            <strong aria-hidden="true">B</strong>
+          </button>
+          <button
+            type="button"
+            className={buttonClass}
+            aria-label={messages.editor.italic}
+            aria-pressed={editor.isActive("italic")}
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+          >
+            <em aria-hidden="true">I</em>
+          </button>
+          <button
+            type="button"
+            className={buttonClass}
+            aria-label={messages.editor.headingLabel}
+            aria-pressed={editor.isActive("heading", { level: 2 })}
+            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+          >
+            <span aria-hidden="true">H2</span>
+          </button>
+          <button
+            type="button"
+            className={buttonClass}
+            aria-label={messages.editor.undo}
+            disabled={!editor.can().undo()}
+            onClick={() => editor.chain().focus().undo().run()}
+          >
+            <span aria-hidden="true">↶</span>
+          </button>
+        </div>
+      )}
       <EditorContent editor={editor} className="sl-editor-body" />
     </div>
   );

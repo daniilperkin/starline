@@ -136,7 +136,11 @@ export async function listBacklinks(
       title: source.title.trim() || `(${entry.sourceType})`,
       detail:
         entry.sourceType === "scene"
-          ? source.detail || "synopsis"
+          ? entry.field === "body"
+            ? source.detail
+              ? `${source.detail} · draft`
+              : "draft"
+            : source.detail || "synopsis"
           : (FIELD_LABELS[entry.field] ?? entry.field),
       snippet: snippetAround(source.text, labels),
     });

@@ -44,6 +44,16 @@ export const MENTION_FIELDS: readonly MentionField[] = [
     titleColumn: "title",
   },
   {
+    // The draft body joined the mentionable fields in PLAN slice 13: prose mentions a character
+    // by name far more often than a synopsis does, and the scan reads the denormalised column.
+    sourceType: "scene",
+    table: "scene",
+    field: "body",
+    jsonColumn: "body_json",
+    textColumn: "body_text",
+    titleColumn: "title",
+  },
+  {
     sourceType: "character",
     table: "character",
     field: "storyline",
@@ -175,7 +185,12 @@ export async function listPossibleMentions(
         sourceId: row.id as UUID,
         field: entry.field,
         title: row.title.trim() || `(${entry.sourceType})`,
-        detail: entry.sourceType === "scene" ? "synopsis" : entry.field,
+        detail:
+          entry.sourceType === "scene"
+            ? entry.field === "body"
+              ? "draft"
+              : "synopsis"
+            : entry.field,
         occurrences: unlinked,
         snippet: snippetAround(row.body, labels),
       });

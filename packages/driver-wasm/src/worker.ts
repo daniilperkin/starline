@@ -52,6 +52,8 @@ const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
 let sqlite3: Sqlite3Api | null = null;
 let pool: SahPool | null = null;
+/** The install in flight, so concurrent ops share ONE install instead of racing (see ensureInit). */
+let poolInstall: Promise<SahPool> | null = null;
 let db: PoolDb | null = null;
 let readOnly = false;
 let inTx = false;
@@ -64,34 +66,45 @@ async function ensureInit(): Promise<SahPool> {
     sqlite3 = (await sqlite3InitModule()) as unknown as Sqlite3Api;
   }
   if (!pool) {
-    // The sahpool VFS owns a set of pre-allocated file slots. The initial capacity stays small
-    // (16) on purpose: sqlite-wasm re-runs addCapacity() on installs over an existing pool
-    // directory, so a big initial number can balloon the pool; growth is on demand instead
-    // (ensurePoolHeadroom). Also: sqlite-wasm CACHES a failed install per worker, so a retry
-    // needs forceReinitIfPreviouslyFailed.
-    const startedAt = Date.now();
-    for (;;) {
-      try {
-        pool = await sqlite3.installOpfsSAHPoolVfs({
-          name: "starline-sahpool",
-          initialCapacity: 16,
-          forceReinitIfPreviouslyFailed: true,
-        });
-        break;
-      } catch (cause) {
-        const message = cause instanceof Error ? cause.message : String(cause);
-        // The previous page's worker may still be releasing its access handles (that is
-        // asynchronous and takes a few seconds after a reload); retrying is the documented
-        // workaround for exactly this environment.
-        const transient = /NoModificationAllowedError|Access Handles cannot be created/.test(
-          message,
-        );
-        if (!transient || Date.now() - startedAt > 15_000) throw cause;
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
-    }
+    // SINGLE-FLIGHT. The app fires several worker ops at once on boot (list libraries, pool
+    // stats) and every one of them lands here. Two installs racing inside one worker is exactly
+    // what produces "Access Handles cannot be created if there is another open Access Handle":
+    // the second install fights the first one's handles, and sqlite-wasm's recovery cannot fix
+    // it — removeVfs() fails the same way — leaving a pool that never finishes installing, so
+    // every later op (including an import) waits forever instead of failing.
+    poolInstall ??= installPool().catch((cause: unknown) => {
+      poolInstall = null; // a rejected install must stay retryable
+      throw cause;
+    });
+    pool = await poolInstall;
   }
   return pool;
+}
+
+async function installPool(): Promise<SahPool> {
+  // The sahpool VFS owns a set of pre-allocated file slots. The initial capacity stays small
+  // (16) on purpose: sqlite-wasm re-runs addCapacity() on installs over an existing pool
+  // directory, so a big initial number can balloon the pool; growth is on demand instead
+  // (ensurePoolHeadroom). Also: sqlite-wasm CACHES a failed install per worker, so a retry
+  // needs forceReinitIfPreviouslyFailed.
+  const startedAt = Date.now();
+  for (;;) {
+    try {
+      return await (sqlite3 as Sqlite3Api).installOpfsSAHPoolVfs({
+        name: "starline-sahpool",
+        initialCapacity: 16,
+        forceReinitIfPreviouslyFailed: true,
+      });
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      // A previous page's worker may still be releasing its access handles (that is
+      // asynchronous and takes a few seconds after a reload); retrying is the documented
+      // workaround for exactly this environment.
+      const transient = /NoModificationAllowedError|Access Handles cannot be created/.test(message);
+      if (!transient || Date.now() - startedAt > 15_000) throw cause;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
 }
 
 /**

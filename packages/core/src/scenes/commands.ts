@@ -127,6 +127,9 @@ export const setSceneBody: Command<SetSceneBodyArgs, { wordCount: number }> = {
       ],
     );
     void updated;
+    // Prose carries mentions too: the draft body mirrors into `mention` in the same transaction
+    // (PLAN slice 13), so a character mentioned while writing shows up as a backlink at once.
+    await syncMentions(ctx.tx, "scene", args.sceneId, "body", args.body.json);
     return {
       result: { wordCount },
       changes: [{ table: "scene", op: "update", id: args.sceneId, parentIds: [args.projectId] }],

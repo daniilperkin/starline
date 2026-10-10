@@ -798,10 +798,15 @@ try {
   // closes it again. The app fires it without waiting, so poll briefly before giving up.
   // Newer Android reports it as `topResumedActivity=… com.android.intentresolver/.ChooserActivityLauncher`.
   let sheet = "";
-  for (let attempt = 0; attempt < 10 && !/ChooserActivity|ResolverActivity/.test(sheet); attempt++) {
+  for (
+    let attempt = 0;
+    attempt < 10 && !/ChooserActivity|ResolverActivity/.test(sheet);
+    attempt++
+  ) {
     await sleep(400);
     const dump = adb(["shell", "dumpsys", "activity", "activities"]);
-    sheet = dump.match(/topResumedActivity=[^\n]*/)?.[0] ?? dump.match(/[^\n]*Chooser[^\n]*/)?.[0] ?? "";
+    sheet =
+      dump.match(/topResumedActivity=[^\n]*/)?.[0] ?? dump.match(/[^\n]*Chooser[^\n]*/)?.[0] ?? "";
   }
   if (!/ChooserActivity|ResolverActivity/.test(sheet)) {
     throw new Error(`the share sheet did not open after the export: ${sheet}`);
@@ -830,6 +835,66 @@ try {
   if (Number(size) < 1000) throw new Error(`the exported file is only ${size} bytes`);
   console.log(`PASS  export file is ${(Number(size) / 1024).toFixed(1)} KB`);
   await page.screenshot({ path: join(shotDir, "emu-slice12-export.png"), fullPage: true });
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.waitForTimeout(500);
+
+  // 2s. Slice 13 on-device: write in the phone editor, background the app (HOME → appStateChange
+  // → autosave flush), then force-stop and cold-relaunch it. The scene must come back through the
+  // resume card with every word — this is where "kill the app mid-scene, lose nothing" is real.
+  await page.getByTestId("sl-continue-card").waitFor({ timeout: 60000 });
+  await page.getByTestId("sl-continue-write").click();
+  await page.getByTestId("sl-write").waitFor({ timeout: 60000 });
+  await page.locator(".sl-write .ProseMirror").waitFor({ timeout: 60000 });
+  const emuWriteTitle = await page.getByTestId("sl-write-title").inputValue();
+  const emuWordsBefore = Number.parseInt(
+    ((await page.getByTestId("sl-write-words").textContent()) ?? "").match(/\d+/)?.[0] ?? "0",
+    10,
+  );
+  const emuProse = "Mira counted the lanterns twice and still found one missing.";
+  const emuProseWords = 10;
+  await page.locator(".ProseMirror").click();
+  await page.keyboard.type(emuProse);
+  await page.waitForFunction(
+    (expected) =>
+      (document.querySelector('[data-testid="sl-write-words"]')?.textContent ?? "").startsWith(
+        String(expected),
+      ),
+    emuWordsBefore + emuProseWords,
+    { timeout: 30000 },
+  );
+  await page.getByTestId("sl-write-saved").filter({ hasText: "Saved" }).waitFor({ timeout: 30000 });
+  await page.screenshot({ path: join(shotDir, "emu-slice13-write.png"), fullPage: true });
+  console.log(
+    `PASS  writing mode on-device ("${emuWriteTitle}" → ${emuWordsBefore + emuProseWords} words)`,
+  );
+
+  // HOME backgrounds the app: the native appStateChange fires, the editor flushes, and the
+  // worker writes the body before the process is killed.
+  adb(["shell", "input", "keyevent", "3"]);
+  await sleep(2500);
+  adb(["shell", "am", "force-stop", PACKAGE]);
+  adb(["shell", "am", "start", "-n", `${PACKAGE}/.MainActivity`]);
+  await browser.close().catch(() => undefined);
+  ({ browser, page } = await connect());
+  await page.getByText("Your libraries").waitFor({ timeout: 60000 });
+  await page.getByRole("button", { name: "Open" }).click();
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByTestId("sl-continue-card").waitFor({ timeout: 90000 });
+  const emuContinue = (await page.getByTestId("sl-continue-card").textContent()) ?? "";
+  if (!emuContinue.includes("Pick up where you left off")) {
+    throw new Error(`resume card did not keep the written scene: ${JSON.stringify(emuContinue)}`);
+  }
+  await page.getByTestId("sl-continue-write").click();
+  await page.getByTestId("sl-write").waitFor({ timeout: 60000 });
+  await page.waitForFunction(
+    (needle) =>
+      (document.querySelector(".sl-write .ProseMirror")?.textContent ?? "").includes(needle),
+    emuProse.slice(0, 30),
+    { timeout: 30000 },
+  );
+  await page.screenshot({ path: join(shotDir, "emu-slice13-resume.png"), fullPage: true });
+  console.log("PASS  writing mode survived a kill: HOME → force-stop → relaunch, prose intact");
+  await page.getByTestId("sl-write-back").click();
   await page.getByRole("link", { name: "Plan" }).click();
   await page.waitForTimeout(500);
 

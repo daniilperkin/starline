@@ -1,7 +1,7 @@
 import { App as CapApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { format, messages } from "@starline/core";
-import { Outlet, useRouter } from "@tanstack/react-router";
+import { Outlet, useRouter, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { lastActivityTime, onActivity, queryClient, useProjects } from "./data";
 import { useOpenEntity } from "./openEntity";
@@ -79,6 +79,46 @@ export function AppLayout() {
   const health = session?.health ?? null;
   const showHealth = health !== null && !healthDismissed && (health.crashed || !health.integrityOk);
 
+  const banner =
+    showHealth && health !== null ? (
+      <div className="sl-banner" role="alert">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">
+            {health.crashed
+              ? format(messages.health.recovered, { when: relativeTime(health.lastChangeAt) })
+              : format(messages.health.integrityFailed, {
+                  messages: health.integrityMessages.join("; "),
+                })}
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            {health.crashed ? messages.health.recoveredHint : messages.health.integrityHint}
+          </p>
+        </div>
+        <button
+          type="button"
+          className="sl-btn-small shrink-0"
+          onClick={() => setHealthDismissed(true)}
+        >
+          {messages.health.dismiss}
+        </button>
+      </div>
+    ) : null;
+
+  // Writing mode owns the whole screen (PLAN slice 13): no app bar, no tab bar, no page padding.
+  const immersive = useRouterState({
+    select: (state) => state.location.pathname.startsWith("/write"),
+  });
+
+  if (immersive) {
+    return (
+      <div className="sl-immersive">
+        {banner}
+        <Outlet />
+        <UndoToast />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-5 px-4 pt-6 pb-28">
       <header className="sl-appbar">
@@ -94,29 +134,7 @@ export function AppLayout() {
           </button>
         ) : null}
       </header>
-      {showHealth && health !== null ? (
-        <div className="sl-banner" role="alert">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium">
-              {health.crashed
-                ? format(messages.health.recovered, { when: relativeTime(health.lastChangeAt) })
-                : format(messages.health.integrityFailed, {
-                    messages: health.integrityMessages.join("; "),
-                  })}
-            </p>
-            <p className="mt-1 text-xs text-muted">
-              {health.crashed ? messages.health.recoveredHint : messages.health.integrityHint}
-            </p>
-          </div>
-          <button
-            type="button"
-            className="sl-btn-small shrink-0"
-            onClick={() => setHealthDismissed(true)}
-          >
-            {messages.health.dismiss}
-          </button>
-        </div>
-      ) : null}
+      {banner}
       <Outlet />
       {searchOpen ? (
         <SearchSheet

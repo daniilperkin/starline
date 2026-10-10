@@ -1218,6 +1218,132 @@ try {
   );
   await page.screenshot({ path: join(shotDir, "22-export.png"), fullPage: true });
 
+  // 4x. Slice 13: writing mode. The dashboard resumes where the writer stopped, the editor counts
+  // words live and saves them, focus mode hides every other control, and the prose survives a
+  // reload — the web half of the "kill the app mid-scene, lose nothing" promise.
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByTestId("sl-continue-card").waitFor({ timeout: 20000 });
+  await page.getByTestId("sl-continue-write").click();
+  await page.getByTestId("sl-write").waitFor({ timeout: 20000 });
+  await axeScan("write");
+
+  // Immersive: writing mode owns the screen — no app bar, no tab bar.
+  if ((await page.locator(".sl-appbar").count()) !== 0) {
+    throw new Error("writing mode still shows the app bar");
+  }
+  if ((await page.locator(".sl-tabbar").count()) !== 0) {
+    throw new Error("writing mode still shows the tab bar");
+  }
+
+  // The draft seeds from two queries; the mounted editor is the marker that it landed. The
+  // scene id comes from the route (a scene may legitimately have no title).
+  await page.locator(".sl-write .ProseMirror").waitFor({ timeout: 20000 });
+  const writeSceneId = await page.evaluate(() => window.location.hash.split("/").pop() ?? "");
+  const writeSceneTitle = await page.getByTestId("sl-write-title").inputValue();
+  const wordsText = (await page.getByTestId("sl-write-words").textContent()) ?? "";
+  const wordsBefore = Number.parseInt(wordsText.match(/\d+/)?.[0] ?? "0", 10);
+  console.log(`  writing mode: opened ${JSON.stringify(writeSceneTitle)} at ${wordsBefore} words`);
+
+  const writtenText =
+    "The harbour bells rang twice before the fog lifted and the cartographers set out.";
+  const writtenWords = 14;
+  await page.locator(".ProseMirror").click();
+  await page.keyboard.type(writtenText);
+  await page.waitForFunction(
+    (expected) =>
+      (document.querySelector('[data-testid="sl-write-words"]')?.textContent ?? "").startsWith(
+        String(expected),
+      ),
+    wordsBefore + writtenWords,
+    { timeout: 15000 },
+  );
+  await page.getByTestId("sl-write-saved").filter({ hasText: "Saved" }).waitFor({ timeout: 15000 });
+  console.log(`  writing mode: live count ${wordsBefore + writtenWords} words, saved`);
+
+  // Scene switcher: the whole book, current scene marked, and coming back restores the prose.
+  await page.getByTestId("sl-write-switch").click();
+  await page.getByTestId("sl-switcher").waitFor({ timeout: 15000 });
+  const switcherRows = page.locator(".sl-write-switcher-row");
+  const switcherCount = await switcherRows.count();
+  if (switcherCount < 40) {
+    throw new Error(`scene switcher lists ${switcherCount} scenes, expected 40+`);
+  }
+  await page.locator('.sl-write-switcher-row:not([aria-current="true"])').first().click();
+  await page.waitForFunction(
+    (previous) =>
+      (document.querySelector('[data-testid="sl-write-title"]')?.value ?? "") !== previous,
+    writeSceneTitle,
+    { timeout: 15000 },
+  );
+  await page.getByTestId("sl-write-switch").click();
+  await page.locator(`.sl-write-switcher-row[data-scene-id="${writeSceneId}"]`).first().click();
+  await page.waitForFunction(
+    (needle) =>
+      (document.querySelector(".sl-write .ProseMirror")?.textContent ?? "").includes(needle),
+    writtenText.slice(0, 30),
+    { timeout: 15000 },
+  );
+  console.log(`  writing mode: switcher listed ${switcherCount} scenes, prose came back`);
+
+  // Typography: size steps and the serif face are device preferences, applied to the page.
+  await page.getByTestId("sl-write-type").click();
+  await page.getByTestId("sl-write-type-sheet").waitFor({ timeout: 10000 });
+  const sizeBefore = (await page.getByTestId("sl-write-size").textContent()) ?? "";
+  await page.getByRole("button", { name: "Larger" }).click();
+  const sizeAfter = (await page.getByTestId("sl-write-size").textContent()) ?? "";
+  if (sizeBefore === sizeAfter) throw new Error("type size did not change");
+  await page.getByRole("checkbox").check();
+  if ((await page.locator(".sl-write-serif").count()) !== 1) {
+    throw new Error("serif toggle did not reach the page");
+  }
+  console.log(`  writing mode: type ${sizeBefore} → ${sizeAfter} px, serif on`);
+
+  // Focus mode: only the prose and the count stay.
+  await page.getByTestId("sl-write-focus").click();
+  await page.waitForFunction(
+    () => document.querySelector('[data-testid="sl-write"]')?.getAttribute("data-focus") === "1",
+    undefined,
+    { timeout: 10000 },
+  );
+  if ((await page.getByTestId("sl-write-switch").count()) !== 0) {
+    throw new Error("focus mode still shows the scene switcher button");
+  }
+  await axeScan("write-focus");
+  await page.getByTestId("sl-write-focus").click();
+  await page.waitForFunction(
+    () => document.querySelector('[data-testid="sl-write"]')?.getAttribute("data-focus") === "0",
+    undefined,
+    { timeout: 10000 },
+  );
+  console.log("  writing mode: focus mode hides the chrome and comes back");
+
+  // Reload: reopen the library and let the dashboard card resume the scene — the prose is there.
+  await page.getByTestId("sl-write-back").click();
+  await page.getByRole("link", { name: "Scenes" }).waitFor({ timeout: 15000 });
+  await page.reload();
+  await page.getByText("Your libraries").waitFor({ timeout: 20000 });
+  await page.getByRole("button", { name: "Open" }).click();
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByTestId("sl-continue-card").waitFor({ timeout: 20000 });
+  const continueText = (await page.getByTestId("sl-continue-card").textContent()) ?? "";
+  if (!continueText.includes("Pick up where you left off")) {
+    throw new Error(
+      `continue card does not resume the written scene: ${JSON.stringify(continueText)}`,
+    );
+  }
+  await page.getByTestId("sl-continue-write").click();
+  await page.getByTestId("sl-write").waitFor({ timeout: 20000 });
+  await page.waitForFunction(
+    (needle) =>
+      (document.querySelector(".sl-write .ProseMirror")?.textContent ?? "").includes(needle),
+    writtenText.slice(0, 30),
+    { timeout: 15000 },
+  );
+  await page.screenshot({ path: join(shotDir, "23-write.png"), fullPage: true });
+  console.log("  writing mode: prose survived the reload via the resume card");
+  await page.getByTestId("sl-write-back").click();
+  await page.getByRole("link", { name: "Scenes" }).waitFor({ timeout: 15000 });
+
   // 5. Reload: back to the start screen; reopening restores the last route (hash history),
   // so tab over to Plan and check the persisted progress.
   await page.reload();

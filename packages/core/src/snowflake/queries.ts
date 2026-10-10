@@ -140,6 +140,8 @@ export interface DashboardStats {
   noteCount: number;
   /** Sum of scene target words — the step-8 estimate the dashboard shows until drafts exist. */
   estimatedWords: number;
+  /** Sum of the draft bodies' word counts (PLAN slice 13) — 0 until the writer starts. */
+  writtenWords: number;
   targetWordCount: number | null;
   recent: RecentEntity[];
 }
@@ -156,6 +158,7 @@ export async function getDashboardStats(
       lore: number;
       notes: number;
       estimated_words: number;
+      written_words: number;
       target_word_count: number | null;
     }>(
       `SELECT
@@ -165,8 +168,10 @@ export async function getDashboardStats(
          (SELECT COUNT(*) FROM idea_note  WHERE project_id = ? AND deleted_at IS NULL) AS notes,
          (SELECT COALESCE(SUM(target_word_count), 0) FROM scene
            WHERE project_id = ? AND deleted_at IS NULL) AS estimated_words,
+         (SELECT COALESCE(SUM(body_word_count), 0) FROM scene
+           WHERE project_id = ? AND deleted_at IS NULL) AS written_words,
          (SELECT target_word_count FROM project WHERE id = ?) AS target_word_count`,
-      [projectId, projectId, projectId, projectId, projectId, projectId],
+      [projectId, projectId, projectId, projectId, projectId, projectId, projectId],
     )
   )[0];
 
@@ -226,6 +231,7 @@ export async function getDashboardStats(
     loreCount: counts?.lore ?? 0,
     noteCount: counts?.notes ?? 0,
     estimatedWords: counts?.estimated_words ?? 0,
+    writtenWords: counts?.written_words ?? 0,
     targetWordCount: counts?.target_word_count ?? null,
     recent: recent.slice(0, 5),
   };

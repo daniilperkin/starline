@@ -36,12 +36,14 @@ import {
   type EntityType,
   emptyTrash,
   executeCommand,
+  getContinueTarget,
   getDashboardStats,
   getGraphPositions,
   getLoreEntry,
   getPlotlineBalance,
   getPlotlineGrid,
   getRelationshipMatrix,
+  getSceneBody,
   getSceneDetail,
   getTimeline,
   getTimelineCoverage,
@@ -90,9 +92,11 @@ import {
   saveStepContent,
   searchProject,
   seedLoreTaxonomy,
+  setEditorLastScene,
   setEntityTags,
   setFieldValue,
   setGraphPositions,
+  setSceneBody,
   setSceneCharacters,
   setSceneLore,
   setScenePlacement,
@@ -155,6 +159,8 @@ bus.subscribe(() => {
   void queryClient.invalidateQueries({ queryKey: ["plotlineBalance"] });
   // Slice 10: the timeline lanes, the tray and the conflict list.
   void queryClient.invalidateQueries({ queryKey: ["timeline"] });
+  // Slice 13: writing a scene moves the resume target and the body count.
+  void queryClient.invalidateQueries({ queryKey: ["editor"] });
 });
 
 let lastActivityAt = Date.now();
@@ -390,6 +396,37 @@ export const useSetSceneTags = () => useSceneCommand(setSceneTags);
 export const useSetSceneLore = () => useSceneCommand(setSceneLore);
 export const useSetScenePlacement = () => useSceneCommand(setScenePlacement);
 export const useCopyLineToSynopsis = () => useSceneCommand(copyLineToSceneSynopsis);
+
+// ---- Slice 13: writing mode --------------------------------------------------------------
+
+/** The draft body, fetched once per open — the editor owns it from then on. */
+export function useSceneBody(projectId: UUID | null, sceneId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["sceneBody", session?.name ?? null, projectId, sceneId],
+    enabled: session !== null && projectId !== null && sceneId !== null,
+    queryFn: async () => {
+      if (!session || !projectId || !sceneId) throw new Error("no scene open");
+      return getSceneBody(session.driver, projectId, sceneId);
+    },
+  });
+}
+
+/** Where "continue writing" lands: the last scene, else the next unwritten one. */
+export function useContinueTarget(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["editor", "continue", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return getContinueTarget(session.driver, projectId);
+    },
+  });
+}
+
+export const useSetSceneBody = () => useSceneCommand(setSceneBody);
+export const useSetEditorLastScene = () => useSceneCommand(setEditorLastScene);
 
 // ---- Slice 9: tags, field definitions, plotline grid -------------------------------------
 

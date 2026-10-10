@@ -14,6 +14,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   useConsistencyChecks,
+  useContinueTarget,
   useCreateProject,
   useDashboardStats,
   useProjects,
@@ -39,6 +40,7 @@ export function PlanScreen() {
   const steps = useSteps(projects.data?.[0]?.id ?? null);
   const tree = useSceneTree(projects.data?.[0]?.id ?? null);
   const stats = useDashboardStats(projects.data?.[0]?.id ?? null);
+  const continueTarget = useContinueTarget(projects.data?.[0]?.id ?? null);
   const snapshots = useSnapshots();
   const takeSnapshot = useTakeSnapshot();
   const trash = useTrash(projects.data?.[0]?.id ?? null);
@@ -147,6 +149,43 @@ export function PlanScreen() {
             <ProgressRing done={progress.done} total={progress.total} />
           </section>
 
+          {continueTarget.data ? (
+            <section
+              className="sl-card flex items-center justify-between gap-4 p-4"
+              data-testid="sl-continue-card"
+            >
+              <div className="min-w-0">
+                <h2 className="text-sm font-medium text-muted">{messages.write.continueHeading}</h2>
+                <p className="mt-1 truncate text-base font-semibold tracking-tight">
+                  {continueTarget.data.title || messages.write.untitled}
+                </p>
+                <p className="mt-0.5 truncate text-xs text-muted">
+                  {continueTarget.data.reason === "last"
+                    ? messages.write.continueLast
+                    : messages.write.continueNext}
+                  {continueTarget.data.wordCount > 0
+                    ? ` · ${format(messages.write.continueWords, {
+                        words: numberFormat.format(continueTarget.data.wordCount),
+                      })}`
+                    : ""}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="sl-btn sl-btn-primary shrink-0"
+                data-testid="sl-continue-write"
+                onClick={() =>
+                  void navigate({
+                    to: "/write/$sceneId",
+                    params: { sceneId: (continueTarget.data as { sceneId: string }).sceneId },
+                  })
+                }
+              >
+                {messages.write.action}
+              </button>
+            </section>
+          ) : null}
+
           <section className="sl-card flex flex-col gap-3 p-4">
             {stats.data ? (
               <div className="flex flex-wrap items-center gap-2">
@@ -157,14 +196,21 @@ export function PlanScreen() {
                   })}
                 </span>
                 <span className="sl-chip">
-                  {stats.data.targetWordCount !== null
-                    ? format(messages.dashboard.words, {
-                        est: numberFormat.format(stats.data.estimatedWords),
-                        target: numberFormat.format(stats.data.targetWordCount),
+                  {stats.data.writtenWords > 0
+                    ? format(messages.dashboard.wordsWritten, {
+                        written: numberFormat.format(stats.data.writtenWords),
+                        target: numberFormat.format(
+                          stats.data.targetWordCount ?? stats.data.estimatedWords,
+                        ),
                       })
-                    : format(messages.dashboard.wordsNoTarget, {
-                        est: numberFormat.format(stats.data.estimatedWords),
-                      })}
+                    : stats.data.targetWordCount !== null
+                      ? format(messages.dashboard.words, {
+                          est: numberFormat.format(stats.data.estimatedWords),
+                          target: numberFormat.format(stats.data.targetWordCount),
+                        })
+                      : format(messages.dashboard.wordsNoTarget, {
+                          est: numberFormat.format(stats.data.estimatedWords),
+                        })}
                 </span>
                 {step8Complete ? (
                   <span className="sl-chip">✦ {messages.dashboard.planned}</span>

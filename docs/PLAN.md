@@ -407,7 +407,7 @@ Five real bugs the gates found and this slice fixed:
    value, so one GC pause or a background snapshot failed the budget; it now takes 40 samples and
    reads 2.6 ms p50 / 3.1 ms p95 (budget 10 ms).
 
-### Slice 13 — Writing mode
+### Slice 13 — Writing mode (**shipped 2026-10-10**, `<sha>`; emulator QA OK 40 PASS, web 19 axe scans)
 
 **Screens**: scene "Write" — full-screen editor (TipTap; scene switcher; word count vs
 target; quick sheet for the scene's characters/lore/backlinks); distraction-free mode
@@ -419,6 +419,48 @@ navigation (chapters → scenes) with "continue writing" on the dashboard.
 
 **Exit**: write a full scene on the phone start-to-finish; kill app mid-scene → zero loss;
 word counts flow into dashboard and stats.
+
+**Slice 13 record (2026-10-10).** Measured, not estimated:
+
+| Gate | Result | Where |
+| --- | --- | --- |
+| Writing journey (web) | continue card → "The Ferry" at 0 words → 14 words typed → saved → switcher (43 scenes) → back → prose intact | `verify-web` 4x |
+| Typography + focus | 18 → 20 px, serif applied; focus mode hides the app bar, the tab bar and every control | `verify-web` 4x |
+| Zero loss (web) | reload → reopen → the resume card says "pick up where you left off" → the prose is back | `verify-web` 4x |
+| Zero loss (phone) | write → HOME (appStateChange flush) → force-stop → cold relaunch → prose intact | `verify-android` 2s |
+| Body semantics (native) | count + FTS + mention mirror in one command: 13-word body indexed, chip becomes a backlink labelled "draft" | `slice13-writing.test.ts` |
+| Resume pointer | last scene → deleted → next not-done in book order (chaptered first) → nothing when all done | `slice13-writing.test.ts` |
+| Dashboard words | `writtenWords` = 10 (draft bodies only), next to the step-8 estimate | `slice13-writing.test.ts` |
+| Tests | 257/257 | `pnpm test` |
+| Bundle | app 262.1/330 KiB, css 8.2/9, storage worker 63.8/72, export worker 12.8/40, payload 3.43/4 MiB | `check:bundle` |
+| Perf | search p50 3.3 / p95 5.5 ms · backlinks p50 1.3 / p95 2.1 ms (budgets 30 / 10) | `verify-web` |
+
+One real bug the gates forced out of the wasm driver:
+
+- **The start-screen import could hang forever.** `ensureInit()` in `packages/driver-wasm` had no
+  in-flight guard, so the ops the app fires at once on boot each started their own
+  `installOpfsSAHPoolVfs`. Two installs racing in one worker produces "Access Handles cannot be
+  created if there is another open Access Handle"; sqlite-wasm's recovery cannot fix it
+  (`removeVfs()` fails the same way) and the pool never finishes installing — every later op
+  waits forever instead of failing, which is why the import sat on "Reading the file…" with no
+  error. The install is now single-flight, which also retires the "second library loses the pool
+  handle race" flake slice 12 documented and worked around with retries.
+
+Design notes worth keeping:
+
+- **Draft bodies joined the mention system.** `setSceneBody` mirrors chips into `mention` in the
+  same transaction and `scene.body_text` joined the FTS trigger long ago, so prose is searchable
+  the moment it is written. Backlink rows distinguish a synopsis from a draft (`… · draft`).
+- **Two homes for state, chosen deliberately.** Where the writer stopped (`meta.editor_state`) is
+  library state: it travels with the `.starline` file, so "continue writing" works on a new phone.
+  Type size, serif and the caret per scene are device state and live in `localStorage` — they must
+  not travel, and they must not cost a write per keystroke.
+- **The body query cache is kept truthful.** Coming back to a scene seeds from the saved body; the
+  editor invalidates its own query after each save, or the second visit would show the text as it
+  was when the scene was first opened.
+- **The stylesheet budget moved 8 → 9 KiB** (`check-bundle.mjs`). Writing mode is a whole screen of
+  rules and the sheet cannot be code-split; the raise is documented in the script and the next
+  UI-heavy slice should trim before raising again.
 
 ### Slice 14 — Notes incubator (full) + attachments
 
