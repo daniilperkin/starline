@@ -300,7 +300,7 @@ renderer would measure the emulator, not the app.
 
 ## 4. M3 — Safety, output, writing
 
-### Slice 11 — Snapshots & restore UI (**shipped 2026-10-10**; emulator QA OK, web 15 axe scans)
+### Slice 11 — Snapshots & restore UI (**shipped 2026-10-10**, `15db8b8`; emulator QA OK, web 15 axe scans)
 
 
 **Screens**: Backups screen (snapshot list: reason, time, counts; Preview = read-only open +
