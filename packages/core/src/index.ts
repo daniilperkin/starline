@@ -1,3 +1,4 @@
+export * from "./attachments";
 export * from "./changes";
 export * from "./characters";
 export * from "./commands";
@@ -7,6 +8,7 @@ export * from "./fields";
 export * from "./i18n";
 export * from "./interchange";
 export * from "./lore";
+export * from "./notes";
 export * from "./primitives";
 export * from "./relationships";
 export * from "./richtext";

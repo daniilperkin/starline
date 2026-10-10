@@ -462,7 +462,7 @@ Design notes worth keeping:
   rules and the sheet cannot be code-split; the raise is documented in the script and the next
   UI-heavy slice should trim before raising again.
 
-### Slice 14 — Notes incubator (full) + attachments
+### Slice 14 — Notes incubator (full) + attachments (**shipped 2026-10-10**; emulator QA OK 43 PASS, web 23 axe scans; **M3 gate met**)
 
 **Screens**: Notes board (Inbox → Incubating → Used → Archived; phone: segmented columns,
 swipe between; drag or swipe actions to move); quick capture (FAB long-press or shortcut);
@@ -475,6 +475,41 @@ blob split), sourceUrl opens in the system browser (the app never fetches it).
 
 **Exit (M3 gate)**: export → import → export identical; restore drill passed; a scene
 written end-to-end; all gates green; PWA + APK rebuilt.
+
+**Slice 14 record (2026-10-10).** Measured, not estimated:
+
+| Gate | Result | Where |
+| --- | --- | --- |
+| Quick capture (web) | one line → Enter → the note lands in the inbox; the board's counts follow | `verify-web` 4y |
+| Incubator flow | row menu moves Inbox → Incubating (status verified in SQL); the note opens as a sheet | `verify-web` 4y |
+| Promote to scene | note body autosaved (rich text) → promoted: `status=used`, `promoted_to_type=scene`, the new scene carries the note's title and body as its synopsis, the chip renders | `verify-web` 4y |
+| Revisit nudge | a second note backdated 40 days shows the dashboard card after a reload | `verify-web` 4y |
+| Attachments (web) | a real PNG through the file input: row + blob sizes agree, `sl-attachment-<id>` renders | `verify-web` 4z |
+| Attachments in export | the folder export carries `attachments/<sha256>.png` — the picture rides the archive as a file | `verify-web` 4z |
+| Notes + gallery (phone) | capture → promote to a character → PNG pushed to `/sdcard/Download` → gallery tile; force-stop → cold relaunch → note count and gallery tile intact | `verify-android` 2t |
+| Round trip with attachments | export → import → export identical, attachment bytes and gallery rows included | `slice14-notes.test.ts` |
+| Notes semantics (native) | CRUD, status moves, promotion inverses (incl. `deletePlotline`), stale-idea query, trash round-trip | `slice14-notes.test.ts` |
+| Attachment semantics (native) | SHA-256 dedupe, gallery attach/detach, single-image slots (project/character/lore), delete clears slots, thumbnail bytes | `slice14-notes.test.ts` |
+| Tests | 270/270 | `pnpm test` |
+| Bundle | app 262.8/330 KiB, css **9.0/9 (TIGHT)**, storage worker 63.9/72, export worker 13.1/40, payload 3.48/4 MiB | `check:bundle` |
+| Perf | search p50 3.2 / p95 5.6 ms · backlinks p50 1.3 / p95 2 ms (budgets 30 / 10) | `verify-web` |
+
+**M3 gate (2026-10-10) — met.** Every exit line, with the evidence:
+
+| Gate line | Evidence |
+| --- | --- |
+| export → import → export identical | `slice12-interchange.test.ts` + `slice14-notes.test.ts` (with attachments); `verify-web` step 7 imports the JSON it just exported: 44 scenes · 4 characters |
+| restore drill passed | `verify-web` 4v (snapshot → edit → preview → restore → the edit is gone, the plan intact); `verify-android` 2q on-device restore |
+| a scene written end-to-end | `verify-web` 4x (0 → 14 words → saved → switcher → reload → resume card → prose intact); `verify-android` 2s (write → HOME → force-stop → cold relaunch, prose intact) |
+| all gates green | typecheck, biome, 270/270 tests, 23 axe scans, chaos 1002/1002, web chaos 5 batches, no-network 201 files, contrast, PWA, bundle budgets, perf budgets |
+| PWA + APK rebuilt | Pages deploy of the slice-14 build; `artifacts/starline-debug.apk` rebuilt from the same tree |
+
+One ordering lesson the bundle gate taught (recorded so it is not re-learned):
+
+- **`pnpm typecheck` (`tsc -b`) writes build output into `apps/web/dist`**, so a
+  `check:bundle` run *after* a typecheck reports a bloated install payload (~4.96 MiB —
+  the tsbuildinfo, emitted `capacitor.config.js` and `src/` copies get precached). Always
+  run the bundle gate immediately after a clean `vite build`, or rebuild first.
 
 ---
 

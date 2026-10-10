@@ -1,4 +1,3 @@
-import { messages } from "@starline/core";
 import {
   createHashHistory,
   createRootRoute,
@@ -8,7 +7,6 @@ import {
   redirect,
 } from "@tanstack/react-router";
 import { AppLayout } from "./AppLayout";
-import { ComingSoonScreen } from "./ComingSoonScreen";
 import { PlanScreen } from "./PlanScreen";
 import { StepScreen } from "./StepScreen";
 
@@ -73,7 +71,10 @@ const worldRoute = createRoute({
 const notesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/notes",
-  component: () => <ComingSoonScreen label={messages.tabs.notes} />,
+  // `?capture=1` is what the PWA shortcut opens; the screen focuses the capture box and clears it.
+  validateSearch: (search: Record<string, unknown>) =>
+    search.capture === "1" || search.capture === 1 ? { capture: "1" } : {},
+  component: lazyRouteComponent(() => import("./NotesScreen"), "NotesScreen"),
 });
 
 const settingsRoute = createRoute({

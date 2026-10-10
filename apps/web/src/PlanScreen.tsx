@@ -20,6 +20,7 @@ import {
   useProjects,
   useSceneTree,
   useSnapshots,
+  useStaleIdeas,
   useSteps,
   useTakeSnapshot,
   useTrash,
@@ -41,6 +42,7 @@ export function PlanScreen() {
   const tree = useSceneTree(projects.data?.[0]?.id ?? null);
   const stats = useDashboardStats(projects.data?.[0]?.id ?? null);
   const continueTarget = useContinueTarget(projects.data?.[0]?.id ?? null);
+  const staleIdeas = useStaleIdeas(projects.data?.[0]?.id ?? null);
   const snapshots = useSnapshots();
   const takeSnapshot = useTakeSnapshot();
   const trash = useTrash(projects.data?.[0]?.id ?? null);
@@ -183,6 +185,31 @@ export function PlanScreen() {
               >
                 {messages.write.action}
               </button>
+            </section>
+          ) : null}
+
+          {staleIdeas.data && staleIdeas.data.length > 0 ? (
+            <section className="sl-card flex flex-col gap-2 p-4" data-testid="sl-revisit-card">
+              <h2 className="text-sm font-medium text-muted">{messages.notes.revisit}</h2>
+              <p className="text-xs text-muted">{messages.notes.revisitHint}</p>
+              <ul className="flex flex-col gap-1">
+                {staleIdeas.data.map((idea) => (
+                  <li key={idea.id}>
+                    <button
+                      type="button"
+                      className="sl-recent-row"
+                      onClick={() => void navigate({ to: "/notes" })}
+                    >
+                      <span className="min-w-0 flex-1 truncate text-left text-sm">
+                        {idea.title}
+                      </span>
+                      <span className="text-xs text-muted">
+                        {format(messages.notes.revisitAge, { days: idea.ageDays })}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </section>
           ) : null}
 

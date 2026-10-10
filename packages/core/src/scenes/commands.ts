@@ -221,6 +221,33 @@ export const deleteScene: Command<DeleteSceneArgs, void> = {
   },
 };
 
+export interface DeletePlotlineArgs {
+  projectId: UUID;
+  plotlineId: UUID;
+}
+
+/**
+ * Soft-deletes a plotline. The Trash has always been able to list and restore them; slice 14 adds
+ * the delete itself, because "promote a note to a plotline" needs a real undo inverse.
+ */
+export const deletePlotline: Command<DeletePlotlineArgs, void> = {
+  name: "plotline.delete",
+  async run(ctx, args) {
+    const now = epochNow();
+    await ctx.tx.query(
+      `UPDATE plotline SET deleted_at = ?, updated_at = ?
+        WHERE id = ? AND project_id = ? AND deleted_at IS NULL`,
+      [now, now, args.plotlineId, args.projectId],
+    );
+    return {
+      result: undefined,
+      changes: [
+        { table: "plotline", op: "delete", id: args.plotlineId, parentIds: [args.projectId] },
+      ],
+    };
+  },
+};
+
 export interface MoveSceneArgs {
   projectId: UUID;
   sceneId: UUID;

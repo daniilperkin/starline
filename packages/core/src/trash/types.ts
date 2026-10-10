@@ -8,6 +8,7 @@ export const TRASH_ENTITY_TYPES = [
   "chapter",
   "plotline",
   "lore_entry",
+  "note",
 ] as const;
 export type TrashEntityType = (typeof TRASH_ENTITY_TYPES)[number];
 

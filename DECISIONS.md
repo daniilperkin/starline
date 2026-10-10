@@ -132,3 +132,35 @@ everything not listed here; entries are folded back into the spec on owner reque
       Latin-only family. `Intl.Segmenter("uk")`/`Intl.PluralRules("uk")` cover word counts and
       the four Ukrainian plural categories (one/few/many/other); all Intl data is browser-local,
       so the offline invariant holds.
+
+21. **Slice 14 shape — notes incubator + attachments (2026-10-10).** Settled while building the
+    last M3 slice:
+    - **Notes stay in `idea_note`.** Four columns (`NOTE_STATUSES = inbox · incubating · used ·
+      archived`) and six kinds (`NOTE_KINDS = idea · research · dialogue · scene_seed · question ·
+      todo`) ride the table the schema already has. A note can be **promoted** into a real entity
+      (`PROMOTE_TARGETS = character · scene · lore · plotline`); promotion copies the note's title
+      and body into the target, links back via `promoted_to_type`/`promoted_to_id`, and is
+      **undoable** — which required a new `deletePlotline` command so the plotline target has a
+      real inverse like the other three.
+    - **`note` joins the trash.** `TRASH_ENTITY_TYPES` gained `note` (`TRASH_TABLES.note =
+      idea_note`), so the recycle bin covers it like every other entity.
+    - **Attachments are content-addressed by SHA-256.** `attachment` + `attachment_blob`; the hash
+      is the identity, so ingesting the same bytes twice reuses the row (dedup for free).
+      `ATTACHMENT_MAX_BYTES = 20 MiB`; accepted mimes are PNG/JPEG/WebP/GIF plus PDF. Images get a
+      256 px canvas thumbnail (`ATTACHMENT_THUMB_PX`), PDFs do not (no renderer ships in the
+      bundle). Single-image slots are declared once: `IMAGE_SLOT_COLUMNS` = project→
+      `cover_attachment_id`, character→`avatar_attachment_id`, lore→`image_attachment_id`;
+      characters additionally get a gallery through `character_gallery`.
+    - **Bytes never leave the device** (spec §5.2): the app writes blobs into the library file and
+      reads them back; source links in notes open in the OS browser and StarLine never fetches
+      them.
+    - **Interchange split.** Attachment rows and bytes ride **only** the Markdown-folder zip
+      (`zipOnly` tables `attachments` + `characterGallery`); the JSON document stays content-only
+      and nulls the attachment FK columns (`nullColumns`) so it can never reference a row it does
+      not carry. The project↔attachment FK cycle is resolved with `PRAGMA defer_foreign_keys =
+      ON`; folder imports fill missing `created_at`/`updated_at` (`withTimestamps`); zip archives
+      pin `mtime = ZIP_EPOCH` so exports stay byte-deterministic.
+    - **Mentions reach scenes and notes** (`listMentionables`), so a note body can link a draft or
+      another note.
+    - **Quick capture on the phone:** the PWA manifest carries a `Quick capture` shortcut →
+      `#/notes?capture=1` — the phone's answer to spec §4.4.2's global hotkey.

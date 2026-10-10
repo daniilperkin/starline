@@ -898,6 +898,97 @@ try {
   await page.getByRole("link", { name: "Plan" }).click();
   await page.waitForTimeout(500);
 
+  // 2t. Slice 14 on-device: quick capture a note, promote it to a character, and put a picture
+  // into a character's gallery from a file that lives on the phone — then force-stop and
+  // cold-relaunch to prove both the note and the picture are inside the library file.
+  await page.getByRole("link", { name: "Notes" }).click();
+  await page.getByTestId("sl-capture-input").waitFor({ timeout: 60000 });
+  await page.getByTestId("sl-capture-input").fill("Tide charts from the archive");
+  await page.getByTestId("sl-capture-input").press("Enter");
+  await page.waitForTimeout(1500);
+  const emuNotes = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    return session.driver.query("SELECT id, title, status FROM idea_note WHERE deleted_at IS NULL");
+  });
+  const emuNote = emuNotes.find((row) => row.title === "Tide charts from the archive");
+  if (!emuNote) throw new Error(`on-device capture failed: ${JSON.stringify(emuNotes)}`);
+  await page.getByTestId(`sl-note-${emuNote.id}`).click();
+  await page.getByTestId("sl-note-title").waitFor({ timeout: 60000 });
+  await page.getByTestId("sl-note-promote-character").click();
+  await page.waitForTimeout(2500);
+  const emuPromotion = await page.evaluate(async (id) => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query(
+      "SELECT status, promoted_to_type FROM idea_note WHERE id = ?",
+      [id],
+    );
+    return rows[0];
+  }, emuNote.id);
+  if (emuPromotion?.status !== "used" || emuPromotion?.promoted_to_type !== "character") {
+    throw new Error(`on-device promotion failed: ${JSON.stringify(emuPromotion)}`);
+  }
+  await page.keyboard.press("Escape");
+  await page.screenshot({ path: join(shotDir, "emu-slice14-note.png"), fullPage: true });
+  console.log("PASS  notes: capture → promote to a character on-device");
+
+  // A remote browser cannot read a host path, so the PNG is handed to the real file input from
+  // inside the page (DataTransfer → change) — the app's own ingest path still does the work.
+  await page.getByRole("link", { name: "People" }).click();
+  await page.getByRole("link", { name: /Emu Character/ }).click();
+  await page.getByTestId("sl-gallery-input").waitFor({ state: "attached", timeout: 30000 });
+  await page.evaluate(async () => {
+    const b64 =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    const bytes = Uint8Array.from(atob(b64), (char) => char.charCodeAt(0));
+    const file = new File([bytes], "emu-harbour.png", { type: "image/png" });
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    const input = document.querySelector('[data-testid="sl-gallery-input"]');
+    if (!(input instanceof HTMLInputElement)) throw new Error("no gallery input");
+    input.files = transfer.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.waitForTimeout(3000);
+  const emuAttachment = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query(
+      `SELECT a.id, a.file_name, a.byte_size, LENGTH(b.data) AS blob_size
+         FROM attachment a JOIN attachment_blob b ON b.attachment_id = a.id`,
+    );
+    return rows[0];
+  });
+  if (!emuAttachment || emuAttachment.blob_size !== emuAttachment.byte_size) {
+    throw new Error(`the on-device attachment is broken: ${JSON.stringify(emuAttachment)}`);
+  }
+  await page.getByTestId(`sl-attachment-${emuAttachment.id}`).waitFor({ timeout: 30000 });
+  await page.screenshot({ path: join(shotDir, "emu-slice14-gallery.png"), fullPage: true });
+  console.log(
+    `PASS  attachments: ${emuAttachment.file_name} stored on-device (${emuAttachment.byte_size} bytes)`,
+  );
+
+  // Kill and relaunch: the note, the promoted character and the gallery tile must all survive.
+  adb(["shell", "am", "force-stop", PACKAGE]);
+  adb(["shell", "am", "start", "-n", `${PACKAGE}/.MainActivity`]);
+  await browser.close().catch(() => undefined);
+  ({ browser, page } = await connect());
+  await page.getByText("Your libraries").waitFor({ timeout: 60000 });
+  await page.getByRole("button", { name: "Open" }).click();
+  await page.getByRole("link", { name: "Plan" }).waitFor({ timeout: 60000 });
+  await page.getByRole("link", { name: "People" }).click();
+  await page.getByRole("link", { name: /Emu Character/ }).click();
+  await page.getByTestId(`sl-attachment-${emuAttachment.id}`).waitFor({ timeout: 60000 });
+  const survived = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query(
+      "SELECT COUNT(*) AS n FROM idea_note WHERE deleted_at IS NULL",
+    );
+    return rows[0].n;
+  });
+  if (Number(survived) < 1) throw new Error("the note did not survive the kill");
+  console.log("PASS  notes + gallery survived a kill: force-stop → relaunch, both intact");
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.waitForTimeout(500);
+
   // 3. Hardware back: from a step screen back to the plan.
   await page.getByRole("link", { name: "Plan" }).click();
   await page.locator(".sl-step-row").filter({ hasText: "Character descriptions" }).click();

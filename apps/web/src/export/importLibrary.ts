@@ -10,7 +10,7 @@ import {
   parseMarkdownFolder,
   writeProjectExport,
 } from "@starline/core/interchange";
-import { stripRootFolder, unzipTextFiles } from "@starline/core/zip";
+import { stripRootFolder, unzipFiles } from "@starline/core/zip";
 import type { LibrarySession } from "../session";
 import { listLibraries, openLibraryFully } from "../storage";
 
@@ -23,8 +23,19 @@ function looksLikeZip(bytes: Uint8Array): boolean {
 /** Reads either interchange container into the same in-memory project shape. */
 export function readInterchangeBytes(bytes: Uint8Array): ProjectExport {
   if (looksLikeZip(bytes)) {
-    const files = stripRootFolder(unzipTextFiles(bytes));
-    return parseMarkdownFolder(files).data;
+    const { text, binary } = unzipFiles(bytes);
+    const files = stripRootFolder(text);
+    // Attachment entries stay bytes: `attachments/<sha256>.<ext>` rejoin their rows by hash.
+    // Strip the same root folder the text files use, so both sides agree on the layout.
+    const textPaths = Object.keys(text);
+    const root = textPaths.length > 0 ? (textPaths[0] as string).split("/")[0] : undefined;
+    const strippedBinary: Record<string, Uint8Array> = {};
+    for (const [path, data] of Object.entries(binary)) {
+      const relative =
+        root !== undefined && path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path;
+      strippedBinary[relative] = data;
+    }
+    return parseMarkdownFolder(files, strippedBinary).data;
   }
   const text = decoder.decode(bytes);
   const parsed = parseExportDocument(text);

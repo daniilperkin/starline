@@ -81,6 +81,8 @@ export const REFERENCES: Record<string, Record<string, string>> = {
   custom_field_def: { project_id: "project" },
   custom_field_value: { def_id: "custom_field_def" },
   entity_link: { project_id: "project" },
+  attachment: { project_id: "project" },
+  character_gallery: { character_id: "character", attachment_id: "attachment" },
 };
 
 /** Entity-type strings used by `entity_tag` / `entity_link` mapped to their tables. */
@@ -123,6 +125,21 @@ export interface ImportOptions {
 /** True when the row object carries the columns of one export table. */
 function isRow(value: unknown): value is ExportRow {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * The folder format deliberately carries no timestamps (markdown.ts), so a folder import would
+ * hit `NOT NULL` on `created_at`/`updated_at` for every row. Fill them at the door: a re-import
+ * gets "now", which is exactly what the writer expects to see for the rows they just brought in.
+ */
+function withTimestamps(row: ExportRow, columns: readonly string[], now: number): ExportRow {
+  const filled: ExportRow = { ...row };
+  for (const column of ["created_at", "updated_at"] as const) {
+    if (columns.includes(column) && (filled[column] === undefined || filled[column] === null)) {
+      filled[column] = now;
+    }
+  }
+  return filled;
 }
 
 /** JSON columns are stored as text in the database, exactly as the exporter found them. */
@@ -233,10 +250,12 @@ function mapRow(
   row: ExportRow,
   remap: Remapper,
   jsonColumns: readonly string[],
+  /** Column order to emit — defaults to the row's own key order (the project insert relies on it). */
+  order?: readonly string[],
 ): SqlValue[] {
   const references = REFERENCES[table] ?? {};
   const entityRefs = ENTITY_REFERENCE_COLUMNS[table] ?? [];
-  return Object.keys(row).map((column) => {
+  return (order ?? Object.keys(row)).map((column) => {
     let value = row[column];
     // The row's own id is re-mapped last of all — a table without one (join tables) simply
     // keeps whatever the column holds.
@@ -265,6 +284,10 @@ export async function writeProjectExport(
   const { remap, projectId, title, count } = await planIds(tx, data, options);
   const now = epochNow();
 
+  // The project row points at its cover attachment and every attachment points back at the
+  // project — a cycle no insert order can satisfy, so FK checks wait until the transaction ends.
+  await tx.execScript("PRAGMA defer_foreign_keys = ON");
+
   // Series (never re-created when it already exists under the same id).
   if (data.series !== null && isRow(data.series)) {
     const seriesId = remap.get("series", data.series.id);
@@ -284,15 +307,15 @@ export async function writeProjectExport(
   }
 
   // Project.
-  const projectColumns = Object.keys(data.project);
+  const projectRow = withTimestamps(data.project, ["created_at", "updated_at"], now);
+  const projectColumns = Object.keys(projectRow);
   await tx.query(
     `INSERT INTO project (${projectColumns.join(", ")}) VALUES (${projectColumns.map(() => "?").join(", ")})`,
-    mapRow(
-      "project",
-      { ...data.project, id: remap.get("project", data.project.id), title },
-      remap,
-      ["genres", "settings", "description_json"],
-    ),
+    mapRow("project", { ...projectRow, id: remap.get("project", data.project.id), title }, remap, [
+      "genres",
+      "settings",
+      "description_json",
+    ]),
   );
 
   // Every table in foreign-key-safe order.
@@ -304,7 +327,13 @@ export async function writeProjectExport(
       try {
         await tx.query(
           `INSERT INTO ${spec.table} (${insertList(spec)}) VALUES (${placeholders(spec)})`,
-          mapRow(spec.table, row, remap, spec.jsonColumns),
+          mapRow(
+            spec.table,
+            withTimestamps(row, spec.columns, now),
+            remap,
+            spec.jsonColumns,
+            spec.columns,
+          ),
         );
         counts[spec.key] = (counts[spec.key] ?? 0) + 1;
       } catch (cause) {
@@ -318,14 +347,50 @@ export async function writeProjectExport(
     }
   }
 
+  // Attachment bytes (folder format only): the metadata rows just landed, so the blobs can
+  // follow with their re-mapped ids. A row without bytes stays metadata-only and is reported.
+  const attachmentRows = data.tables.attachments ?? [];
+  if (attachmentRows.length > 0) {
+    const byteMap = data.attachmentData ?? {};
+    for (const row of attachmentRows) {
+      const id = typeof row.id === "string" ? row.id : null;
+      if (id === null) continue;
+      const bytes = byteMap[id];
+      if (bytes === undefined) {
+        issues.push({
+          severity: "warning",
+          where: `attachment:${id}`,
+          message: "no bytes in the archive — the attachment imported without its file",
+        });
+        continue;
+      }
+      try {
+        await tx.query(`INSERT INTO attachment_blob (attachment_id, data) VALUES (?, ?)`, [
+          String(remap.get("attachment", id)),
+          bytes,
+        ]);
+      } catch (cause) {
+        issues.push({
+          severity: "error",
+          where: `attachment_blob:${id}`,
+          message: cause instanceof Error ? cause.message : String(cause),
+        });
+      }
+    }
+  }
+
   // Mentions are derived data: rebuild them from the rich text the import just wrote, so
   // backlinks work immediately after an import without shipping a mirror table (spec §3.9).
-  const scenes = await tx.query<{ id: string; synopsis_json: string | null }>(
-    "SELECT id, synopsis_json FROM scene WHERE project_id = ? AND deleted_at IS NULL",
-    [projectId],
-  );
+  const scenes = await tx.query<{
+    id: string;
+    synopsis_json: string | null;
+    body_json: string | null;
+  }>("SELECT id, synopsis_json, body_json FROM scene WHERE project_id = ? AND deleted_at IS NULL", [
+    projectId,
+  ]);
   for (const scene of scenes) {
     await syncMentions(tx, "scene", scene.id as UUID, "synopsis", parseDoc(scene.synopsis_json));
+    await syncMentions(tx, "scene", scene.id as UUID, "body", parseDoc(scene.body_json));
   }
   const characters = await tx.query<{ id: string; storyline_json: string | null }>(
     "SELECT id, storyline_json FROM character WHERE project_id = ? AND deleted_at IS NULL",
@@ -346,6 +411,13 @@ export async function writeProjectExport(
   );
   for (const entry of entries) {
     await syncMentions(tx, "lore", entry.id as UUID, "body", parseDoc(entry.body_json));
+  }
+  const notes = await tx.query<{ id: string; body_json: string | null }>(
+    "SELECT id, body_json FROM idea_note WHERE project_id = ? AND deleted_at IS NULL",
+    [projectId],
+  );
+  for (const note of notes) {
+    await syncMentions(tx, "note", note.id as UUID, "body", parseDoc(note.body_json));
   }
 
   // Graph pins: merged under the (possibly re-mapped) project id.

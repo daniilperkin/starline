@@ -8,6 +8,7 @@
  * without inventing history — which is also what makes `folder → import → folder` identical.
  */
 
+import { attachmentExtension } from "../attachments/types";
 import { extractMentions } from "../lore/mentions";
 import type { PMDoc } from "../richtext";
 import { pmDocToPlainText } from "../richtext";
@@ -542,6 +543,8 @@ export function buildMarkdownFolder(
       sceneLore: tables.sceneLore ?? [],
       scenePlotlines: tables.scenePlotlines ?? [],
       entityLinks: tables.entityLinks ?? [],
+      attachments: tables.attachments ?? [],
+      characterGallery: tables.characterGallery ?? [],
       graphPositions: data.graphPositions,
       series: data.series,
     },
@@ -551,8 +554,35 @@ export function buildMarkdownFolder(
   return files;
 }
 
+/**
+ * Attachment bytes as archive entries: `attachments/<sha256>.<ext>`. The name is the hash, so the
+ * same picture in two libraries lands on the same path and the archive stays deterministic.
+ */
+export function buildAttachmentFiles(
+  data: ProjectExport,
+  options: { folderName?: string } = {},
+): Record<string, Uint8Array> {
+  const files: Record<string, Uint8Array> = {};
+  const root = options.folderName !== undefined ? options.folderName : "";
+  const byteMap = data.attachmentData ?? {};
+  for (const row of data.tables.attachments ?? []) {
+    const id = typeof row.id === "string" ? row.id : null;
+    const sha = typeof row.sha256 === "string" ? row.sha256 : null;
+    if (id === null || sha === null) continue;
+    const bytes = byteMap[id];
+    if (bytes === undefined) continue;
+    const extension = attachmentExtension(String(row.file_name ?? ""), String(row.mime_type ?? ""));
+    files[joinPath(root, "attachments", `${sha}.${extension}`)] = bytes;
+  }
+  return files;
+}
+
 /** Writes the folder back into an export payload; the frontmatter is authoritative. */
-export function parseMarkdownFolder(files: FileMap): { data: ProjectExport; issues: string[] } {
+export function parseMarkdownFolder(
+  files: FileMap,
+  /** Raw archive entries keyed by path — `attachments/<sha256>.<ext>` files come back as bytes. */
+  binary: Record<string, Uint8Array> = {},
+): { data: ProjectExport; issues: string[] } {
   const issues: string[] = [];
   const tables: Record<string, ExportRow[]> = {};
   for (const spec of EXPORT_TABLES) tables[spec.key] = [];
@@ -628,6 +658,8 @@ export function parseMarkdownFolder(files: FileMap): { data: ProjectExport; issu
         tables.sceneLore = (parsed.sceneLore as ExportRow[]) ?? [];
         tables.scenePlotlines = (parsed.scenePlotlines as ExportRow[]) ?? [];
         tables.entityLinks = (parsed.entityLinks as ExportRow[]) ?? [];
+        tables.attachments = (parsed.attachments as ExportRow[]) ?? [];
+        tables.characterGallery = (parsed.characterGallery as ExportRow[]) ?? [];
         graphPositions = (parsed.graphPositions as Record<string, { x: number; y: number }>) ?? {};
         series = (parsed.series as ExportRow | null) ?? null;
       } catch {
@@ -697,5 +729,25 @@ export function parseMarkdownFolder(files: FileMap): { data: ProjectExport; issu
       issues: [...issues, "project.md is missing or unreadable"],
     };
   }
-  return { data: { project, series, graphPositions, tables }, issues };
+
+  // Match attachment rows to their archive entries by hash — the same key the exporter used.
+  const attachmentData: Record<string, Uint8Array> = {};
+  for (const row of tables.attachments ?? []) {
+    const id = typeof row.id === "string" ? row.id : null;
+    const sha = typeof row.sha256 === "string" ? row.sha256 : null;
+    if (id === null || sha === null) continue;
+    const match = Object.entries(binary).find(([path]) => {
+      const base = path.split("/").pop() ?? path;
+      return path.includes("attachments/") && base.startsWith(`${sha}.`);
+    });
+    if (match === undefined) {
+      issues.push(`attachments/${sha}: file missing from the archive — imported without bytes`);
+      continue;
+    }
+    attachmentData[id] = match[1];
+  }
+
+  const data: ProjectExport = { project, series, graphPositions, tables };
+  if (Object.keys(attachmentData).length > 0) data.attachmentData = attachmentData;
+  return { data, issues };
 }

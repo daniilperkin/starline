@@ -1,4 +1,5 @@
 import {
+  attachToGallery,
   type Backlinks,
   ChangeBus,
   type ChapterSummary,
@@ -9,12 +10,14 @@ import {
   type CustomFieldTarget,
   copyLineToSceneSynopsis,
   countFieldValuesByDef,
+  countNotesByStatus,
   countRelationshipsByCharacter,
   createChapter,
   createCharacter,
   createFieldDef,
   createLoreCategory,
   createLoreEntry,
+  createNote,
   createPlotline,
   createProject,
   createRelationship,
@@ -23,16 +26,20 @@ import {
   createScenesFromList,
   createTag,
   createTimelineEvent,
+  deleteAttachment,
   deleteChapter,
   deleteCharacter,
   deleteFieldDef,
   deleteLoreCategory,
   deleteLoreEntry,
+  deleteNote,
+  deletePlotline,
   deleteRelationship,
   deleteRelationshipGroup,
   deleteScene,
   deleteTag,
   deleteTimelineEvent,
+  detachFromGallery,
   type EntityType,
   emptyTrash,
   executeCommand,
@@ -40,6 +47,7 @@ import {
   getDashboardStats,
   getGraphPositions,
   getLoreEntry,
+  getNote,
   getPlotlineBalance,
   getPlotlineGrid,
   getRelationshipMatrix,
@@ -53,6 +61,7 @@ import {
   listAllFieldDefs,
   listBacklinks,
   listChapters,
+  listCharacterGallery,
   listCharacters,
   listEntityTags,
   listFieldDefs,
@@ -60,14 +69,17 @@ import {
   listLoreCategories,
   listLoreEntries,
   listMentionables,
+  listNotes,
   listParts,
   listPlotlines,
   listPossibleMentions,
+  listProjectAttachments,
   listProjects,
   listRelationshipGroups,
   listRelationships,
   listScenes,
   listSharedScenes,
+  listStaleIdeas,
   listSteps,
   listTags,
   listTrash,
@@ -76,10 +88,14 @@ import {
   moveChapter,
   moveFieldDef,
   moveLoreEntry,
+  moveNote,
   moveScene,
   moveTimelineItem,
+  type NoteKind,
+  type NoteStatus,
   type PartSummary,
   type PossibleMention,
+  promoteNote,
   purgeExpiredTrash,
   type RelationshipPatch,
   renameTag,
@@ -93,6 +109,7 @@ import {
   searchProject,
   seedLoreTaxonomy,
   setEditorLastScene,
+  setEntityImage,
   setEntityTags,
   setFieldValue,
   setGraphPositions,
@@ -111,6 +128,7 @@ import {
   updateCharacter,
   updateFieldDef,
   updateLoreEntry,
+  updateNote,
   updateRelationship,
   updateRelationshipGroup,
   updateScene,
@@ -161,6 +179,10 @@ bus.subscribe(() => {
   void queryClient.invalidateQueries({ queryKey: ["timeline"] });
   // Slice 13: writing a scene moves the resume target and the body count.
   void queryClient.invalidateQueries({ queryKey: ["editor"] });
+  // Slice 14: notes, the incubator nudge and attachment galleries.
+  void queryClient.invalidateQueries({ queryKey: ["notes"] });
+  void queryClient.invalidateQueries({ queryKey: ["staleIdeas"] });
+  void queryClient.invalidateQueries({ queryKey: ["gallery"] });
 });
 
 let lastActivityAt = Date.now();
@@ -390,6 +412,7 @@ export const useUpdateChapter = () => useSceneCommand(updateChapter);
 export const useMoveChapter = () => useSceneCommand(moveChapter);
 export const useDeleteChapter = () => useSceneCommand(deleteChapter);
 export const useCreatePlotline = () => useSceneCommand(createPlotline);
+export const useDeletePlotline = () => useSceneCommand(deletePlotline);
 export const useSetSceneCharacters = () => useSceneCommand(setSceneCharacters);
 export const useSetScenePlotline = () => useSceneCommand(setScenePlotline);
 export const useSetSceneTags = () => useSceneCommand(setSceneTags);
@@ -1226,4 +1249,175 @@ export function readRelationshipMatrix(driver: TauriStorageDriver, projectId: UU
 
 export function readRelationships(driver: TauriStorageDriver, projectId: UUID) {
   return listRelationships(driver, projectId);
+}
+
+// ── Slice 14: the notes incubator and attachments ────────────────────────────────────────────
+
+export interface NotesQueryOptions {
+  status?: NoteStatus;
+  kind?: NoteKind;
+  pinnedOnly?: boolean;
+  search?: string;
+}
+
+export function useNotes(projectId: UUID | null, options: NotesQueryOptions = {}) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: [
+      "notes",
+      session?.name ?? null,
+      projectId,
+      options.status ?? null,
+      options.kind ?? null,
+      options.pinnedOnly ?? false,
+      options.search ?? "",
+    ],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return listNotes(session.driver, projectId, options);
+    },
+  });
+}
+
+export function useNote(projectId: UUID | null, noteId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["notes", "one", session?.name ?? null, projectId, noteId],
+    enabled: session !== null && projectId !== null && noteId !== null,
+    queryFn: async () => {
+      if (!session || !projectId || !noteId) throw new Error("no project open");
+      return getNote(session.driver, projectId, noteId);
+    },
+  });
+}
+
+export function useNoteCounts(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["notes", "counts", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return countNotesByStatus(session.driver, projectId);
+    },
+  });
+}
+export function useStaleIdeas(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["staleIdeas", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return listStaleIdeas(session.driver, projectId);
+    },
+  });
+}
+
+export function useCreateNote() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: Parameters<typeof createNote.run>[1]) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, createNote, args);
+    },
+  });
+}
+
+export function useUpdateNote() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: Parameters<typeof updateNote.run>[1]) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, updateNote, args);
+    },
+  });
+}
+
+export function useMoveNote() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: Parameters<typeof moveNote.run>[1]) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, moveNote, args);
+    },
+  });
+}
+
+export function useDeleteNote() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: Parameters<typeof deleteNote.run>[1]) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, deleteNote, args);
+    },
+  });
+}
+
+export function usePromoteNote() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: Parameters<typeof promoteNote.run>[1]) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, promoteNote, args);
+    },
+  });
+}
+
+export function useCharacterGallery(characterId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["gallery", session?.name ?? null, characterId],
+    enabled: session !== null && characterId !== null,
+    queryFn: async () => {
+      if (!session || !characterId) throw new Error("no character open");
+      return listCharacterGallery(session.driver, characterId);
+    },
+  });
+}
+
+export function useAttachToGallery() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: Parameters<typeof attachToGallery.run>[1]) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, attachToGallery, args);
+    },
+  });
+}
+
+export function useDetachFromGallery() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: Parameters<typeof detachFromGallery.run>[1]) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, detachFromGallery, args);
+    },
+  });
+}
+
+export function useSetEntityImage() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: Parameters<typeof setEntityImage.run>[1]) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, setEntityImage, args);
+    },
+  });
+}
+
+export function useDeleteAttachment() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: Parameters<typeof deleteAttachment.run>[1]) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, deleteAttachment, args);
+    },
+  });
+}
+
+/** Raw read for the E2E journey (DEV hook only): every attachment of a project, metadata only. */
+export function readAttachments(driver: TauriStorageDriver, projectId: UUID) {
+  return listProjectAttachments(driver, projectId);
 }

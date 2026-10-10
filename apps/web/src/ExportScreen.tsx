@@ -112,7 +112,11 @@ export function ExportScreen() {
     setBusy(true);
     setStage(messages.export.stageReading);
     try {
-      const data = await readProjectExport(session.driver, projectId as UUID);
+      // Attachments ride only the folder format (decision 21): the zip is lossless, the JSON
+      // document stays content-only so it can never point at a row it does not carry.
+      const data = await readProjectExport(session.driver, projectId as UUID, {
+        includeAttachments: preset === "markdown-folder",
+      });
       const title = String(data.project.title ?? messages.export.untitled);
       const worker = new Worker(new URL("./export/export.worker.ts", import.meta.url), {
         type: "module",

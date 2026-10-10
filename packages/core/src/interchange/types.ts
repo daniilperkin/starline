@@ -25,6 +25,14 @@ export interface ExportTableSpec {
   /** False for tables that have no `deleted_at` (they are never trashed). */
   readonly softDelete?: boolean;
   readonly scope: ExportScope;
+  /**
+   * Carried only by the Markdown folder (`*.starline.zip`) — attachments are binary and would
+   * bloat the JSON document, so a JSON import is content-only (decision 21). Tables marked here
+   * are skipped by a JSON read/write; the folder format is the lossless one.
+   */
+  readonly zipOnly?: boolean;
+  /** Attachment FK columns nulled in a JSON export so it can never point at a missing row. */
+  readonly nullColumns?: readonly string[];
 }
 
 /** Columns quoted because they are SQL keywords. */
@@ -73,6 +81,7 @@ const CHARACTER_COLUMNS = [
   "storyline_text",
   "bible_json",
   "bible_text",
+  "avatar_attachment_id",
   "order_key",
   "pinned",
   "created_at",
@@ -157,6 +166,7 @@ export const EXPORT_TABLES: readonly ExportTableSpec[] = [
     ],
     orderBy: "order_key, id",
     scope: { kind: "project", column: "project_id" },
+    nullColumns: ["avatar_attachment_id"],
   },
   {
     key: "relationshipGroups",
@@ -239,6 +249,7 @@ export const EXPORT_TABLES: readonly ExportTableSpec[] = [
       "body_json",
       "body_text",
       "coordinates",
+      "image_attachment_id",
       "order_key",
       "pinned",
       "created_at",
@@ -247,6 +258,7 @@ export const EXPORT_TABLES: readonly ExportTableSpec[] = [
     jsonColumns: ["aliases", "body_json", "coordinates"],
     orderBy: "order_key, id",
     scope: { kind: "project", column: "project_id" },
+    nullColumns: ["image_attachment_id"],
   },
   {
     key: "plotlines",
@@ -455,6 +467,39 @@ export const EXPORT_TABLES: readonly ExportTableSpec[] = [
     softDelete: false,
     scope: { kind: "project", column: "project_id" },
   },
+  {
+    key: "attachments",
+    table: "attachment",
+    columns: [
+      "id",
+      "project_id",
+      "file_name",
+      "mime_type",
+      "byte_size",
+      "sha256",
+      "width",
+      "height",
+      "created_at",
+    ],
+    jsonColumns: [],
+    orderBy: "created_at, id",
+    softDelete: false,
+    scope: { kind: "project", column: "project_id" },
+    zipOnly: true,
+  },
+  {
+    key: "characterGallery",
+    table: "character_gallery",
+    columns: ["character_id", "attachment_id", "caption", "order_key"],
+    jsonColumns: [],
+    orderBy: "character_id, order_key",
+    softDelete: false,
+    scope: {
+      kind: "subquery",
+      where: "character_id IN (SELECT id FROM character WHERE project_id = ?)",
+    },
+    zipOnly: true,
+  },
 ] as const;
 
 /** Column list for a SELECT, with reserved words quoted. */
@@ -483,6 +528,11 @@ export interface ProjectExport {
   graphPositions: Record<string, { x: number; y: number }>;
   /** Keyed by `EXPORT_TABLES[].key`. */
   tables: Record<string, ExportRow[]>;
+  /**
+   * Attachment bytes, keyed by attachment id. Only ever populated in the folder format — the
+   * zip carries them as `attachments/<sha256>.<ext>` files, never inside a JSON document.
+   */
+  attachmentData?: Record<string, Uint8Array>;
 }
 
 export const EXPORT_FORMAT = "starline-export";

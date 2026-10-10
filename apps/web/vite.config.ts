@@ -42,6 +42,15 @@ export default defineConfig({
                   purpose: "maskable",
                 },
               ],
+              // Long-press the installed icon → straight into quick capture (spec §4.4.2's
+              // global hotkey, translated to the phone's own affordance).
+              shortcuts: [
+                {
+                  name: "Quick capture",
+                  short_name: "Capture",
+                  url: `${base}#/notes?capture=1`,
+                },
+              ],
             },
             workbox: {
               // Offline-complete (spec §5.2): the shell, the sqlite-wasm binary and the worker

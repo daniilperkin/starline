@@ -16,7 +16,7 @@
 // with a URL to use an already-running server.
 // Usage: node scripts/verify-web.mjs [url] [--no-serve]
 import { spawn } from "node:child_process";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1211,8 +1211,8 @@ try {
   // the export tab first — the importer panes replaced it.
   await page.getByTestId("sl-mode-export").click();
   await page.getByTestId("sl-export-panel").waitFor({ timeout: 15000 });
-  const jsonFinal = await runExport("json");
-  const jsonFinalDocument = JSON.parse(jsonFinal.bytes.toString("utf8"));
+  let jsonFinal = await runExport("json");
+  let jsonFinalDocument = JSON.parse(jsonFinal.bytes.toString("utf8"));
   console.log(
     `  json (final): ${jsonFinalDocument.scenes.length} scenes · ${jsonFinalDocument.characters.length} characters`,
   );
@@ -1343,6 +1343,161 @@ try {
   console.log("  writing mode: prose survived the reload via the resume card");
   await page.getByTestId("sl-write-back").click();
   await page.getByRole("link", { name: "Scenes" }).waitFor({ timeout: 15000 });
+
+  // 4y. Slice 14: the notes incubator. Capture a thought with one keystroke, sort it into the
+  // incubator from the row menu, give it a body, promote it to a scene — then backdate a second
+  // note and prove the dashboard's "Revisit these ideas" nudge fires without any network.
+  await page.getByRole("link", { name: "Notes" }).click();
+  await page.getByTestId("sl-capture-input").waitFor({ timeout: 15000 });
+  await page.getByTestId("sl-capture-input").fill("A knife in the dark");
+  await page.getByTestId("sl-capture-input").press("Enter");
+  await page.waitForTimeout(800);
+  const capturedNotes = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    return session.driver.query(
+      "SELECT id, title, status, kind FROM idea_note WHERE deleted_at IS NULL ORDER BY created_at",
+    );
+  });
+  const note = capturedNotes.find((row) => row.title === "A knife in the dark");
+  if (!note) throw new Error(`quick capture never landed: ${JSON.stringify(capturedNotes)}`);
+  if (note.status !== "inbox") throw new Error(`quick capture landed in "${note.status}"`);
+  console.log("  notes: quick capture landed in the inbox");
+  await axeScan("notes");
+
+  await page.getByTestId(`sl-note-move-${note.id}`).click();
+  await page.getByTestId(`sl-note-move-${note.id}-incubating`).click();
+  await page.waitForTimeout(600);
+  const movedStatus = await page.evaluate(async (id) => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query("SELECT status FROM idea_note WHERE id = ?", [id]);
+    return rows[0]?.status ?? null;
+  }, note.id);
+  if (movedStatus !== "incubating") throw new Error(`the note did not move: ${movedStatus}`);
+
+  await page.getByTestId(`sl-note-${note.id}`).click();
+  await page.getByTestId("sl-note-title").waitFor({ timeout: 15000 });
+  await page.locator(".sl-note-sheet .ProseMirror").click();
+  await page.keyboard.type("Mina should be the one holding it.");
+  await page.waitForTimeout(1200);
+  const noteBody = await page.evaluate(async (id) => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query("SELECT body_text FROM idea_note WHERE id = ?", [id]);
+    return rows[0]?.body_text ?? "";
+  }, note.id);
+  if (!noteBody.includes("Mina should be the one")) {
+    throw new Error(`the note body did not save: ${JSON.stringify(noteBody)}`);
+  }
+  await axeScan("note-sheet");
+
+  await page.getByTestId("sl-note-promote-scene").click();
+  await page.waitForTimeout(1000);
+  const promotion = await page.evaluate(async (id) => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query(
+      "SELECT status, promoted_to_type, promoted_to_id FROM idea_note WHERE id = ?",
+      [id],
+    );
+    return rows[0];
+  }, note.id);
+  if (promotion.status !== "used" || promotion.promoted_to_type !== "scene") {
+    throw new Error(`promotion did not stick: ${JSON.stringify(promotion)}`);
+  }
+  const promotedScene = await page.evaluate(async (id) => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query("SELECT title, synopsis_text FROM scene WHERE id = ?", [
+      id,
+    ]);
+    return rows[0];
+  }, promotion.promoted_to_id);
+  if (!promotedScene || promotedScene.title !== "A knife in the dark") {
+    throw new Error(`the promoted scene is wrong: ${JSON.stringify(promotedScene)}`);
+  }
+  if (promotedScene.synopsis_text?.includes("Mina should be the one") !== true) {
+    throw new Error("the promoted scene did not inherit the note body");
+  }
+  await page.getByTestId("sl-note-promoted").waitFor({ timeout: 10000 });
+  await page.screenshot({ path: join(shotDir, "24-notes.png"), fullPage: true });
+  console.log(`  notes: promoted to scene "${promotedScene.title}" with the body as its synopsis`);
+  await page.keyboard.press("Escape");
+
+  // A second note, incubated and backdated 40 days, must raise the dashboard nudge after reload.
+  await page.getByTestId("sl-capture-input").fill("Old idea about the tide");
+  await page.getByTestId("sl-capture-input").press("Enter");
+  await page.waitForTimeout(800);
+  const backdated = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query(
+      "SELECT id FROM idea_note WHERE title = 'Old idea about the tide'",
+    );
+    const id = rows[0]?.id;
+    if (!id) return null;
+    await session.driver.query(
+      "UPDATE idea_note SET status = 'incubating', updated_at = ? WHERE id = ?",
+      [Date.now() - 40 * 24 * 60 * 60 * 1000, id],
+    );
+    return id;
+  });
+  if (backdated === null) throw new Error("the second note never landed");
+  await page.reload();
+  await page.getByText("Your libraries").waitFor({ timeout: 30000 });
+  await page.getByRole("button", { name: "Open" }).click();
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByTestId("sl-revisit-card").waitFor({ timeout: 15000 });
+  console.log("  notes: the revisit card fires on a 40-day-old incubating note");
+  await axeScan("dashboard-revisit");
+
+  // 4z. Slice 14: attachments. Add a real PNG to a character's gallery, check the blob landed in
+  // the library, then export the folder format and prove the picture rides it as a real file.
+  const pngPath = join(exportDir, "harbour.png");
+  writeFileSync(
+    pngPath,
+    Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      "base64",
+    ),
+  );
+  await page.getByRole("link", { name: "People" }).click();
+  await page.getByRole("link", { name: /Mira Holt/ }).click();
+  await page.getByTestId("sl-gallery-input").setInputFiles(pngPath);
+  await page.waitForTimeout(2000);
+  const attachment = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query(
+      `SELECT a.id, a.file_name, a.byte_size, a.sha256, LENGTH(b.data) AS blob_size
+         FROM attachment a JOIN attachment_blob b ON b.attachment_id = a.id`,
+    );
+    return rows[0];
+  });
+  if (!attachment) throw new Error("the attachment never reached the library");
+  if (attachment.blob_size !== attachment.byte_size) {
+    throw new Error(`blob size ${attachment.blob_size} ≠ metadata ${attachment.byte_size}`);
+  }
+  await page.getByTestId(`sl-attachment-${attachment.id}`).waitFor({ timeout: 15000 });
+  await axeScan("gallery");
+  console.log(
+    `  attachments: ${attachment.file_name} stored (${attachment.byte_size} bytes, sha ${attachment.sha256.slice(0, 8)}…)`,
+  );
+
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByTestId("sl-open-export").click();
+  await page.getByTestId("sl-export-panel").waitFor({ timeout: 20000 });
+  const folderWithAttachments = await runExport("markdown-folder");
+  const attachmentFiles = Object.keys(
+    unzipSync(new Uint8Array(folderWithAttachments.bytes)),
+  ).filter((path) => path.includes("attachments/"));
+  const expected = `${attachment.sha256}.png`;
+  if (!attachmentFiles.some((path) => path.endsWith(expected))) {
+    throw new Error(
+      `the folder export has no attachments/${expected}: ${attachmentFiles.join(", ") || "(none)"}`,
+    );
+  }
+  console.log(`  attachments: folder export carries attachments/${expected}`);
+
+  // The promoted scene is newer than the JSON export step 7 imports: re-export it now so the
+  // import check compares against the library as it stands (44 scenes, not 43).
+  jsonFinal = await runExport("json");
+  jsonFinalDocument = JSON.parse(jsonFinal.bytes.toString("utf8"));
+  await page.screenshot({ path: join(shotDir, "25-gallery.png"), fullPage: true });
 
   // 5. Reload: back to the start screen; reopening restores the last route (hash history),
   // so tab over to Plan and check the persisted progress.

@@ -227,12 +227,14 @@ export interface LoreEntrySummary {
 
 export interface LoreEntryDetail extends LoreEntrySummary {
   body: RichText;
+  /** The single-image slot (spec §3.1 `lore_entry.image_attachment_id`). */
+  imageAttachmentId: UUID | null;
 }
 
 /** One @-mention candidate for the editor's picker (characters + lore entries). */
 export interface Mentionable {
   id: UUID;
-  type: "character" | "lore";
+  type: "character" | "lore" | "scene" | "note";
   label: string;
   glyph: string;
   /** Kind label or character role, for the picker's second line. */

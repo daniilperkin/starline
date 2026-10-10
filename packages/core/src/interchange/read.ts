@@ -72,7 +72,9 @@ export async function readProjectExport(
   // Only reads: the driver the app already holds qualifies without pretending to be a command runner.
   reader: Pick<SqlRunner, "query">,
   projectId: UUID,
+  options: { includeAttachments?: boolean } = {},
 ): Promise<ProjectExport> {
+  const includeAttachments = options.includeAttachments === true;
   const projectRows = await reader.query<Record<string, unknown>>(
     `SELECT ${PROJECT_COLUMNS.join(", ")} FROM project WHERE id = ?`,
     [projectId],
@@ -80,6 +82,8 @@ export async function readProjectExport(
   const projectRow = projectRows[0];
   if (projectRow === undefined) throw new Error(`project not found: ${projectId}`);
   const project = pickColumns(projectRow, PROJECT_COLUMNS, PROJECT_JSON_COLUMNS);
+  // A JSON export carries no attachment rows, so it must not point at one either.
+  if (!includeAttachments) project.cover_attachment_id = null;
 
   let series: ExportRow | null = null;
   const seriesId = project.series_id;
@@ -95,6 +99,10 @@ export async function readProjectExport(
 
   const tables: Record<string, ExportRow[]> = {};
   for (const spec of EXPORT_TABLES) {
+    if (spec.zipOnly === true && !includeAttachments) {
+      tables[spec.key] = [];
+      continue;
+    }
     const columns = selectList(spec);
     const orderBy = spec.orderBy
       .split(",")
@@ -118,7 +126,15 @@ export async function readProjectExport(
         break;
     }
     const rows = await reader.query<Record<string, unknown>>(sql, params);
-    tables[spec.key] = rows.map((row) => pickColumns(row, spec.columns, spec.jsonColumns));
+    const mapped = rows.map((row) => pickColumns(row, spec.columns, spec.jsonColumns));
+    if (!includeAttachments && spec.nullColumns !== undefined) {
+      for (const row of mapped) {
+        for (const column of spec.nullColumns) {
+          if (column in row) row[column] = null;
+        }
+      }
+    }
+    tables[spec.key] = mapped;
   }
 
   const metaRows = await reader.query<{ value: string }>(`SELECT value FROM meta WHERE key = ?`, [
@@ -133,5 +149,19 @@ export async function readProjectExport(
     }
   }
 
-  return { project, series, graphPositions, tables };
+  const exportData: ProjectExport = { project, series, graphPositions, tables };
+  if (includeAttachments) {
+    const blobRows = await reader.query<{ attachment_id: string; data: Uint8Array | null }>(
+      `SELECT b.attachment_id, b.data FROM attachment_blob b
+         JOIN attachment a ON a.id = b.attachment_id
+        WHERE a.project_id = ?`,
+      [projectId],
+    );
+    const attachmentData: Record<string, Uint8Array> = {};
+    for (const row of blobRows) {
+      if (row.data !== null) attachmentData[row.attachment_id] = row.data;
+    }
+    if (Object.keys(attachmentData).length > 0) exportData.attachmentData = attachmentData;
+  }
+  return exportData;
 }

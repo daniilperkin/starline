@@ -11,6 +11,7 @@ const TRASH_TABLES: Record<TrashEntityType, string> = {
   chapter: "chapter",
   plotline: "plotline",
   lore_entry: "lore_entry",
+  note: "idea_note",
 };
 
 function assertTrashable(entityType: EntityType): asserts entityType is TrashEntityType {

@@ -163,12 +163,13 @@ export async function getLoreEntry(
     summary: string;
     body_json: string | null;
     body_text: string;
+    image_attachment_id: string | null;
     pinned: number;
     order_key: string;
     updated_at: number;
   }>(
     `SELECT id, project_id, category_id, parent_entry_id, kind, custom_kind_label, name, aliases,
-            summary, body_json, body_text, pinned, order_key, updated_at
+            summary, body_json, body_text, image_attachment_id, pinned, order_key, updated_at
        FROM lore_entry WHERE id = ? AND project_id = ? AND deleted_at IS NULL`,
     [entryId, projectId],
   );
@@ -190,6 +191,7 @@ export async function getLoreEntry(
     aliases: parseJson<string[]>(row.aliases, []),
     summary: row.summary,
     body,
+    imageAttachmentId: row.image_attachment_id as UUID | null,
     pinned: row.pinned === 1,
     orderKey: row.order_key,
     updatedAt: row.updated_at,
@@ -248,6 +250,18 @@ export async function listMentionables(
       WHERE project_id = ? AND deleted_at IS NULL ORDER BY name COLLATE NOCASE`,
     [projectId],
   );
+  // Spec §4.4.2: `@` offers characters, lore, scenes and notes — a note can be referenced from
+  // prose and vice versa, which is exactly what the backlink panel shows.
+  const scenes = await runner.query<{ id: string; title: string; synopsis_text: string }>(
+    `SELECT id, title, synopsis_text FROM scene
+      WHERE project_id = ? AND deleted_at IS NULL ORDER BY order_key`,
+    [projectId],
+  );
+  const notes = await runner.query<{ id: string; title: string; body_text: string }>(
+    `SELECT id, title, body_text FROM idea_note
+      WHERE project_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT 100`,
+    [projectId],
+  );
   return [
     ...characters.map((row) => ({
       id: row.id as UUID,
@@ -263,5 +277,23 @@ export async function listMentionables(
       glyph: LORE_KIND_GLYPHS[row.kind as LoreKind] ?? "✧",
       detail: row.kind === "custom" ? row.custom_kind_label : row.kind.replace(/_/g, " "),
     })),
+    ...scenes.map((row) => ({
+      id: row.id as UUID,
+      type: "scene" as const,
+      label: row.title.trim() || firstLineOf(row.synopsis_text) || "(untitled scene)",
+      glyph: "▤",
+      detail: "scene",
+    })),
+    ...notes.map((row) => ({
+      id: row.id as UUID,
+      type: "note" as const,
+      label: row.title.trim() || firstLineOf(row.body_text) || "(untitled note)",
+      glyph: "✦",
+      detail: "note",
+    })),
   ];
+}
+
+function firstLineOf(text: string): string {
+  return text.split("\n")[0]?.trim() ?? "";
 }

@@ -4,6 +4,7 @@
  * result (`files.ts`).
  */
 import {
+  buildAttachmentFiles,
   buildCsvTables,
   buildDocxFiles,
   buildExportDocument,
@@ -17,7 +18,7 @@ import {
   type ProjectExport,
   serializeExportDocument,
 } from "@starline/core/interchange";
-import { zipTextFiles } from "@starline/core/zip";
+import { zipFiles, zipTextFiles } from "@starline/core/zip";
 
 export type ExportFormat =
   | "json"
@@ -77,10 +78,11 @@ export function buildExportFile(request: BuildRequest): BuiltFile {
     }
     case "markdown-folder": {
       const files = buildMarkdownFolder(data, { exportedAt: request.exportedAt, folderName: base });
+      const binary = buildAttachmentFiles(data, { folderName: base });
       return {
         name: `${base}.starline.zip`,
         mime: "application/zip",
-        bytes: zipTextFiles(files),
+        bytes: zipFiles(files, binary),
       };
     }
     case "docx-manuscript": {

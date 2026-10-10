@@ -11,9 +11,20 @@ const ZIP_EPOCH = 315_532_800_000;
 
 /** Deterministic archive: same files, same bytes (the round-trip gate compares archives). */
 export function zipTextFiles(files: FileMap): Uint8Array {
+  return zipFiles(files, {});
+}
+
+/**
+ * Text files plus binary entries (attachment bytes). Both go through the same deterministic
+ * settings, so `export → import → export` still compares byte for byte.
+ */
+export function zipFiles(files: FileMap, binary: Record<string, Uint8Array> = {}): Uint8Array {
   const input: Record<string, Uint8Array> = {};
   for (const [path, text] of Object.entries(files)) {
     input[path] = strToU8(text);
+  }
+  for (const [path, bytes] of Object.entries(binary)) {
+    input[path] = bytes;
   }
   // ZIP cannot store a timestamp before 1980, and the default (now) would make two identical
   // exports differ: pin the archive epoch so the round-trip gate can compare bytes.
@@ -21,14 +32,27 @@ export function zipTextFiles(files: FileMap): Uint8Array {
 }
 
 export function unzipTextFiles(bytes: Uint8Array): FileMap {
+  return unzipFiles(bytes).text;
+}
+
+/**
+ * Splits archive entries: everything under `attachments/` stays bytes (decoding an image as
+ * UTF-8 would corrupt it), everything else is decoded as text.
+ */
+export function unzipFiles(bytes: Uint8Array): {
+  text: FileMap;
+  binary: Record<string, Uint8Array>;
+} {
   const unzipped = unzipSync(bytes);
-  const files: FileMap = {};
+  const text: FileMap = {};
+  const binary: Record<string, Uint8Array> = {};
   for (const [path, data] of Object.entries(unzipped)) {
     // A directory entry carries no data; skip it rather than emitting an empty file.
     if (path.endsWith("/")) continue;
-    files[path] = strFromU8(data);
+    if (path.includes("attachments/")) binary[path] = data;
+    else text[path] = strFromU8(data);
   }
-  return files;
+  return { text, binary };
 }
 
 /** The folder inside the archive carries a top-level directory named after the project. */

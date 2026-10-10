@@ -24,6 +24,7 @@ import {
   useRestoreEntity,
   useUpdateLoreEntry,
 } from "./data";
+import { ImageSlot } from "./Gallery";
 import { useOpenEntity } from "./openEntity";
 import { RichTextEditor } from "./RichTextEditor";
 import { TagPicker } from "./TagPicker";
@@ -397,6 +398,14 @@ export function LoreSheet({
           ownerId={entryId}
           loreKind={patch?.kind ?? loaded?.kind ?? null}
           legend={messages.world.details}
+        />
+
+        <ImageSlot
+          projectId={projectId}
+          target="lore_entry"
+          entityId={entryId}
+          current={loaded.imageAttachmentId}
+          label={messages.attachments.imageLabel}
         />
 
         <BacklinksPanel

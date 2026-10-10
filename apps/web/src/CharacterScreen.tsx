@@ -18,6 +18,7 @@ import {
   useRestoreEntity,
   useUpdateCharacter,
 } from "./data";
+import { CharacterGallery } from "./Gallery";
 import { useOpenEntity } from "./openEntity";
 import { CharacterRelationships } from "./relationships/CharacterRelationships";
 import { TagPicker } from "./TagPicker";
@@ -224,6 +225,8 @@ function DossierForm({ projectId, character }: { projectId: UUID; character: Cha
         </div>
 
         <CharacterRelationships projectId={projectId} characterId={character.id} />
+
+        <CharacterGallery projectId={projectId} characterId={character.id} />
 
         <BacklinksPanel
           projectId={projectId}
