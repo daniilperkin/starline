@@ -407,7 +407,7 @@ Five real bugs the gates found and this slice fixed:
    value, so one GC pause or a background snapshot failed the budget; it now takes 40 samples and
    reads 2.6 ms p50 / 3.1 ms p95 (budget 10 ms).
 
-### Slice 13 — Writing mode (**shipped 2026-10-10**, `<sha>`; emulator QA OK 40 PASS, web 19 axe scans)
+### Slice 13 — Writing mode (**shipped 2026-10-10**, `fc6e0f1`; emulator QA OK 40 PASS, web 19 axe scans)
 
 **Screens**: scene "Write" — full-screen editor (TipTap; scene switcher; word count vs
 target; quick sheet for the scene's characters/lore/backlinks); distraction-free mode
