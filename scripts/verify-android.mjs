@@ -649,6 +649,86 @@ try {
   await page.getByRole("link", { name: "Plan" }).click();
   await page.waitForTimeout(500);
 
+  // 2q. Slice 11 on-device: backups — snapshot now, break something, preview the diff, restore
+  // the snapshot, then copy a single scene back out of the pre-restore guard snapshot. This is
+  // the wasm half of the restore drill: close → replace the pool file → reopen.
+  await page.getByTestId("sl-open-backups").click();
+  await page.getByTestId("sl-backup-now").waitFor({ timeout: 90000 });
+  await page.getByTestId("sl-backup-now").click();
+  await page.getByTestId("sl-backup-row").first().waitFor({ timeout: 90000 });
+  console.log(`PASS  backups: Snapshot now listed a snapshot on-device`);
+
+  const emuSceneCount = () =>
+    page.evaluate(async () => {
+      const session = window.__starlineDev.session();
+      const rows = await session.driver.query(
+        "SELECT COUNT(*) AS n FROM scene WHERE deleted_at IS NULL",
+      );
+      return rows[0].n;
+    });
+  const emuBefore = await emuSceneCount();
+  const emuProjectId = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query("SELECT id FROM project LIMIT 1");
+    return rows[0].id;
+  });
+  await page.evaluate(async (id) => {
+    for (const title of ["Regret one", "Regret two"]) {
+      await window.__starlineDev.run("createScene", { projectId: id, title });
+    }
+  }, emuProjectId);
+  const emuDamaged = await emuSceneCount();
+  if (emuDamaged !== emuBefore + 2) {
+    throw new Error(`on-device change did not land (${emuBefore} → ${emuDamaged})`);
+  }
+
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByTestId("sl-open-backups").click();
+  await page.getByTestId("sl-backup-row").first().waitFor({ timeout: 90000 });
+  await page.getByTestId("sl-backup-preview").first().click();
+  await page.getByTestId("sl-backup-preview-sheet").waitFor({ timeout: 60000 });
+  const emuDiff = (await page.getByTestId("sl-diff-summary").innerText()).trim();
+  if (!emuDiff.includes("+2 scenes")) {
+    throw new Error(`on-device preview diff is wrong: "${emuDiff}"`);
+  }
+  console.log(`PASS  backups preview on-device ("${emuDiff}")`);
+  await page.screenshot({ path: join(shotDir, "emu-slice11-preview.png"), fullPage: true });
+
+  await page.locator(".sl-sheet-backdrop").click();
+  await page.waitForTimeout(400);
+  await page.getByTestId("sl-backup-restore").first().click();
+  await page.getByTestId("sl-restore-confirm").waitFor({ timeout: 30000 });
+  await page.getByTestId("sl-restore-confirm-yes").click();
+  await page.getByTestId("sl-open-settings").waitFor({ timeout: 180000 });
+  const emuRestored = await emuSceneCount();
+  if (emuRestored !== emuBefore) {
+    throw new Error(`on-device restore did not roll back (${emuDamaged} → ${emuRestored})`);
+  }
+  console.log(`PASS  backups restore on-device (${emuDamaged} → ${emuRestored} scenes)`);
+
+  await page.getByTestId("sl-open-backups").click();
+  await page.getByTestId("sl-backup-row").first().waitFor({ timeout: 90000 });
+  const emuGuard = page.getByTestId("sl-backup-row").filter({ hasText: "BEFORE RESTORE" }).first();
+  await emuGuard.getByTestId("sl-backup-preview").click();
+  await page.getByTestId("sl-backup-preview-sheet").waitFor({ timeout: 60000 });
+  const emuOptions = await page.getByTestId("sl-entity-pick").locator("option").allInnerTexts();
+  const emuWanted = emuOptions.find((option) => option.includes("Regret two"));
+  if (emuWanted === undefined) {
+    throw new Error(`on-device guard snapshot offers no scene: ${JSON.stringify(emuOptions)}`);
+  }
+  await page.getByTestId("sl-entity-pick").selectOption({ label: emuWanted });
+  await page.getByTestId("sl-entity-restore").click();
+  await page.waitForTimeout(2500);
+  const emuAfterEntity = await emuSceneCount();
+  if (emuAfterEntity !== emuRestored + 1) {
+    throw new Error(`on-device single-entity restore failed (${emuRestored} → ${emuAfterEntity})`);
+  }
+  console.log(`PASS  backups single-entity restore on-device (${emuAfterEntity} scenes)`);
+  await page.screenshot({ path: join(shotDir, "emu-slice11-entity.png"), fullPage: true });
+  await page.locator(".sl-sheet-backdrop").click();
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.waitForTimeout(500);
+
   // 3. Hardware back: from a step screen back to the plan.
   await page.getByRole("link", { name: "Plan" }).click();
   await page.locator(".sl-step-row").filter({ hasText: "Character descriptions" }).click();

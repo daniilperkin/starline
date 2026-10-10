@@ -1,9 +1,6 @@
-import type { MigrationReport } from "@starline/db";
-import { runMigrations } from "@starline/db";
 import { useCallback, useEffect, useState } from "react";
-import { assessSessionHealth, markSessionOpen, purgeTrashOnOpen } from "./health";
 import type { LibrarySession } from "./session";
-import { cleanupTempFiles, listLibraries, openLibrary } from "./storage";
+import { cleanupTempFiles, listLibraries, openLibraryFully } from "./storage";
 import { ThemeButton } from "./ThemeButton";
 
 export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => void }) {
@@ -32,26 +29,11 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
       setBusy(true);
       setError(null);
       try {
-        const { driver, transport, info } = await openLibrary(name, create);
-        let report: MigrationReport;
-        try {
-          report = await runMigrations(driver);
-        } catch (cause) {
-          await driver.close().catch(() => undefined);
-          await transport.dispose().catch(() => undefined);
-          throw cause;
-        }
-        // Crash marker + integrity check + 30-day trash purge (spec §2.3.3, §5.3). The
-        // health snapshot is read BEFORE the marker is overwritten so the previous session's
-        // unclean exit is still visible.
-        const health = await assessSessionHealth(driver);
-        await markSessionOpen(driver);
-        await purgeTrashOnOpen(driver);
-        if (create) {
-          // Spec §5.4.1: ask the browser to make this origin's storage persistent on first creation.
-          void navigator.storage?.persist?.();
-        }
-        onOpen({ driver, transport, name, info, report, health });
+        // Crash marker + integrity check + 30-day trash purge (spec §2.3.3, §5.3), shared with
+        // the restore path so both open a library the same way. The health snapshot is read
+        // BEFORE the marker is overwritten so the previous session's unclean exit is visible.
+        const opened = await openLibraryFully(name, create);
+        onOpen(opened);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause));
       } finally {

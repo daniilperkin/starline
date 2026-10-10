@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./fonts.css";
 
 /* StarLine — star-library design tokens (docs/DESIGN.md).
    Dark deep-space is the hero theme; light is the day-sky variant. */
@@ -17,6 +18,10 @@
   --sl-glow: rgba(91, 70, 214, 0.18);
   --sl-wordmark-a: #5b46d6; /* day sky: the gold cannot carry text, so the mark turns violet */
   --sl-wordmark-b: #2f6fd6;
+  /* Bundled faces first, OS stacks as the fallback for anything they do not cover. */
+  --sl-font-sans: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --sl-font-serif: "Literata", Georgia, "Times New Roman", serif;
+  --sl-font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
 
 [data-theme="dark"] {
@@ -58,7 +63,7 @@ body {
   margin: 0;
   background: var(--sl-bg);
   color: var(--sl-text);
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family: var(--sl-font-sans);
   min-height: 100dvh;
 }
 
@@ -1447,4 +1452,42 @@ body {
   border-left: 3px solid var(--sl-danger);
   border-radius: 0.7rem;
   background: var(--sl-surface-2);
+}
+
+/* ---- Slice 11: backups (spec §4.5.3) ----------------------------------------------------- */
+
+.sl-backup-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--sl-border);
+}
+
+.sl-backup-row:last-child {
+  border-bottom: none;
+}
+
+.sl-chip-reason {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.62rem;
+}
+
+.sl-diff-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--sl-border);
+  border-radius: 0.7rem;
+  background: var(--sl-surface-2);
+}
+
+.sl-notice {
+  padding: 0.5rem 0.7rem;
+  border-left: 3px solid var(--sl-primary);
+  border-radius: 0.7rem;
+  background: var(--sl-surface-2);
+  font-size: 0.8rem;
 }

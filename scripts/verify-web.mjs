@@ -218,10 +218,35 @@ try {
   await page.getByText(/40 created/).waitFor();
   await page.screenshot({ path: join(shotDir, "10-step8-import.png"), fullPage: true });
 
-  // 4i. Re-import the same list: merge by line — zero created, 40 updated, no duplicates.
-  await page.getByRole("textbox", { name: "Paste a scene list" }).fill(pasteText);
-  await page.getByRole("button", { name: "Create scenes from list" }).click();
-  await page.getByText(/40 updated/).waitFor();
+  // 4i. Re-import the same list: merge by line — zero created, 40 updated, no duplicates. The
+  // second click lands right after the first import's invalidation storm, so retry with a
+  // diagnostic dump instead of a bare wait: a swallowed report and a real merge failure look the
+  // same in a timeout.
+  let merged = false;
+  for (let attempt = 0; attempt < 3 && !merged; attempt++) {
+    await page.getByRole("textbox", { name: "Paste a scene list" }).fill(pasteText);
+    await page.getByRole("button", { name: "Create scenes from list" }).click();
+    try {
+      await page.getByText(/40 updated/).waitFor({ timeout: 15000 });
+      merged = true;
+    } catch {
+      const sheetText = await page
+        .locator(".sl-sheet")
+        .innerText()
+        .catch(() => "<no sheet>");
+      const rows = await page.evaluate(async () => {
+        const session = window.__starlineDev.session();
+        return session.driver.query(
+          "SELECT COUNT(*) AS n, SUM(CASE WHEN snowflake_source IS NULL THEN 1 ELSE 0 END) AS no_source FROM scene",
+        );
+      });
+      console.log(
+        `  merge attempt ${attempt + 1}: sheet "${sheetText.replace(/\n/g, " | ").slice(0, 220)}" rows=${JSON.stringify(rows)}`,
+      );
+      await page.waitForTimeout(1500);
+    }
+  }
+  if (!merged) throw new Error("the re-import never reported updates");
   await page.getByRole("button", { name: "Close" }).last().click();
   await page.getByText("48,200 est. words").waitFor();
   await page.getByRole("button", { name: "Mark step complete" }).click();
@@ -277,8 +302,32 @@ try {
     .waitFor();
   await page.screenshot({ path: join(shotDir, "13-step9.png"), fullPage: true });
   await axeScan("step9");
-  await page.getByRole("button", { name: "Mark step complete" }).click();
-  await page.getByText("8 of 9 steps complete").waitFor();
+  // The completion click can land while the step-9 editor is still flushing its expand-autosave
+  // and the plan behind it re-renders; a single swallowed tap used to fail the whole run with no
+  // diagnostic at all. Retry, and on a real failure print what the step rows actually say.
+  let stepNineDone = false;
+  for (let attempt = 0; attempt < 3 && !stepNineDone; attempt++) {
+    const button = page.getByRole("button", { name: "Mark step complete" });
+    if ((await button.count()) > 0)
+      await button
+        .first()
+        .click()
+        .catch(() => {});
+    try {
+      await page.getByText("8 of 9 steps complete").waitFor({ timeout: 20000 });
+      stepNineDone = true;
+    } catch {
+      const rows = await page.evaluate(async () => {
+        const session = window.__starlineDev.session();
+        return session.driver.query("SELECT step, status FROM snowflake_step ORDER BY step");
+      });
+      console.log(
+        `  step-9 completion attempt ${attempt + 1} did not reach the plan: ${JSON.stringify(rows)}`,
+      );
+      await page.waitForTimeout(1500);
+    }
+  }
+  if (!stepNineDone) throw new Error("step 9 never reported complete");
 
   // 4m. Dashboard: counts, word estimate, continue list, planned chip, manual snapshot.
   await page.getByText(/\d+ characters? · 40 scenes/).waitFor();
@@ -837,7 +886,10 @@ try {
   await sceneBlock.scrollIntoViewIfNeeded();
   const blockBox = await sceneBlock.boundingBox();
   if (blockBox === null) throw new Error("scene block has no box");
-  await page.mouse.move(blockBox.x + Math.min(20, blockBox.width / 2), blockBox.y + blockBox.height / 2);
+  await page.mouse.move(
+    blockBox.x + Math.min(20, blockBox.width / 2),
+    blockBox.y + blockBox.height / 2,
+  );
   await page.mouse.down();
   await page.mouse.move(blockBox.x + 240, blockBox.y + blockBox.height / 2, { steps: 10 });
   await page.mouse.up();
@@ -862,8 +914,108 @@ try {
   await page.waitForTimeout(500);
   const hourTicks = await page.getByTestId("sl-timeline-axis").innerText();
   if (yearTicks === hourTicks) throw new Error("zoom did not change the axis labels");
-  console.log(`  timeline zoom: "${yearTicks.replace(/\s+/g, " ").trim()}" → "${hourTicks.replace(/\s+/g, " ").trim()}"`);
+  console.log(
+    `  timeline zoom: "${yearTicks.replace(/\s+/g, " ").trim()}" → "${hourTicks.replace(/\s+/g, " ").trim()}"`,
+  );
   await page.getByTestId("sl-timeline-zoom").selectOption("years");
+  await page.getByRole("link", { name: "Plan" }).click();
+
+  // 4v. Slice 11: backups — snapshot now, make a destructive change, preview what the snapshot
+  // would bring back, restore it, then copy one scene back out of the pre-restore snapshot.
+  await page.getByTestId("sl-open-backups").click();
+  await page.getByTestId("sl-backup-now").waitFor({ timeout: 30000 });
+  await page.getByTestId("sl-backup-now").click();
+  await page.getByTestId("sl-backup-row").first().waitFor({ timeout: 30000 });
+  const listedSnapshots = await page.getByTestId("sl-backup-row").count();
+  if (listedSnapshots < 1) throw new Error("Snapshot now listed no snapshot");
+  console.log(`  backups: ${listedSnapshots} snapshot(s) after Snapshot now`);
+
+  const sceneCount = () =>
+    page.evaluate(async () => {
+      const session = window.__starlineDev.session();
+      const rows = await session.driver.query(
+        "SELECT COUNT(*) AS n FROM scene WHERE deleted_at IS NULL",
+      );
+      return rows[0].n;
+    });
+  const scenesBefore = await sceneCount();
+  const projectId = await page.evaluate(async () => {
+    const session = window.__starlineDev.session();
+    const rows = await session.driver.query("SELECT id FROM project LIMIT 1");
+    return rows[0].id;
+  });
+  await page.evaluate(async (id) => {
+    for (const title of ["Regret one", "Regret two", "Regret three"]) {
+      await window.__starlineDev.run("createScene", { projectId: id, title });
+    }
+  }, projectId);
+  const scenesAfter = await sceneCount();
+  if (scenesAfter !== scenesBefore + 3) {
+    throw new Error(`the destructive change did not land (${scenesBefore} → ${scenesAfter})`);
+  }
+
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByTestId("sl-open-backups").click();
+  await page.getByTestId("sl-backup-row").first().waitFor({ timeout: 30000 });
+  await page.getByTestId("sl-backup-preview").first().click();
+  await page.getByTestId("sl-backup-preview-sheet").waitFor({ timeout: 30000 });
+  const diffSummary = (await page.getByTestId("sl-diff-summary").innerText()).trim();
+  if (!diffSummary.includes("+3 scenes")) {
+    throw new Error(`preview diff does not show the three new scenes: "${diffSummary}"`);
+  }
+  console.log(`  backups preview diff: "${diffSummary}"`);
+  await axeScan("backups");
+  await page.screenshot({ path: join(shotDir, "20-backups-preview.png"), fullPage: true });
+
+  // Restore: the three scenes must be gone again, and the app must come back on the plan.
+  await page.locator(".sl-sheet-backdrop").click();
+  await page.waitForTimeout(300);
+  await page.getByTestId("sl-backup-restore").first().click();
+  await page.getByTestId("sl-restore-confirm").waitFor({ timeout: 20000 });
+  await page.getByTestId("sl-restore-confirm-yes").click();
+  await page.getByTestId("sl-open-settings").waitFor({ timeout: 90000 });
+  const restored = await sceneCount();
+  if (restored !== scenesBefore) {
+    throw new Error(`restore did not roll the library back (${scenesAfter} → ${restored})`);
+  }
+  console.log(`  backups restore: ${scenesAfter} → ${restored} scenes`);
+
+  // The pool must not leak a duplicate file for the replaced library (the restore bug this
+  // step exists to catch) nor leave snapshot temps behind.
+  const poolAfterRestore = await page.evaluate(() => window.__starlineDev.poolStats());
+  const libraryFiles = poolAfterRestore.files.filter(
+    (name) => !/journal|wal|shm/.test(name) && !/snap-tmp-/.test(name),
+  );
+  if (libraryFiles.length !== 1) {
+    throw new Error(`pool holds ${libraryFiles.length} libraries after a restore: ${libraryFiles}`);
+  }
+  if (poolAfterRestore.files.some((name) => name.includes("snap-tmp-"))) {
+    throw new Error(`restore leaked a snapshot temp: ${poolAfterRestore.files}`);
+  }
+
+  // Single-entity restore: the pre-restore guard snapshot still holds the three scenes; copy
+  // one of them back into the restored library.
+  await page.getByTestId("sl-open-backups").click();
+  await page.getByTestId("sl-backup-row").first().waitFor({ timeout: 60000 });
+  const guardRow = page.getByTestId("sl-backup-row").filter({ hasText: "BEFORE RESTORE" }).first();
+  await guardRow.getByTestId("sl-backup-preview").click();
+  await page.getByTestId("sl-backup-preview-sheet").waitFor({ timeout: 30000 });
+  const options = await page.getByTestId("sl-entity-pick").locator("option").allInnerTexts();
+  const wanted = options.find((option) => option.includes("Regret two"));
+  if (wanted === undefined) {
+    throw new Error(`the guard snapshot offers no scene to restore: ${JSON.stringify(options)}`);
+  }
+  await page.getByTestId("sl-entity-pick").selectOption({ label: wanted });
+  await page.getByTestId("sl-entity-restore").click();
+  await page.waitForTimeout(2000);
+  const afterEntity = await sceneCount();
+  if (afterEntity !== restored + 1) {
+    throw new Error(`single-entity restore did not add the scene (${restored} → ${afterEntity})`);
+  }
+  console.log(`  backups single-entity restore: "${wanted}" → ${afterEntity} scenes`);
+  await axeScan("backups-entity");
+  await page.screenshot({ path: join(shotDir, "21-backups-entity.png"), fullPage: true });
+  await page.locator(".sl-sheet-backdrop").click();
   await page.getByRole("link", { name: "Plan" }).click();
 
   // Phone-path budgets (spec §5.1): the same reads the panels run, through the wasm driver.

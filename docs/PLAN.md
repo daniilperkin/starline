@@ -300,19 +300,54 @@ renderer would measure the emulator, not the app.
 
 ## 4. M3 — Safety, output, writing
 
-### Slice 11 — Snapshots & restore UI
+### Slice 11 — Snapshots & restore UI (**shipped 2026-10-10**; emulator QA OK, web 15 axe scans)
+
 
 **Screens**: Backups screen (snapshot list: reason, time, counts; Preview = read-only open +
 diff summary "+3 scenes, −1 character, 2,140 words changed"; Restore = snapshot current
 first, then replace; "Restore single entity" from a snapshot); mirror-folder setting
-(Android: SAF folder picker via Capacitor Filesystem; web: File System Access API where
-available, else an export-reminder — open item #6).
+(Android: the app-scoped Documents folder via `@capacitor/filesystem` — decision 20; web:
+File System Access API where available, else an export-reminder — open item #6).
 
 **Build**: snapshot browser, preview/diff, restore transactions, retention thinning per
 §4.5.3, `snapshot_record` index maintenance.
 
 **Exit**: restore drill: make 3 destructive changes, restore from the pre-change snapshot,
 verify counts; single-entity restore verified.
+
+**Slice 11 record (2026-10-10).** Measured, not estimated:
+
+| Gate | Result | Where |
+| --- | --- | --- |
+| Restore drill | 43 → 40 scenes restored; guard snapshot kept | `verify-web` 4v |
+| Single-entity restore | "Regret two" copied back, 40 → 41 | `verify-web` 4v |
+| Preview diff | "+3 scenes", per-table before → after | `verify-web` 4v |
+| On-device restore | 5 → 3 scenes; single entity 3 → 4 | `verify-android` 2q |
+| Native drill (rusqlite) | 3 destructive changes → counts restored; integrity ok | `slice11-snapshots.test.ts` |
+| Retention | pinned + newest always kept; byte cap oldest-first | `snapshots.test.ts` |
+| Tests | 242/242 | `pnpm test` |
+| axe scans | 15/15 clean (backups + backups-entity added) | `verify-web` |
+| Emulator journey | 36 PASS, APK 12.65 MB | `verify-android` |
+| Bundle | app 253.8/330 KiB, css 7.8/8, worker 63.8/72, payload 3.29/4 MiB, worst chunk 61.8/150 | `check:bundle` |
+
+Two real bugs found by the gates and fixed here:
+
+1. **The sahpool keys files by percent-encoded name** (`/My%20Novel.starline`) while the app's
+   session name is the decoded one. The restore's `unlink` therefore missed and `importDb`
+   created a *second* file with the same logical name; the reopen then resolved to the old one,
+   so the restore silently did nothing (3 → 3 scenes) and leaked a pool slot. Fixed in the
+   worker: one `resolvePoolName`/`canonicalPoolName` pair now serves `open`, `unlink`,
+   `export_file`, `import_file` and the new atomic `replace_file` op, so both name forms
+   resolve to the same file.
+2. **The snapshot file prefix depended on how the library was opened** (typed name on create vs
+   encoded name from the start screen), so snapshots would vanish from the list after a reload.
+   Fixed with one decoded `libraryKey()` for every snapshot file name.
+
+A third, smaller one: the dashboard's backup card put the new Backups button in the same flex
+row as the "Last backup …" line, squeezing the line to zero width on a phone (Playwright
+reported it as "resolved to hidden"); the card's footer is now stacked with a wrapping button
+row.
+
 
 ### Slice 12 — Export & import
 

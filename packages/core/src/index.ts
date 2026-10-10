@@ -11,6 +11,7 @@ export * from "./richtext";
 export * from "./scenes";
 export * from "./search";
 export * from "./settings";
+export * from "./snapshots";
 export * from "./snowflake";
 export * from "./tags";
 export * from "./timeline";

@@ -19,6 +19,15 @@ interface SahPool {
   /** Deletes a pool file. Takes the ABSOLUTE name (`/lib.starline`) — an exact map lookup. */
   unlink(filename: string): boolean;
   exportFile(filename: string): Uint8Array;
+  /**
+   * Writes bytes as a pool file — the ONLY supported way to get a database INTO the pool. The
+   * facade rewrites the header to force WAL off, so an imported file needs no `-wal`/`-shm`
+   * sidecars to be readable.
+   */
+  importDb(
+    name: string,
+    data: Uint8Array | (() => Uint8Array | Promise<Uint8Array>),
+  ): Promise<number>;
   getCapacity(): number;
   getFileCount(): number;
   /** Grows the pool until it holds at least `min` slots. */
@@ -46,6 +55,9 @@ let pool: SahPool | null = null;
 let db: PoolDb | null = null;
 let readOnly = false;
 let inTx = false;
+/** Second connection, used only to read a snapshot (or any other pool file) while the live
+ * database stays open. Guarded by `PRAGMA query_only`, so it cannot write even by accident. */
+let roDb: PoolDb | null = null;
 
 async function ensureInit(): Promise<SahPool> {
   if (!sqlite3) {
@@ -80,6 +92,33 @@ async function ensureInit(): Promise<SahPool> {
     }
   }
   return pool;
+}
+
+/**
+ * The pool keys its file map by the PERCENT-ENCODED name (`/My%20Novel.starline`) — that is what
+ * `getFileNames()` returns — while the app's session name is whatever the writer typed
+ * ("My Novel") or whatever the start screen listed (encoded). Every op that names a pool file
+ * has to accept both forms and agree on one canonical name, or an unlink/import pair silently
+ * creates a duplicate file and the app reopens whichever one the VFS resolves first.
+ */
+function resolvePoolName(sahPool: SahPool, raw: string): string | null {
+  const bare = raw.replace(/^\//, "");
+  for (const entry of sahPool.getFileNames()) {
+    if (entry === raw || entry === `/${bare}`) return entry;
+    let decoded = entry;
+    try {
+      decoded = decodeURIComponent(entry);
+    } catch {
+      // A name that is not valid percent-encoding is compared as-is.
+    }
+    if (decoded === bare || decoded === `/${bare}`) return entry;
+  }
+  return null;
+}
+
+/** The name a NEW file should get, in the pool's canonical form. */
+function canonicalPoolName(raw: string): string {
+  return `/${encodeURIComponent(raw.replace(/^\//, ""))}`;
 }
 
 function requireDb(): PoolDb {
@@ -130,11 +169,12 @@ async function handle(op: string, req: Record<string, unknown>): Promise<unknown
       const path = String(req.path);
       const create = Boolean(req.create);
       const ro = Boolean(req.readOnly);
-      // Pool names are stored with a leading slash; normalize before comparing.
-      const lookupName = path.startsWith("/") ? path : `/${path}`;
-      const existed = sahPool.getFileNames().includes(lookupName);
+      const canonical = resolvePoolName(sahPool, path);
+      const existed = canonical !== null;
       if (!existed && !create) throw new Error(`file not found: ${path}`);
-      db = new sahPool.OpfsSAHPoolDb(path);
+      // Open (and, on create, store) under the pool's canonical name so a later list/open by
+      // either form finds the same file.
+      db = new sahPool.OpfsSAHPoolDb(canonical ?? canonicalPoolName(path));
       readOnly = ro;
       db.exec("PRAGMA foreign_keys=ON;");
       const applicationId = Number(firstValue("PRAGMA application_id")) || 0;
@@ -216,9 +256,65 @@ async function handle(op: string, req: Record<string, unknown>): Promise<unknown
       // The web snapshot flow copies pool files into the real OPFS (apps/web/src/snapshots.ts):
       // the main thread needs the raw bytes, so hand them back over postMessage.
       const sahPool = await ensureInit();
-      const raw = String(req.path);
-      const name = raw.startsWith("/") ? raw : `/${raw}`;
+      const name =
+        resolvePoolName(sahPool, String(req.path)) ?? canonicalPoolName(String(req.path));
       return { bytes: sahPool.exportFile(name) };
+    }
+    case "import_file": {
+      // Slice 11/12: bytes INTO the pool. `importDb` is the only ingress the sahpool facade
+      // offers (the pool stores files under opaque random slot names, so writing them from the
+      // page is impossible) — restore and "open an external .starline" both land here.
+      const sahPool = await ensureInit();
+      const name =
+        resolvePoolName(sahPool, String(req.name)) ?? canonicalPoolName(String(req.name));
+      const bytes = req.bytes as Uint8Array;
+      if (!(bytes instanceof Uint8Array)) throw new Error("import_file needs bytes");
+      // An imported database occupies its own slot plus, while SQLite opens it, a journal.
+      await ensurePoolHeadroom(4);
+      const written = await sahPool.importDb(name, bytes);
+      return { name, byteSize: written };
+    }
+    case "replace_file": {
+      // Restore (slice 11) and "open an external .starline" (slice 12) both replace a file's
+      // bytes. The pool keys its map by the PERCENT-ENCODED name (`/My%20Novel.starline`) while
+      // the app's session name is the decoded one, so an unlink/import with the raw name misses
+      // the existing entry and silently creates a SECOND file with the same logical name — the
+      // app then reopens whichever one the VFS resolves first. Resolve the canonical name from
+      // the pool itself before touching anything.
+      const sahPool = await ensureInit();
+      const canonical =
+        resolvePoolName(sahPool, String(req.name)) ?? canonicalPoolName(String(req.name));
+      const bytes = req.bytes as Uint8Array;
+      if (!(bytes instanceof Uint8Array)) throw new Error("replace_file needs bytes");
+      // An imported database needs its own slot plus a journal while SQLite opens it.
+      await ensurePoolHeadroom(4);
+      if (sahPool.getFileNames().includes(canonical)) sahPool.unlink(canonical);
+      const written = await sahPool.importDb(canonical, bytes);
+      return { name: canonical, byteSize: written };
+    }
+    case "open_ro": {
+      if (roDb) throw new Error("read-only connection already open");
+      const sahPool = await ensureInit();
+      await ensurePoolHeadroom(4);
+      roDb = new sahPool.OpfsSAHPoolDb(String(req.path));
+      roDb.exec("PRAGMA query_only=ON;");
+      return { path: String(req.path) };
+    }
+    case "ro_query": {
+      if (!roDb) throw new Error("no read-only connection open");
+      return roDb.exec({
+        sql: String(req.sql),
+        bind: (req.params as unknown[]) ?? [],
+        rowMode: "object",
+        returnValue: "resultRows",
+      });
+    }
+    case "ro_close": {
+      if (roDb) {
+        roDb.close();
+        roDb = null;
+      }
+      return null;
     }
     case "integrity_check": {
       const rows = queryRows("PRAGMA integrity_check");
@@ -233,11 +329,10 @@ async function handle(op: string, req: Record<string, unknown>): Promise<unknown
       return { mtimeMs: 0 };
     case "unlink": {
       const sahPool = await ensureInit();
-      // The pool's file map is keyed by ABSOLUTE names ("/snap-tmp-x.starline", as xOpen
-      // normalizes them); a relative name is an exact-lookup miss that returns false and
-      // silently leaks the slot forever.
-      const raw = String(req.path);
-      const name = raw.startsWith("/") ? raw : `/${raw}`;
+      // The pool's file map is keyed by ABSOLUTE, percent-encoded names; a name that does not
+      // match exactly returns false and silently leaks the slot forever, so resolve first.
+      const name =
+        resolvePoolName(sahPool, String(req.path)) ?? canonicalPoolName(String(req.path));
       return { removed: sahPool.unlink(name) };
     }
     case "pool_stats": {
@@ -249,6 +344,10 @@ async function handle(op: string, req: Record<string, unknown>): Promise<unknown
       };
     }
     case "shutdown": {
+      if (roDb) {
+        roDb.close();
+        roDb = null;
+      }
       if (db) {
         db.close();
         db = null;

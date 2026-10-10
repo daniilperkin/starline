@@ -113,3 +113,22 @@ everything not listed here; entries are folded back into the spec on owner reque
     move right after S11 if backup urgency appears). Store revised to Drive `appDataFolder`
     (CatBookTracker's verified recipe, `docs/CLOUD-BACKUP.md` §8). Free/unlimited/no-ads
     stance reconfirmed: nothing in StarLine is ever gated.
+
+## Owner decisions — M3 planning round (2026-10-09)
+
+20. **M3 shape, settled before Slice 11.** Five answers from the owner, all binding:
+    - **Native plugins:** `@capacitor/filesystem` + `@capacitor/share` are added in M3 — they are
+      the only way a backup or export leaves the phone (mirror folder, save, share sheet).
+    - **Mirror folder on Android:** the app-scoped **Documents** folder (zero permissions, no
+      SAF plugin). This supersedes decision 17's "SAF mirror backups on Android" default; a real
+      SAF tree picker can arrive later as its own decision. Web keeps the File System Access API
+      where available and falls back to an export reminder.
+    - **DOCX:** hand-written minimal OOXML zipped with `fflate` — the `docx` npm library would
+      break the per-route 150 KiB gz budget. Both presets (Manuscript, Planning) are ours.
+    - **Slice 12 stays one slice:** exporters + importers + the round-trip gate land together.
+    - **Languages: English + Ukrainian.** No Russian, no German at launch. Ukrainian is the
+      second language; fonts must carry Cyrillic (Ukrainian glyphs і ї є ґ) — bundled Inter
+      subsets (latin + cyrillic) plus a Cyrillic-capable serif for writing mode, not a
+      Latin-only family. `Intl.Segmenter("uk")`/`Intl.PluralRules("uk")` cover word counts and
+      the four Ukrainian plural categories (one/few/many/other); all Intl data is browser-local,
+      so the offline invariant holds.

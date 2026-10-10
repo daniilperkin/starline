@@ -200,15 +200,17 @@ export function PlanScreen() {
               </div>
             ) : null}
 
-            <div className="flex items-center justify-between gap-2 border-t border-line pt-3">
-              <p className="min-w-0 flex-1 truncate text-xs text-muted">
+            <div className="border-t border-line pt-3">
+              <p className="text-xs text-muted">
                 {snapshots.data && snapshots.data.length > 0
                   ? format(messages.snapshot.last, {
                       when: relativeTime(snapshots.data[0]?.createdAt ?? null),
                     })
                   : messages.snapshot.none}
               </p>
-              <div className="flex shrink-0 gap-2">
+              {/* The status line gets its own row: five action buttons in one flex row squeezed
+                  it to zero width on a phone (the E2E found it as "resolved to hidden"). */}
+              <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   type="button"
                   className="sl-btn-small"
@@ -216,6 +218,14 @@ export function PlanScreen() {
                   onClick={() => takeSnapshot.mutate("manual")}
                 >
                   {takeSnapshot.isPending ? messages.snapshot.taking : messages.snapshot.now}
+                </button>
+                <button
+                  type="button"
+                  className="sl-btn-small"
+                  data-testid="sl-open-backups"
+                  onClick={() => void navigate({ to: "/backups" })}
+                >
+                  {messages.backups.open}
                 </button>
                 <button
                   type="button"

@@ -1,0 +1,15 @@
+/* StarLine typefaces (decision 20): bundled so the app looks the same everywhere and so the
+   Ukrainian launch language renders in the intended face. Only the latin + cyrillic subsets are
+   imported — Fontsource ships every subset separately, and importing the lot would add ~7 MB to
+   the install payload for glyphs no launch language uses. Sizes: ~5-8 KiB per Inter weight,
+   ~7-11 KiB per Literata weight. */
+@import "@fontsource/inter/latin-400.css";
+@import "@fontsource/inter/cyrillic-400.css";
+@import "@fontsource/inter/latin-600.css";
+@import "@fontsource/inter/cyrillic-600.css";
+@import "@fontsource/inter/latin-700.css";
+@import "@fontsource/inter/cyrillic-700.css";
+@import "@fontsource/literata/latin-400.css";
+@import "@fontsource/literata/cyrillic-400.css";
+@import "@fontsource/literata/latin-600.css";
+@import "@fontsource/literata/cyrillic-600.css";

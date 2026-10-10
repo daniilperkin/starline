@@ -1,6 +1,13 @@
-import type { OpenResult } from "@starline/db";
+import type { MigrationReport, OpenResult } from "@starline/db";
+import { runMigrations } from "@starline/db";
 import { TauriStorageDriver, WorkerTransport } from "@starline/driver-wasm";
-import { markSessionClean } from "./health";
+import {
+  assessSessionHealth,
+  markSessionClean,
+  markSessionOpen,
+  purgeTrashOnOpen,
+  type SessionHealth,
+} from "./health";
 import type { LibrarySession } from "./session";
 
 /**
@@ -149,4 +156,56 @@ export async function openLibrary(
     }
   }
   throw lastError;
+}
+
+/** Everything the start screen (and a restore) needs after opening a library. */
+export interface OpenedLibrary {
+  driver: TauriStorageDriver;
+  transport: WorkerTransport;
+  name: string;
+  info: OpenResult;
+  report: MigrationReport;
+  health: SessionHealth;
+}
+
+/**
+ * The full open sequence (spec §2.3.3, §5.3): open the file, migrate, read the health snapshot
+ * BEFORE overwriting the crash marker, mark the session open, purge expired trash. Shared by the
+ * start screen and by a snapshot restore — a restore is just "open again after swapping bytes",
+ * and it must not run a different, weaker path than a normal open.
+ */
+export async function openLibraryFully(name: string, create: boolean): Promise<OpenedLibrary> {
+  const { driver, transport, info } = await openLibrary(name, create);
+  try {
+    const report = await runMigrations(driver);
+    const health = await assessSessionHealth(driver);
+    await markSessionOpen(driver);
+    await purgeTrashOnOpen(driver);
+    if (create) {
+      // Spec §5.4.1: ask the browser to make this origin's storage persistent on first creation.
+      void navigator.storage?.persist?.();
+    }
+    return { driver, transport, name, info, report, health };
+  } catch (cause) {
+    await driver.close().catch(() => undefined);
+    await transport.dispose().catch(() => undefined);
+    throw cause;
+  }
+}
+
+/**
+ * Replaces a library file inside the pool with new bytes (snapshot restore, and slice 12's
+ * "open an external .starline"). Runs on a dedicated short-lived worker: the pool's access
+ * handles must be released by every other worker before the file can be unlinked, and the caller
+ * is expected to have closed its session already.
+ */
+export async function replacePoolFile(name: string, bytes: Uint8Array): Promise<void> {
+  const transport = new WorkerTransport();
+  try {
+    // The worker resolves the pool's canonical (encoded) file name and replaces it in one step:
+    // doing unlink + import from here raced the encoding and left a duplicate file behind.
+    await transport.request("replace_file", { name, bytes });
+  } finally {
+    await transport.dispose().catch(() => undefined);
+  }
 }

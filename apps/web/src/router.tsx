@@ -82,6 +82,12 @@ const settingsRoute = createRoute({
   component: lazyRouteComponent(() => import("./SettingsScreen"), "SettingsScreen"),
 });
 
+const backupsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/backups",
+  component: lazyRouteComponent(() => import("./BackupsScreen"), "BackupsScreen"),
+});
+
 const checksRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/checks",
@@ -99,6 +105,7 @@ const routeTree = rootRoute.addChildren([
   worldRoute,
   notesRoute,
   checksRoute,
+  backupsRoute,
   settingsRoute,
 ]);
 
