@@ -536,7 +536,7 @@ local by decision 22 — GitHub runners get no Android emulator.
 turn the run red (verified once, then reverted); a local `pnpm ci:gates` script runs the same
 sequence so CI and the laptop cannot drift.
 
-### Slice 18 — Ukrainian (i18n: en + uk)
+### Slice 18 — Ukrainian (i18n: en + uk) (**shipped 2026-10-11**, `9e53590`; CI run 38154978882 green, web 24 axe scans)
 
 **Build**: a tiny core i18n runtime — `setLocale`/`getLocale`, `messages` as a live proxy over
 the active catalogue (649 call sites keep working), `Intl.PluralRules`-backed plural entries
@@ -550,6 +550,24 @@ the OS in the OS language), and the route tree remounts on switch.
 
 **Exit**: uk journey in `verify-web` (switch → headings/messages in Ukrainian → switch back),
 plural spot-checks in tests, both locales axe-clean, css stays within budget.
+
+**Slice 18 record (2026-10-11).** Measured, not estimated:
+
+| Gate | Result | Where |
+| --- | --- | --- |
+| Locale runtime | `messages` is a live proxy over the active catalogue; ~650 call sites unchanged; no module captures strings | `i18n.test.ts` |
+| Catalogue parity | uk mirrors en key for key (compiler + shape test); every leaf non-empty in both | `i18n.test.ts` |
+| Plurals | ~25 counted phrases on `PluralForms` + `Intl.PluralRules`; «1 сцена / 2 сцени / 5 сцен / 21 сцена / 22 сцени»; the old `*One` two-form variants deleted | `i18n.test.ts` |
+| Ukrainian journey (web) | Settings → Language → Українська: `html lang=uk`, Scenes header «44 сцени · ≈ 48 200 слів», axe clean in Ukrainian; switch back stores `starline.locale = en` | `verify-web` 4aa |
+| First-run behaviour | system language wins when `starline.locale` is absent; explicit choice persists; "system language" clears it | `locale.ts` + journey |
+| Formatting | numbers/dates/clocks follow the app locale, not the OS (`formatNumber`/`formatDateTime`/`formatClock`); the hardcoded "just now / 2 min ago / today" strings now run through `messages.time` | `verify-web`, code |
+| Tests | 275/275 | `pnpm test` |
+| Bundle | app 263.1/330 KiB · css **9.0/9 TIGHT** · payload 3.52/4 MiB | `check:bundle` |
+| Durability + invariants | chaos 1002/1002 · web chaos 5 batches · no-network 203 files · contrast · PWA | gates |
+| CI | run 38154978882 green on `9e53590` (static · durability · budgets · web E2E) | GitHub Actions |
+
+Note on scope: the PWA manifest stays English on purpose — the install sheet is drawn by the
+OS in the OS language, so a per-locale manifest would add bytes and change nothing a user sees.
 
 ### Slice 19 — Accessibility audit (WCAG 2.2 AA)
 
