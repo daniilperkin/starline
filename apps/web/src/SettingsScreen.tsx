@@ -11,7 +11,7 @@ import {
   type UUID,
 } from "@starline/core";
 import { useState } from "react";
-
+import { CloudPanel } from "./cloud/CloudPanel";
 import {
   useCreateFieldDef,
   useCreateTag,
@@ -29,7 +29,7 @@ import { setStarfieldAnimated, starfieldAnimated } from "./effects";
 import { useLocaleStore } from "./locale";
 import { UndoToast } from "./UndoToast";
 
-type Section = "tags" | "fields" | "language" | "appearance";
+type Section = "tags" | "fields" | "language" | "appearance" | "cloud";
 
 /**
  * Settings (spec §4.6) — slice 9 ships its first two sections: the tag manager and the custom
@@ -46,6 +46,7 @@ export function SettingsScreen() {
     ["fields", messages.settings.fields],
     ["language", messages.settings.language],
     ["appearance", messages.settings.appearance],
+    ["cloud", messages.settings.cloud],
   ] as const;
 
   return (
@@ -69,7 +70,9 @@ export function SettingsScreen() {
         </fieldset>
       </header>
 
-      {section === "appearance" ? (
+      {section === "cloud" ? (
+        <CloudPanel />
+      ) : section === "appearance" ? (
         <AppearancePanel />
       ) : section === "language" ? (
         <LanguagePanel />
