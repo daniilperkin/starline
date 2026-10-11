@@ -1,6 +1,7 @@
 export * from "./attachments";
 export * from "./changes";
 export * from "./characters";
+export * from "./cloud";
 export * from "./commands";
 export * from "./editor";
 export * from "./entities";

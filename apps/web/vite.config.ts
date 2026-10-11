@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
@@ -12,8 +14,48 @@ const isCapacitorBuild = process.env.STARLINE_CAP === "1";
 // default build stays at the root for Cloudflare Pages / Netlify / local preview.
 const base = process.env.STARLINE_BASE ?? "/";
 
+// Cloud backup (slice 15, decisions 18/23). The untracked android/cloud.properties is the single
+// source for both the APK and the PWA build. With STARLINE_CLOUD=1 its four values are injected
+// as VITE_* defines; without it every value stays blank, the cloud config reports "no cloud" and
+// no cloud code is ever imported — the default build stays offline-complete (decision 15).
+function readCloudProperties(): Record<string, string> {
+  try {
+    const text = readFileSync(
+      fileURLToPath(new URL("android/cloud.properties", import.meta.url)),
+      "utf8",
+    );
+    const values: Record<string, string> = {};
+    for (const raw of text.split("\n")) {
+      const line = raw.trim();
+      const separator = line.indexOf("=");
+      if (separator <= 0) continue;
+      const key = line.slice(0, separator).trim();
+      const value = line.slice(separator + 1).trim();
+      if (/^[A-Za-z0-9._]+$/.test(key) && value.length > 0) values[key] = value;
+    }
+    return values;
+  } catch {
+    return {}; // no file = no cloud, never a broken build
+  }
+}
+
+const cloudEnabled = process.env.STARLINE_CLOUD === "1";
+const cloudValues = cloudEnabled ? readCloudProperties() : {};
+const cloudDefine: Record<string, string> = {
+  "import.meta.env.VITE_CLOUD_ENABLED": JSON.stringify(cloudEnabled ? "1" : "0"),
+  "import.meta.env.VITE_FIREBASE_API_KEY": JSON.stringify(cloudValues["firebase.apiKey"] ?? ""),
+  "import.meta.env.VITE_FIREBASE_APP_ID": JSON.stringify(cloudValues["firebase.appId"] ?? ""),
+  "import.meta.env.VITE_FIREBASE_PROJECT_ID": JSON.stringify(
+    cloudValues["firebase.projectId"] ?? "",
+  ),
+  "import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID": JSON.stringify(
+    cloudValues["google.webClientId"] ?? "",
+  ),
+};
+
 export default defineConfig({
   base,
+  define: cloudDefine,
   plugins: [
     react(),
     tailwindcss(),
