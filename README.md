@@ -35,12 +35,14 @@ pnpm --filter @starline/web preview    # http://localhost:5184
 - `apps/web` — the phone PWA (React 19 + Vite + Tailwind 4); visual identity in `docs/DESIGN.md`
 - English + Ukrainian out of the box — system language on first run, a Language control in Settings, real Ukrainian plural forms (one/few/many/other)
 - `crates/starline-storage*` — native storage crate + headless NDJSON CLI (tests, chaos)
-- `SPECIFICATION.md` (source of truth) · `DECISIONS.md` (owner decisions & audit resolutions) · `docs/`
+- `AGENTS.md` — the working guide: truth order, layout, commands, conventions, gotchas
+- `SPECIFICATION.md` (source of truth) · `DECISIONS.md` (owner decisions & audit resolutions) · `docs/` (DESIGN, ARCHITECTURE, ACCESSIBILITY, ANDROID-RELEASE, CLOUD-BACKUP, HOSTING, FABULA-PARITY, PLAN)
 
 ## Live
 
 - **PWA:** https://daniilperkin.github.io/starline/ — deploys automatically from `main` (see docs/HOSTING.md)
-- **Android APK:** `artifacts/starline-debug.apk` — debug build, sideload
+- **Android APK (release):** `artifacts/starline-release.apk` — signed with the StarLine release key, production bundle, sideload it. See `docs/ANDROID-RELEASE.md`.
+- **Android APK (QA):** `artifacts/starline-debug.apk` — debug-signed, carries the DEV hook `scripts/verify-android.mjs` needs
 
 ## Gates (all green means shippable)
 

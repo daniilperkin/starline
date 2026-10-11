@@ -32,3 +32,7 @@ Thumbs.db
 /*.starline
 /*.starline.lock
 /*.starline-snapshots/
+# Android release signing (decision 22): never commit the keystore or its credentials.
+apps/web/android/keystore.properties
+*.keystore
+*.jks

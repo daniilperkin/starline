@@ -519,6 +519,13 @@ One ordering lesson the bundle gate taught (recorded so it is not re-learned):
 WCAG 2.2 AA checklist signed off; i18n shipping English + Ukrainian; installers in place
 (release-signed APK + PWA install path); docs complete, repo `AGENTS.md` included.
 
+**M4 gate met (2026-10-11).** CI enforces the budgets and the full gate suite on every push
+(runs 38151337067, 38154978882, 38159286618 green; a deliberately broken branch proved the gates
+turn red). i18n ships English + Ukrainian with real plural forms. The WCAG 2.2 AA audit is
+written down criterion by criterion in `docs/ACCESSIBILITY.md`, with its ten findings fixed and
+the limitations stated. The release-signed APK exists and verifies. Docs are complete, `AGENTS.md`
+included.
+
 Four slices, CI first so every later slice is checked by the machine rather than by whoever
 remembers to run the gates.
 
@@ -600,7 +607,7 @@ Also: `pnpm check:a11y` joins `ci:gates` and the CI `web E2E` job; `docs/ACCESSI
 criterion-by-criterion checklist with honest limitations (pointer-only graph pins, English storage
 errors, the timeline's wide-zoom packing).
 
-### Slice 20 — Installers, release signing, docs + the M4 gate
+### Slice 20 — Installers, release signing, docs + the M4 gate (**shipped 2026-10-11**)
 
 **Build**: release keystore generated outside the repo
 (`%USERPROFILE%\.starline\starline-release.keystore`, credentials in untracked android
@@ -613,6 +620,19 @@ path documented. Docs: repo `AGENTS.md`, README refresh, M4 gate table recorded.
 `apksigner`, M4 gate table filled in this file.
 
 ---
+**Slice 20 record (2026-10-11).** Shipped: the release-signed APK, the release runbook, and the
+repo guide agents (and future contributors) actually need.
+
+| Artifact | Result |
+| --- | --- |
+| Release keystore | `%USERPROFILE%\.starline\starline-release.keystore` (outside the repo); credentials in untracked `apps/web/android/keystore.properties`; `.gitignore` covers both patterns |
+| Gradle signing | `signingConfigs.release` loaded from that file; a clean checkout still builds (unsigned release APK) instead of failing |
+| Release APK | `artifacts/starline-release.apk` — 9,178,297 bytes, `app.starline` v1.0, signed `CN=StarLine, OU=Daniil Perkin, O=StarLine, C=DE`, SHA-256 `24700cef…3afc4fd`; production web bundle, **no DEV hook** (grep-verified inside the APK) |
+| Debug APK | `artifacts/starline-debug.apk` rebuilt from the slice-19 tree — still the QA artifact, still carries the DEV hook |
+| Runbook | `docs/ANDROID-RELEASE.md` — key custody and backup warning, exact build commands, `apksigner`/`aapt` verification, install-over-debug caveat, version-bump rules, why CI does not build it |
+| Repo guide | `AGENTS.md` — truth order (spec → decisions → plan), layout, commands, conventions (offline invariant, catalogue rule, budgets, staging), the gotchas that have cost real time, the ship-a-slice checklist |
+| On-device QA | `verify-android` against the rebuilt debug APK — **43 PASS, EMULATOR-QA OK**; the slice-18/19 changes (Ukrainian through the WebView, focus rings, 24 px targets, reduced motion) exercised on a real Android runtime |
+
 ## 6. AI seams (decision 15) — ship none, keep the attach points clean
 
 - v1 ships the **static prompt library** only (bundled, offline): wizard steps (Slice 1),
