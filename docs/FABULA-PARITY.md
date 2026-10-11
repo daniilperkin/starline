@@ -38,13 +38,13 @@
 | "See the whole book at a glance" | Yes | Dashboard shipped; corkboard/outline views planned | parity+ |
 | Images / visual materials | Yes | S14 — attachments per character/lore (≤ 20 MB, dedupe) | parity |
 | Export | **Pro only** | S12 — MD zip, JSON, HTML, DOCX, CSV, plain text; round-trip gate | **better** (free) |
-| Cross-device / cloud | Unfinished | S15 — opt-in snapshot mirroring (immutable, conflict-free) | **better** |
-| Inspiration content | Pro extra | Bundled static prompt library; daily-card candidate (§4) | parity → better |
+| Cross-device / cloud | Unfinished | **Planned, not built** — S15 opt-in snapshot mirroring (immutable, conflict-free); awaiting the owner's go-ahead | behind until built |
+| Inspiration content | Pro extra | Bundled static prompt library (free); daily-card candidate in Slice 16 | parity → better |
 | Ads | Yes | None, ever (decision 10) | **better** |
 | Limits (worlds/characters) | Free tier capped | Unlimited everything, free | **better** |
 | Privacy | Ads + tracking, contact/device IDs | Offline-complete, no accounts, no telemetry | **better** |
 | Data safety | Loss reports, no recovery | Snapshots, trash, undo, crash recovery, integrity checks (shipped); restore drill (S11) | **better** |
-| Languages | 19 | English now; de/ru in M4 (i18n-ready) | behind (planned) |
+| Languages | 19 | English + Ukrainian shipped (M4 slice 18, real plural rules); adding a locale is one catalogue file | behind on count, equal in quality |
 | Accessibility | None declared | WCAG 2.2 AA target, axe scans in CI | **better** |
 
 ## 3. Where we already win (by design, not by accident)
