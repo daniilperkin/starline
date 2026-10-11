@@ -1,0 +1,13 @@
+# StarLine cloud backup configuration (Slice 15).
+#
+# These four values come from the one-time Google console setup — see docs/CLOUD-SETUP.md.
+# Client keys are NOT secrets (they ship in every Firebase app); security lives in the consent
+# screen, the signing keys and the per-user Drive folder. They stay out of git as hygiene, so a
+# clean checkout builds with the cloud module disabled.
+#
+# Empty or missing values = the cloud module is off at runtime and the app stays 100 % local.
+
+firebase.apiKey=
+firebase.appId=
+firebase.projectId=
+google.webClientId=

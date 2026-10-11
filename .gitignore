@@ -36,3 +36,5 @@ Thumbs.db
 apps/web/android/keystore.properties
 *.keystore
 *.jks
+# Cloud backup config (slice 15): per-machine Google values, never committed.
+apps/web/android/cloud.properties
