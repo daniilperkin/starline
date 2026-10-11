@@ -9,7 +9,7 @@
 // Usage: node scripts/chaos/run.mjs [iterations] [commands-per-iteration]
 
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
@@ -18,6 +18,17 @@ import { fileURLToPath } from "node:url";
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const binName = process.platform === "win32" ? "starline-storage.exe" : "starline-storage";
 const binPath = join(repoRoot, "target", "debug", binName);
+
+// A fresh checkout (CI) has no binary yet: build it the same way the test harnesses do.
+if (!existsSync(binPath) || process.env.STARLINE_REBUILD_CLI === "1") {
+  console.log("building the storage CLI (target/debug)…");
+  const build = spawnSync("node", [join(repoRoot, "scripts", "cargo.mjs"), "build"], {
+    stdio: "inherit",
+    cwd: repoRoot,
+  });
+  if (build.status !== 0) process.exit(build.status ?? 1);
+}
+
 const migrationSql = readFileSync(
   join(repoRoot, "packages", "db", "src", "migrations", "0001_init.sql"),
   "utf8",
