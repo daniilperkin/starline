@@ -33,6 +33,7 @@ pnpm --filter @starline/web preview    # http://localhost:5184
 - `packages/db` — StorageDriver contract, migrations (schema v1), the shared contract suite
 - `packages/driver-tauri` / `packages/driver-wasm` — the two driver transports (native rusqlite / sqlite-wasm OPFS)
 - `apps/web` — the phone PWA (React 19 + Vite + Tailwind 4); visual identity in `docs/DESIGN.md`
+- Optional cloud backup (slice 15): snapshots mirrored to your own Google Drive `appDataFolder`, off by default, absent from the default build (`STARLINE_CLOUD=1` carries it) — `docs/CLOUD-SETUP.md`
 - English + Ukrainian out of the box — system language on first run, a Language control in Settings, real Ukrainian plural forms (one/few/many/other)
 - `crates/starline-storage*` — native storage crate + headless NDJSON CLI (tests, chaos)
 - `AGENTS.md` — the working guide: truth order, layout, commands, conventions, gotchas

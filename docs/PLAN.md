@@ -634,6 +634,29 @@ repo guide agents (and future contributors) actually need.
 | Repo guide | `AGENTS.md` — truth order (spec → decisions → plan), layout, commands, conventions (offline invariant, catalogue rule, budgets, staging), the gotchas that have cost real time, the ship-a-slice checklist |
 | On-device QA | `verify-android` against the rebuilt debug APK — **43 PASS, EMULATOR-QA OK**; the slice-18/19 changes (Ukrainian through the WebView, focus rings, 24 px targets, reduced motion) exercised on a real Android runtime |
 
+## 5b. Slice 15 — Cloud backup (optional, off by default)
+
+Decision 18 designed it, decision 23 fixed its shape: immutable snapshot mirroring to the owner's
+own Google Drive `appDataFolder`, no record sync, no encryption passphrase, both the APK and the
+PWA, and a separate `STARLINE_CLOUD=1` flavour so the default build keeps zero cloud code.
+
+**Shipped 2026-10-11:**
+
+| Piece | Revision | What it is |
+| --- | --- | --- |
+| S15a | `22d7ae2` · `9433210` · `0eee91f` · `918027e` | config plumbing (one untracked `cloud.properties` → defines, only with the flag) · manifest (tolerant parse, decision-23c thinning) · Drive client (resumable uploads, `appDataFolder`, injected token) · orchestration (idempotent uploads, thin, rewrite in place) — 36 tests |
+| S15b | `47b87fd` · `a87b430` · `8667cb7` · `0b6fc41` | Settings → Cloud backup (off by default, Google sign-in via Identity Services, honest status line) · uploads on every snapshot plus "Back up now" · Backups → Cloud card (list, download-into-local-snapshots, delete-from-cloud) · lazy cloud module, flavour-aware no-network check |
+| S15c (part) | this commit | the deployed PWA and CI build the cloud flavour; the budgets job checks both flavours' invariants |
+
+**Verified:** 311/311 tests · both flavours' `check-no-network` green (default 216 files, cloud 218
+with the host allowlist) · a throwaway probe against both builds confirmed the chain
+`cloud.properties` → vite define → config → store → UI (ON: "No network requests — cloud backup is
+off." + enable button; OFF: "This build has no cloud backup").
+
+**Left in S15:** the Android sign-in path — Firebase Auth plus a small Kotlin plugin for the Drive
+access token (`AuthorizationClient`, scope `drive.appdata`), which needs an on-device test with a
+real Google account — and the S15d QA journeys + docs.
+
 ## 6. AI seams (decision 15) — ship none, keep the attach points clean
 
 - v1 ships the **static prompt library** only (bundled, offline): wizard steps (Slice 1),

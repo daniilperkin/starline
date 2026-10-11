@@ -92,11 +92,14 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Both flavours are checked: the default build must contain no network code at all, and the
+      # cloud flavour may only reach the Google hosts on the allowlist (decision 23d).
+      - run: node scripts/check-no-network.mjs
+      - run: STARLINE_CLOUD=1 node scripts/check-no-network.mjs
       # The bundle gate reads dist/sw.js, so it must run on a fresh build — nothing else may
       # touch apps/web/dist between these two steps.
       - run: pnpm --filter @starline/web build
       - run: pnpm check:bundle
-      - run: node scripts/check-no-network.mjs
       - run: node scripts/check-contrast.mjs
 
   e2e:

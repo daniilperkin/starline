@@ -2,9 +2,12 @@
 
 > **Owner request 2026-10-08:** "can we do firebase (as the catreader [CatBookTracker]) and
 > local if no firebase." This document analyses that option and proposes a design.
-> **Nothing here is scheduled or built** — recorded per the owner's instruction ("just
-> analyse and write it somewhere"). Implementation requires its own go-ahead and the
-> invariant revision described in §5.
+> **Status: being built as slice 15.** The owner gave the go-ahead and settled the shape in
+> decision 23 (no client-side encryption; APK *and* PWA; retention mirrors the local thinning;
+> a separate `STARLINE_CLOUD=1` flavour). S15a and S15b are shipped — see the slice-15 section in
+> `docs/PLAN.md` — and the one-time console setup is written up in `docs/CLOUD-SETUP.md`.
+> The invariant wording in §5 is now in force: the default build ships and makes no network
+> requests; cloud backup is an explicitly enabled module.
 
 ## 1. The CatBookTracker pattern to match
 

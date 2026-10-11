@@ -37,6 +37,9 @@ jobs:
       - run: pnpm --filter @starline/web build
         env:
           STARLINE_BASE: /starline/
+          # The deployed PWA is the cloud flavour (decision 23d): it may offer the optional
+          # Google/Drive backup. The default build stays offline-complete, and CI checks both.
+          STARLINE_CLOUD: "1"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
