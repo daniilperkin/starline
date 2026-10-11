@@ -620,7 +620,8 @@ path documented. Docs: repo `AGENTS.md`, README refresh, M4 gate table recorded.
 `apksigner`, M4 gate table filled in this file.
 
 ---
-**Slice 20 record (2026-10-11).** Shipped: the release-signed APK, the release runbook, and the
+**Slice 20 record (2026-10-11, `f86a378`, CI run 38160471583 green + Pages deploy green).**
+Shipped: the release-signed APK, the release runbook, and the
 repo guide agents (and future contributors) actually need.
 
 | Artifact | Result |
