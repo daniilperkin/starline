@@ -28,7 +28,13 @@ const PATTERNS = [
 // against the hosts Google documents for sign-in and Drive. The host rule applies to these files
 // alone — other modules legitimately contain URIs that are namespaces, not endpoints (the DOCX
 // exporter's OOXML namespaces, for one).
-const CLOUD_FLAVOR_PATHS = ["packages/core/src/cloud/drive.ts", "packages/core/src/cloud/auth.ts"];
+const CLOUD_FLAVOR_PATHS = [
+  "packages/core/src/cloud/drive.ts",
+  "packages/core/src/cloud/auth.ts",
+  "apps/web/src/cloud/auth-web.ts",
+  // Any new cloud file that touches the network belongs in this list, or the default run fails —
+  // which is the point: the exception must be explicit and reviewable.
+];
 
 const CLOUD_HOST_ALLOWLIST = [
   "https://www.googleapis.com",
@@ -82,12 +88,17 @@ for (const root of roots) {
     const lines = readFileSync(file, "utf8").split(/\r?\n/);
     lines.forEach((line, index) => {
       if (line.includes("no-network-ok")) return;
-      for (const pattern of PATTERNS) {
-        if (pattern.re.test(line)) {
-          violations.push(`${path}:${index + 1} [${pattern.name}] ${line.trim()}`);
+      // Cloud-flavour files are allowed to use the network — that is the whole exception. In the
+      // cloud run they are held to the host allowlist instead; in the default run they are skipped
+      // entirely (above), so the default artifact is still checked strictly.
+      if (!isCloudFlavorFile) {
+        for (const pattern of PATTERNS) {
+          if (pattern.re.test(line)) {
+            violations.push(`${path}:${index + 1} [${pattern.name}] ${line.trim()}`);
+          }
         }
       }
-      if (!isCloudFlavorFile) return;
+      if (!isCloudFlavorFile || !cloudFlavor) return;
       // Cloud flavour files: every URL literal must point at an allowlisted Google host.
       for (const match of line.matchAll(/["'`](https?:\/\/[^"'`\s]+)/g)) {
         let origin;
