@@ -187,3 +187,25 @@ everything not listed here; entries are folded back into the spec on owner reque
       `prefers-reduced-motion`, 200 % zoom and text-spacing, non-text contrast — collected in
       a `docs/ACCESSIBILITY.md` WCAG 2.2 AA checklist with per-criterion evidence and an
       owner sign-off line. No screen-reader pass in this milestone.
+
+## Owner decisions — Slice 15 (cloud backup) round (2026-10-11)
+
+23. **Cloud backup shape, settled before S15a.** Four answers from the owner, all binding:
+    - **No client-side encryption.** Snapshots upload as they are; the Drive `appDataFolder` is
+      private to the account and encrypted at rest. A passphrase would add a "lost passphrase =
+      unreadable backups" failure mode without changing who can read the files. Revisit only if
+      the threat model changes.
+    - **Scope: the APK *and* the PWA.** Both get cloud backup. The Drive layer (upload, download,
+      manifest, queue) is shared; the sign-in differs — Android goes through Firebase Auth with
+      the native picker (`@capacitor-firebase/authentication`), the PWA through Google Identity
+      Services in the browser, which needs no Firebase at all. The Drive folder is keyed by the
+      **Google account's `sub`** (present in both flows' ID tokens), so phone and browser land in
+      the same backup folder.
+    - **Cloud retention mirrors the local thinning** — keep-all 24 h, newest-per-day for 60 days,
+      every manual snapshot — with a ~1 GB cap. No "keep everything".
+    - **Build shape: a separate `STARLINE_CLOUD=1` flavor.** The default build ships no cloud code
+      and makes no network requests; the signed APK and the deployed PWA are built with the flag.
+      `scripts/check-no-network.mjs` becomes flavor-aware: strict for the default artifact, and
+      aware of the Google endpoints for the cloud flavor. This is the wording revision decision 15
+      / spec §5.2 anticipated: *the default build ships and makes no network requests; cloud
+      backup is an explicitly enabled module.*
