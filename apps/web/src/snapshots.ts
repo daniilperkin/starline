@@ -44,6 +44,18 @@ export interface SnapshotEntry {
   label: string;
 }
 
+/**
+ * Called after a snapshot has been written, so the cloud side can mirror it — without this module
+ * knowing anything about the cloud (the listener is registered from there; no import cycle).
+ */
+let snapshotTakenListener: ((libraryName: string, entry: SnapshotEntry) => void) | null = null;
+
+export function setSnapshotTakenListener(
+  listener: ((libraryName: string, entry: SnapshotEntry) => void) | null,
+): void {
+  snapshotTakenListener = listener;
+}
+
 export interface SnapshotPreview {
   entry: SnapshotEntry;
   diff: SnapshotDiff;
@@ -128,14 +140,14 @@ export async function lastSnapshotAt(libraryName: string): Promise<number | null
   return entries[0]?.createdAt ?? null;
 }
 
-async function readSnapshotBytes(name: string): Promise<Uint8Array> {
+export async function readSnapshotBytes(name: string): Promise<Uint8Array> {
   const dir = await snapshotsDir();
   const handle = await dir.getFileHandle(name, { create: false });
   const file = await handle.getFile();
   return new Uint8Array(await file.arrayBuffer());
 }
 
-async function writeSnapshotBytes(name: string, bytes: Uint8Array): Promise<void> {
+export async function writeSnapshotBytes(name: string, bytes: Uint8Array): Promise<void> {
   const dir = await snapshotsDir();
   const handle = await dir.getFileHandle(name, { create: true });
   const writable = await handle.createWritable();
@@ -170,6 +182,7 @@ export async function takeSnapshot(
     await indexSnapshot(session, entry).catch(() => undefined);
     await pruneSnapshots(session.name).catch(() => 0);
     void mirrorSnapshot(entry);
+    snapshotTakenListener?.(session.name, entry);
     return entry;
   } finally {
     await session.transport.request("unlink", { path: tempName }).catch(() => undefined);

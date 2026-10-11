@@ -18,8 +18,10 @@ import {
   DriveClient,
   readCloudManifest,
   type SnapshotCandidate,
+  sha256Hex,
 } from "@starline/core";
 import { create } from "zustand";
+import { listSnapshots, readSnapshotBytes, setSnapshotTakenListener } from "../snapshots";
 import { asCloudAccount, signInWithGoogle } from "./auth-web";
 import { cloudConfig } from "./config";
 import type { CloudAccount } from "./types";
@@ -41,12 +43,14 @@ interface CloudStore {
   message: string | null;
   manifest: CloudManifest | null;
   account: CloudAccount | null;
+  /** The library the last operation ran for — the snapshot hook has only a name to go on. */
+  lastLibrary: CloudLibrary | null;
   /** True when this artifact was built with the cloud flavour and has a config. */
   available: boolean;
   enable: (library: CloudLibrary) => Promise<void>;
   disable: () => Promise<void>;
   refresh: (library: CloudLibrary) => Promise<void>;
-  backUp: (library: CloudLibrary, candidates: SnapshotCandidate[]) => Promise<void>;
+  backUp: (library: CloudLibrary) => Promise<void>;
 }
 
 function readEnabled(): boolean {
@@ -82,6 +86,7 @@ export const useCloudStore = create<CloudStore>((set, get) => ({
   message: null,
   manifest: null,
   account: null,
+  lastLibrary: null,
   available: cloudConfig !== null,
 
   async enable(library) {
@@ -135,11 +140,12 @@ export const useCloudStore = create<CloudStore>((set, get) => ({
     }
   },
 
-  async backUp(library, candidates) {
+  async backUp(library) {
     const account = get().account;
     if (!account) return;
-    set({ status: "busy", message: null });
+    set({ status: "busy", message: null, lastLibrary: library });
     try {
+      const candidates = await candidatesFor(library.name);
       const result = await backupSnapshots(
         {
           drive: clientFor(account),
@@ -155,6 +161,42 @@ export const useCloudStore = create<CloudStore>((set, get) => ({
     }
   },
 }));
+
+/**
+ * Every local snapshot that is not yet in the cloud manifest, with its bytes and hash.
+ * Snapshots are immutable, so "already listed" means "identical" and the upload can skip it.
+ */
+async function candidatesFor(libraryName: string): Promise<SnapshotCandidate[]> {
+  const entries = await listSnapshots(libraryName);
+  const candidates: SnapshotCandidate[] = [];
+  for (const entry of entries) {
+    const bytes = await readSnapshotBytes(entry.name);
+    candidates.push({
+      name: entry.name,
+      bytes,
+      reason: entry.reason,
+      createdAt: entry.createdAt,
+      sha256: await sha256Hex(bytes),
+    });
+  }
+  return candidates;
+}
+
+/**
+ * A snapshot was just written. Mirror it to Drive if — and only if — the writer turned cloud
+ * backup on; otherwise this is a no-op and the app makes no network request.
+ */
+export function registerCloudSnapshotHook(): void {
+  setSnapshotTakenListener((libraryName) => {
+    const state = useCloudStore.getState();
+    if (!state.enabled || !state.account) return;
+    // Never guess the library id: the manifest's libraryId is the folder key, and a name is not a
+    // stable identity. Until an operation has seen the real project row, the hook stays quiet.
+    const library = state.lastLibrary;
+    if (!library || library.name !== libraryName) return;
+    void state.backUp(library);
+  });
+}
 
 /** Test seam: the key the preference is stored under. */
 export const CLOUD_ENABLED_KEY = ENABLED_KEY;

@@ -286,6 +286,7 @@ export const uk: Messages = {
     enable: "Увімкнути хмарну копію",
     disable: "Вимкнути",
     refresh: "Оновити",
+    backUpNow: "Створити копію зараз",
     working: "Зв'язок із Google Drive…",
     lastUpload: "Останнє завантаження:",
     unavailable: "У цій збірці немає хмарної копії (зібрано без STARLINE_CLOUD).",

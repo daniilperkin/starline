@@ -266,6 +266,7 @@ export const en = {
     enable: "Turn on cloud backup",
     disable: "Turn off",
     refresh: "Refresh",
+    backUpNow: "Back up now",
     working: "Talking to Google Drive…",
     lastUpload: "Last upload:",
     unavailable: "This build has no cloud backup (built without STARLINE_CLOUD).",

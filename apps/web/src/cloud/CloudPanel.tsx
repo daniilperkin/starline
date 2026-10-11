@@ -23,6 +23,7 @@ export function CloudPanel() {
   const enable = useCloudStore((state) => state.enable);
   const disable = useCloudStore((state) => state.disable);
   const refresh = useCloudStore((state) => state.refresh);
+  const backUp = useCloudStore((state) => state.backUp);
 
   const library = project && session ? { id: project.id, name: session.name } : null;
   const entries = manifest?.entries ?? [];
@@ -72,6 +73,15 @@ export function CloudPanel() {
             </p>
           ) : null}
           <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="sl-btn sl-btn-primary"
+              data-testid="sl-cloud-backup-now"
+              disabled={status === "busy" || library === null}
+              onClick={() => library && void backUp(library)}
+            >
+              {messages.cloud.backUpNow}
+            </button>
             <button
               type="button"
               className="sl-btn"

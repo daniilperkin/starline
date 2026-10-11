@@ -10,8 +10,7 @@ import {
   TAG_COLORS,
   type UUID,
 } from "@starline/core";
-import { useState } from "react";
-import { CloudPanel } from "./cloud/CloudPanel";
+import { lazy, Suspense, useState } from "react";
 import {
   useCreateFieldDef,
   useCreateTag,
@@ -27,6 +26,13 @@ import {
 } from "./data";
 import { setStarfieldAnimated, starfieldAnimated } from "./effects";
 import { useLocaleStore } from "./locale";
+
+// The cloud module is loaded only when a writer opens the Cloud section: in a build without the
+// cloud flavour nothing here is ever fetched, which is what keeps the default build offline.
+const CloudPanel = lazy(() =>
+  import("./cloud/CloudPanel").then((module) => ({ default: module.CloudPanel })),
+);
+
 import { UndoToast } from "./UndoToast";
 
 type Section = "tags" | "fields" | "language" | "appearance" | "cloud";
@@ -71,7 +77,9 @@ export function SettingsScreen() {
       </header>
 
       {section === "cloud" ? (
-        <CloudPanel />
+        <Suspense fallback={<p className="text-sm text-muted">{messages.common.loading}</p>}>
+          <CloudPanel />
+        </Suspense>
       ) : section === "appearance" ? (
         <AppearancePanel />
       ) : section === "language" ? (
