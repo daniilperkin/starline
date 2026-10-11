@@ -1516,7 +1516,13 @@ try {
     throw new Error(`Ukrainian plural missing in the scene count: "${ukCount}"`);
   }
   await axeScan("scenes-uk");
+  // The start screen speaks Ukrainian too: close the library, read it, reopen it.
   await page.getByRole("link", { name: "План" }).click();
+  await page.getByRole("button", { name: "Закрити бібліотеку" }).click();
+  await page.getByRole("heading", { name: "Ваші бібліотеки" }).waitFor({ timeout: 15000 });
+  await axeScan("start-uk");
+  await page.getByRole("button", { name: "Відкрити" }).first().click();
+  await page.getByTestId("sl-open-settings").waitFor({ timeout: 20000 });
   await page.getByTestId("sl-open-settings").click();
   await page.getByTestId("sl-settings-language").click();
   await page.getByTestId("sl-locale-en").click();

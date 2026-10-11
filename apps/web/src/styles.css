@@ -657,9 +657,11 @@ body {
 
 .sl-appbar {
   display: flex;
+  flex-wrap: wrap; /* the right-hand controls drop to a second line rather than overflow (1.4.10/1.4.12) */
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  row-gap: 0.35rem;
   min-height: 2rem;
 }
 
@@ -2005,5 +2007,38 @@ body {
     grid-auto-flow: row;
     grid-auto-columns: auto;
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* --- Slice 19 accessibility fixes, each one found by scripts/check-a11y.mjs --- */
+
+/* Keyboard focus is always visible, in both themes (WCAG 2.4.7). :focus-visible keeps the
+   ring off pointer taps, where it only reads as noise. */
+:focus-visible {
+  outline: 2px solid var(--sl-primary);
+  outline-offset: 2px;
+}
+
+/* Checkboxes and radios meet the 24 × 24 px target minimum (WCAG 2.5.8). */
+input[type="checkbox"],
+input[type="radio"] {
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+}
+
+/* Honour the OS "reduce motion" setting (the starfield already paints a single frame).
+   `!important` is deliberate: this must beat whatever transition a component set inline. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: a reduced-motion override must win */
+    animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: a reduced-motion override must win */
+    animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: a reduced-motion override must win */
+    transition-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: a reduced-motion override must win */
+    scroll-behavior: auto !important;
   }
 }

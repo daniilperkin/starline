@@ -89,12 +89,12 @@ export function PlanScreen() {
 
   return (
     <div className="flex flex-1 flex-col gap-5">
-      <header className="flex items-center justify-between gap-3">
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">{messages.plan.heading}</h1>
           <p className="truncate text-sm text-muted">✦ {displayName(session.name)}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <ThemeButton />
           <button
             type="button"
@@ -105,7 +105,7 @@ export function PlanScreen() {
               void closeLibrary(session).then(() => setSession(null));
             }}
           >
-            Close library
+            {messages.plan.closeLibrary}
           </button>
         </div>
       </header>

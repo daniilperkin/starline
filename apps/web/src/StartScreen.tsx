@@ -1,3 +1,4 @@
+import { messages } from "@starline/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { importIntoNewLibrary } from "./export/importLibrary";
 import type { LibrarySession } from "./session";
@@ -85,22 +86,22 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="sl-wordmark text-4xl font-semibold tracking-tight">✦ StarLine</h1>
-          <p className="mt-2 text-sm text-muted">Your story, among the stars.</p>
+          <p className="mt-2 text-sm text-muted">{messages.app.tagline}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <span className="sl-chip">✦ offline</span>
-            <span className="sl-chip">on your device</span>
-            <span className="sl-chip">installable</span>
+            <span className="sl-chip">{messages.app.offlineChip}</span>
+            <span className="sl-chip">{messages.app.onDeviceChip}</span>
+            <span className="sl-chip">{messages.app.installableChip}</span>
           </div>
         </div>
         <ThemeButton />
       </header>
 
       <section className="sl-card p-5">
-        <h2 className="text-sm font-medium text-muted">Create a library</h2>
+        <h2 className="text-sm font-medium text-muted">{messages.app.createHeading}</h2>
         <div className="mt-3 flex gap-2">
           <input
             className="sl-input flex-1"
-            placeholder="My Novel"
+            placeholder={messages.app.namePlaceholder}
             value={newName}
             onChange={(event) => setNewName(event.target.value)}
             onKeyDown={(event) => {
@@ -113,16 +114,14 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
             disabled={busy || createName.length === 0}
             onClick={() => void open(createName, true)}
           >
-            Create
+            {messages.app.create}
           </button>
         </div>
-        <p className="mt-2 text-xs text-muted">
-          Reusing an existing name opens that library instead of overwriting it.
-        </p>
+        <p className="mt-2 text-xs text-muted">{messages.app.reuseHint}</p>
       </section>
 
       <section className="sl-card p-5">
-        <h2 className="text-sm font-medium text-muted">Import a project</h2>
+        <h2 className="text-sm font-medium text-muted">{messages.app.importHeading}</h2>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -131,9 +130,9 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
             disabled={busy}
             onClick={() => fileInput.current?.click()}
           >
-            {importing ?? "Choose a file…"}
+            {importing ?? messages.app.chooseFile}
           </button>
-          <span className="text-xs text-muted">.starline.json or .starline.zip</span>
+          <span className="text-xs text-muted">{messages.app.importHint}</span>
         </div>
         <input
           ref={fileInput}
@@ -155,9 +154,9 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
       </section>
 
       <section className="sl-card p-5">
-        <h2 className="text-sm font-medium text-muted">Your libraries</h2>
+        <h2 className="text-sm font-medium text-muted">{messages.app.librariesHeading}</h2>
         {libraries.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">No libraries yet — create one above.</p>
+          <p className="mt-3 text-sm text-muted">{messages.app.noLibraries}</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2">
             {libraries.map((library) => {
@@ -179,7 +178,7 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
                     disabled={busy}
                     onClick={() => void open(library.replace(/\.starline$/, ""), false)}
                   >
-                    Open
+                    {messages.app.open}
                   </button>
                 </li>
               );
@@ -192,9 +191,7 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
         <p className="rounded-2xl border border-danger px-4 py-3 text-sm text-danger">{error}</p>
       ) : null}
 
-      <footer className="text-center text-xs text-muted">
-        Install on your phone: open in Chrome → menu → “Add to Home screen”.
-      </footer>
+      <footer className="text-center text-xs text-muted">{messages.app.installHint}</footer>
     </div>
   );
 }

@@ -25,10 +25,11 @@ import {
   useSetTagColor,
   useTags,
 } from "./data";
+import { setStarfieldAnimated, starfieldAnimated } from "./effects";
 import { useLocaleStore } from "./locale";
 import { UndoToast } from "./UndoToast";
 
-type Section = "tags" | "fields" | "language";
+type Section = "tags" | "fields" | "language" | "appearance";
 
 /**
  * Settings (spec §4.6) — slice 9 ships its first two sections: the tag manager and the custom
@@ -39,6 +40,13 @@ export function SettingsScreen() {
   const [section, setSection] = useState<Section>("tags");
   const projects = useProjects();
   const project = projects.data?.[0] ?? null;
+  // Built per render so a locale switch relabels the segments (no module-level capture).
+  const sections = [
+    ["tags", messages.settings.tags],
+    ["fields", messages.settings.fields],
+    ["language", messages.settings.language],
+    ["appearance", messages.settings.appearance],
+  ] as const;
 
   return (
     <div className="flex flex-col gap-4">
@@ -46,7 +54,7 @@ export function SettingsScreen() {
         <h1 className="text-xl font-semibold tracking-tight">{messages.settings.heading}</h1>
         <fieldset className="sl-segmented sl-fieldset ml-auto">
           <legend className="sr-only">{messages.settings.heading}</legend>
-          {(["tags", "fields", "language"] as const).map((option) => (
+          {sections.map(([option, label]) => (
             <button
               key={option}
               type="button"
@@ -55,17 +63,15 @@ export function SettingsScreen() {
               data-testid={`sl-settings-${option}`}
               onClick={() => setSection(option)}
             >
-              {option === "tags"
-                ? messages.settings.tags
-                : option === "fields"
-                  ? messages.settings.fields
-                  : messages.settings.language}
+              {label}
             </button>
           ))}
         </fieldset>
       </header>
 
-      {section === "language" ? (
+      {section === "appearance" ? (
+        <AppearancePanel />
+      ) : section === "language" ? (
         <LanguagePanel />
       ) : project === null ? (
         <p className="text-sm text-muted">{messages.settings.noProject}</p>
@@ -570,6 +576,32 @@ function LanguagePanel() {
           </button>
         ))}
       </fieldset>
+    </section>
+  );
+}
+
+/**
+ * Appearance (slice 19, WCAG 2.2.2): moving content that starts by itself needs a way to stop
+ * it. The starfield stays on by default — it is the app's identity — but a reader who finds it
+ * distracting can freeze it here; the choice is remembered per device.
+ */
+function AppearancePanel() {
+  const [animated, setAnimated] = useState(() => starfieldAnimated());
+  return (
+    <section className="sl-card p-4">
+      <label className="flex items-center justify-between gap-3">
+        <span className="text-sm font-medium">{messages.settings.starfield}</span>
+        <input
+          type="checkbox"
+          data-testid="sl-starfield-toggle"
+          checked={animated}
+          onChange={(event) => {
+            setAnimated(event.target.checked);
+            setStarfieldAnimated(event.target.checked);
+          }}
+        />
+      </label>
+      <p className="mt-2 text-xs text-muted">{messages.settings.starfieldHint}</p>
     </section>
   );
 }

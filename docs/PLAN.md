@@ -569,7 +569,7 @@ plural spot-checks in tests, both locales axe-clean, css stays within budget.
 Note on scope: the PWA manifest stays English on purpose — the install sheet is drawn by the
 OS in the OS language, so a per-locale manifest would add bytes and change nothing a user sees.
 
-### Slice 19 — Accessibility audit (WCAG 2.2 AA)
+### Slice 19 — Accessibility audit (WCAG 2.2 AA) (**shipped 2026-10-11**) — see `docs/ACCESSIBILITY.md`
 
 **Build**: `scripts/check-a11y.mjs` — scripted manual checks axe cannot do: keyboard-only
 journey (Tab/Shift-Tab/Enter/Escape through the main loops), visible focus on every stop,
@@ -580,6 +580,24 @@ correctness, live-region status messages. Fix everything it finds.
 exceptions called out, owner sign-off line.
 
 **Exit**: script green, checklist written, owner signs off.
+
+**Slice 19 record (2026-10-11).** The audit found ten things; all ten are fixed, none argued away.
+
+| Layer | Result |
+| --- | --- |
+| `check:a11y` (new) | 55 checks green — keyboard walks with a visible indicator at every stop on 9 screens, 24 px targets, reflow at 320 px, WCAG 1.4.12 text spacing, reduced motion, the starfield stop control, titles, `html lang`, Escape, live region |
+| axe-core | 25 scans, both locales, clean (incl. `scenes-uk`, `start-uk`) |
+| Palette contract | `check:contrast` green in both themes |
+
+Fixed: invisible focus on inputs/selects (global `:focus-visible` ring) · 13 px checkboxes/radios → 24 px
+(2.5.8) · the plan header and app bar overflowed 8 px under text spacing (both now wrap) · the moving
+starfield had no stop control (2.2.2 → Settings → Appearance, remembered per device) · **the entire
+start screen was still hardcoded English** — a slice-18 gap the audit exposed (16 strings, now in the
+catalogue and covered by the Ukrainian journey).
+
+Also: `pnpm check:a11y` joins `ci:gates` and the CI `web E2E` job; `docs/ACCESSIBILITY.md` carries the
+criterion-by-criterion checklist with honest limitations (pointer-only graph pins, English storage
+errors, the timeline's wide-zoom packing).
 
 ### Slice 20 — Installers, release signing, docs + the M4 gate
 

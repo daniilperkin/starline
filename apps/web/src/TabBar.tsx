@@ -12,7 +12,7 @@ const TABS = [
 export function TabBar() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   return (
-    <nav className="sl-tabbar" aria-label="Sections">
+    <nav className="sl-tabbar" aria-label={messages.tabs.label}>
       <div className="sl-tabbar-inner">
         {TABS.map((tab) => {
           const active = pathname === tab.to || pathname.startsWith(`${tab.to}/`);

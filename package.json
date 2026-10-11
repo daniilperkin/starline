@@ -18,7 +18,8 @@
     "chaos": "node scripts/chaos/run.mjs",
     "chaos:web": "node scripts/chaos/web.mjs",
     "check:bundle": "node scripts/check-bundle.mjs",
-    "ci:gates": "pnpm typecheck && pnpm lint && pnpm test && pnpm chaos && pnpm chaos:web && pnpm --filter @starline/web build && pnpm check:bundle && node scripts/check-no-network.mjs && node scripts/check-contrast.mjs && node scripts/verify-web.mjs && node scripts/verify-pwa.mjs"
+    "check:a11y": "node scripts/check-a11y.mjs",
+    "ci:gates": "pnpm typecheck && pnpm lint && pnpm test && pnpm chaos && pnpm chaos:web && pnpm --filter @starline/web build && pnpm check:bundle && node scripts/check-no-network.mjs && node scripts/check-contrast.mjs && node scripts/verify-web.mjs && node scripts/verify-pwa.mjs && node scripts/check-a11y.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",

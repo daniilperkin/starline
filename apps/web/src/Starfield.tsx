@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { STARFIELD_EVENT, starfieldAnimated } from "./effects";
 
 const SEED = 0x53544152; // "STAR"
 const FRAME_MS = 40; // ~25 fps cap keeps the twinkle gentle on battery
@@ -158,8 +159,8 @@ export function Starfield() {
 
     const start = () => {
       if (raf !== 0) return;
-      if (reducedMotion.matches) {
-        paint(100000); // one stable, deterministic frame for reduced motion
+      if (reducedMotion.matches || !starfieldAnimated()) {
+        paint(100000); // one stable, deterministic frame when motion is off (OS or Settings)
         return;
       }
       raf = requestAnimationFrame(step);
@@ -184,6 +185,11 @@ export function Starfield() {
       stop();
       start();
     };
+    const onPrefChange = () => {
+      stop();
+      setup();
+      start();
+    };
 
     setup();
     start();
@@ -191,12 +197,14 @@ export function Starfield() {
     window.addEventListener("starline:theme", onResizeOrTheme);
     document.addEventListener("visibilitychange", onVisibility);
     reducedMotion.addEventListener("change", onReducedMotion);
+    window.addEventListener(STARFIELD_EVENT, onPrefChange);
     return () => {
       stop();
       window.removeEventListener("resize", onResizeOrTheme);
       window.removeEventListener("starline:theme", onResizeOrTheme);
       document.removeEventListener("visibilitychange", onVisibility);
       reducedMotion.removeEventListener("change", onReducedMotion);
+      window.removeEventListener(STARFIELD_EVENT, onPrefChange);
     };
   }, []);
 
