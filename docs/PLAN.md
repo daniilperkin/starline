@@ -581,7 +581,8 @@ exceptions called out, owner sign-off line.
 
 **Exit**: script green, checklist written, owner signs off.
 
-**Slice 19 record (2026-10-11).** The audit found ten things; all ten are fixed, none argued away.
+**Slice 19 record (2026-10-11, `67d7962`, CI run 38159286618 green — `check:a11y` now runs in CI).**
+The audit found ten things; all ten are fixed, none argued away.
 
 | Layer | Result |
 | --- | --- |
