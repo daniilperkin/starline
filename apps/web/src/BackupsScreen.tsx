@@ -38,6 +38,9 @@ const KIND_LABEL: Record<RestorableKind, "entityCharacter" | "entityScene" | "en
   lore_entry: "entityLore",
 };
 
+/** Stable empty list, so the cloud card never re-renders on a fresh array identity. */
+const EMPTY_ENTRIES: CloudSnapshotEntry[] = [];
+
 function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
@@ -98,7 +101,10 @@ export function BackupsScreen() {
   const [entityPick, setEntityPick] = useState<string>("");
   const [mirror, setMirror] = useState<MirrorState>(() => mirrorState());
   const cloudEnabled = useCloudStore((state) => state.enabled);
-  const cloudEntries = useCloudStore((state) => state.manifest?.entries ?? []);
+  // Select the manifest itself: a selector that builds a new array every call makes zustand
+  // re-render forever ("Maximum update depth exceeded"). Derive below, in render, instead.
+  const cloudManifest = useCloudStore((state) => state.manifest);
+  const cloudEntries = cloudManifest?.entries ?? EMPTY_ENTRIES;
   const cloudDownload = useCloudStore((state) => state.downloadToLocal);
   const cloudDelete = useCloudStore((state) => state.removeFromCloud);
   const projects = useProjects();
