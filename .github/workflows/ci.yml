@@ -1,0 +1,117 @@
+# The full gate suite, on every push to main and every pull request.
+#
+# This is the same sequence `pnpm ci:gates` runs on a laptop (see package.json), split into
+# parallel jobs because each group needs a different toolchain:
+#   static     — typecheck, biome, unit + contract tests (node and browser projects)
+#   durability — chaos (native, kill -9) and chaos:web (crash mid-write, reload, reopen)
+#   budgets    — clean web build → bundle budgets, no-network invariant, contrast contract
+#   e2e        — verify-web (wizard journey + axe scans + perf budgets) and verify-pwa
+#
+# Emulator QA (`verify-android`) deliberately stays local (decision 22): GitHub runners get no
+# Android emulator, and a phone-path budget measured on a runner's software renderer would
+# measure the runner, not the app.
+#
+# rust-toolchain.toml pins the Windows MSVC channel for local Tauri builds; runners are Linux,
+# so RUSTUP_TOOLCHAIN overrides it — the storage CLI only needs any stable toolchain.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUSTUP_TOOLCHAIN: stable
+
+jobs:
+  static:
+    name: static gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # reads packageManager (pnpm@11.22.0) from package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+
+  durability:
+    name: durability
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm chaos
+      - run: pnpm chaos:web
+
+  budgets:
+    name: budgets
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The bundle gate reads dist/sw.js, so it must run on a fresh build — nothing else may
+      # touch apps/web/dist between these two steps.
+      - run: pnpm --filter @starline/web build
+      - run: pnpm check:bundle
+      - run: node scripts/check-no-network.mjs
+      - run: node scripts/check-contrast.mjs
+
+  e2e:
+    name: web E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm --filter @starline/web build
+      - run: node scripts/verify-web.mjs
+      - run: node scripts/verify-pwa.mjs

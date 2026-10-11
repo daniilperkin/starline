@@ -43,6 +43,7 @@ pnpm --filter @starline/web preview    # http://localhost:5184
 
 ## Gates (all green means shippable)
 
+- `pnpm ci:gates` — the whole suite in one command, the same sequence CI runs (`.github/workflows/ci.yml`, on every push to `main` and every PR): typecheck, lint, tests, chaos, chaos:web, clean build → bundle budgets, no-network, contrast, verify-web, verify-pwa. Emulator QA stays local — GitHub runners get no Android emulator (decision 22).
 - `pnpm typecheck` / `pnpm lint`
 - `pnpm test` — contract tests across both drivers + core domain unit tests (270 total, incl. the slice-5 trash/undo, slice-6 lore, slice-7 search/backlink, slice-8 relationship, slice-9 tag/field/grid, slice-10 timeline, slice-11 snapshot/restore, slice-12 interchange, slice-13 writing-mode and slice-14 notes/attachments suites on the real rusqlite driver, plus the perf suites that assert the §5.1 budgets — timeline read and scene-drag commit included — on the reference project)
 - `pnpm chaos` — kill-9 durability harness (native driver)
