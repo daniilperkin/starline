@@ -1,4 +1,4 @@
-import { formatBalance, gridCellKey, messages, type UUID } from "@starline/core";
+import { formatBalance, gridCellKey, messages, plural, type UUID } from "@starline/core";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -141,7 +141,7 @@ export function PlotlineGrid({ projectId }: { projectId: UUID }) {
           ＋
         </button>
         <span className="text-xs text-muted" data-testid="sl-grid-total">
-          {messages.grid.total.replace("{count}", String(scenes.length))}
+          {plural(messages.grid.total, scenes.length)}
         </span>
       </div>
 

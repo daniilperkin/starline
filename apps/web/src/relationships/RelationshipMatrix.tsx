@@ -5,6 +5,7 @@ import {
   matrixCellKey,
   messages,
   orderCharactersByGroup,
+  plural,
   RELATIONSHIP_KIND_GLYPHS,
   type RelationshipCharacter,
   type RelationshipEdge,
@@ -218,7 +219,7 @@ export function RelationshipMatrix({
           </span>
         ))}
         <span className="sl-matrix-legend-item sl-matrix-legend-count">
-          {format(messages.matrix.count, { count: ordered.length })}
+          {plural(messages.matrix.count, ordered.length)}
         </span>
       </div>
     </div>

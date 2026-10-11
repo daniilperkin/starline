@@ -1,9 +1,9 @@
 import {
   defaultDirected,
-  format,
   MAX_SENTIMENT,
   MIN_SENTIMENT,
   messages,
+  plural,
   RELATIONSHIP_KIND_GLYPHS,
   RELATIONSHIP_KINDS,
   type RelationshipCharacter,
@@ -207,9 +207,7 @@ export function EdgeSheet({
           <p className="sl-edge-pair-hint" data-testid="sl-edge-shared">
             {nameOf(sourceId)} {messages.relationships.pairSeparator} {nameOf(targetId)} ·{" "}
             {shared.data && shared.data.total > 0
-              ? shared.data.total === 1
-                ? messages.relationships.sharedScenesOne
-                : format(messages.relationships.sharedScenes, { count: shared.data.total })
+              ? plural(messages.relationships.sharedScenes, shared.data.total)
               : messages.relationships.none}
           </p>
         ) : null}

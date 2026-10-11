@@ -4,6 +4,7 @@ import { format, messages } from "@starline/core";
 import { Outlet, useRouter, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { lastActivityTime, onActivity, queryClient, useProjects } from "./data";
+import { useLocaleStore } from "./locale";
 import { useOpenEntity } from "./openEntity";
 import { SearchSheet } from "./SearchSheet";
 import { useSessionStore } from "./session";
@@ -104,6 +105,9 @@ export function AppLayout() {
       </div>
     ) : null;
 
+  // A language switch remounts the route subtree, which is what re-reads every message.
+  const locale = useLocaleStore((state) => state.locale);
+
   // Writing mode owns the whole screen (PLAN slice 13): no app bar, no tab bar, no page padding.
   const immersive = useRouterState({
     select: (state) => state.location.pathname.startsWith("/write"),
@@ -113,7 +117,7 @@ export function AppLayout() {
     return (
       <div className="sl-immersive">
         {banner}
-        <Outlet />
+        <Outlet key={locale} />
         <UndoToast />
       </div>
     );
@@ -135,7 +139,7 @@ export function AppLayout() {
         ) : null}
       </header>
       {banner}
-      <Outlet />
+      <Outlet key={locale} />
       {searchOpen ? (
         <SearchSheet
           projectId={projects.data?.[0]?.id ?? null}

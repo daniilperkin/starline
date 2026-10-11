@@ -5,6 +5,7 @@ import {
   type LoreCategoryNode,
   type LoreEntrySummary,
   messages,
+  plural,
   type UUID,
 } from "@starline/core";
 import { useEffect, useMemo, useState } from "react";
@@ -178,9 +179,7 @@ export function WorldScreen() {
     <div className="flex flex-col gap-4">
       <header className="flex items-center justify-between gap-2">
         <h1 className="text-xl font-semibold tracking-tight">{messages.world.heading}</h1>
-        <span className="sl-chip">
-          {messages.world.entries.replace("{n}", String(entries.data?.length ?? 0))}
-        </span>
+        <span className="sl-chip">{plural(messages.world.entries, entries.data?.length ?? 0)}</span>
         <fieldset className="sl-segmented sl-fieldset ml-auto">
           <legend className="sr-only">{messages.world.heading}</legend>
           {(["lore", "timeline"] as const).map((option) => (
@@ -347,9 +346,7 @@ export function WorldScreen() {
               role="alertdialog"
               aria-label={messages.world.deleteCategory}
             >
-              <p className="text-sm">
-                {messages.world.cascadeWarning.replace("{n}", String(cascadeFor.count))}
-              </p>
+              <p className="text-sm">{plural(messages.world.cascadeWarning, cascadeFor.count)}</p>
               <div className="flex gap-2">
                 <button
                   type="button"

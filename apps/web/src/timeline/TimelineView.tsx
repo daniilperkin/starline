@@ -2,6 +2,7 @@ import {
   formatStoryTimeFull,
   messages,
   parseStoryTimeInput,
+  plural,
   positionFraction,
   TIMELINE_ZOOMS,
   type TimelineCalendar,
@@ -138,12 +139,11 @@ export function TimelineView({ projectId }: { projectId: UUID }) {
           ＋
         </button>
         <span className="text-xs text-muted" data-testid="sl-timeline-coverage">
-          {messages.timeline.coverage
-            .replace("{placed}", String(coverage.data?.placed ?? 0))
-            .replace(
-              "{total}",
-              String((coverage.data?.placed ?? 0) + (coverage.data?.unplaced ?? 0)),
-            )}
+          {plural(
+            messages.timeline.coverage,
+            (coverage.data?.placed ?? 0) + (coverage.data?.unplaced ?? 0),
+            { placed: coverage.data?.placed ?? 0 },
+          )}
         </span>
         <button
           type="button"

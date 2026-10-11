@@ -12,6 +12,7 @@ import {
   type NoteKind,
   type NoteStatus,
   type NoteSummary,
+  plural,
   type UUID,
 } from "@starline/core";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -21,9 +22,9 @@ import { NoteSheet } from "./NoteSheet";
 
 function relativeDay(at: number): string {
   const days = Math.floor((Date.now() - at) / (24 * 60 * 60 * 1000));
-  if (days <= 0) return "today";
-  if (days === 1) return "yesterday";
-  return `${days}d`;
+  if (days <= 0) return messages.time.today;
+  if (days === 1) return messages.time.yesterday;
+  return plural(messages.time.daysAgo, days);
 }
 
 function NoteRow({

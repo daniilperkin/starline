@@ -3,6 +3,7 @@ import {
   format,
   messages,
   type PossibleMention,
+  plural,
   type UUID,
 } from "@starline/core";
 import { useCallback, useState } from "react";
@@ -67,7 +68,7 @@ export function BacklinksPanel({
         if (result.linked > 0) {
           pushUndo(
             result.linked > 1
-              ? format(messages.possible.linkedMany, { count: result.linked })
+              ? plural(messages.possible.linkedMany, result.linked)
               : messages.possible.linked,
             async () => {
               await unlink.mutateAsync(args);
@@ -87,12 +88,11 @@ export function BacklinksPanel({
   const possibleRows = possible.data ?? [];
 
   return (
-    <section className="sl-backlinks" aria-label={messages.backlinks.headingOne}>
-      <h3 className="sl-label">
-        {sources.length === 1
-          ? messages.backlinks.headingOne
-          : format(messages.backlinks.heading, { count: sources.length })}
-      </h3>
+    <section
+      className="sl-backlinks"
+      aria-label={plural(messages.backlinks.heading, sources.length)}
+    >
+      <h3 className="sl-label">{plural(messages.backlinks.heading, sources.length)}</h3>
 
       {backlinks.isLoading ? (
         <p className="text-xs text-muted">{messages.backlinks.loading}</p>
@@ -143,9 +143,7 @@ export function BacklinksPanel({
       {possibleRows.length > 0 ? (
         <div className="flex flex-col gap-2">
           <h3 className="sl-label mb-0">
-            {possibleRows.length === 1
-              ? messages.possible.headingOne
-              : format(messages.possible.heading, { count: possibleRows.length })}
+            {format(messages.possible.heading, { count: possibleRows.length })}
           </h3>
           <p className="text-xs text-muted">{messages.possible.hint}</p>
           <ul className="sl-backlink-list" data-testid="sl-possible-mentions">

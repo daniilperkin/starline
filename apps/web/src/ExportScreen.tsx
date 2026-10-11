@@ -20,6 +20,7 @@ import {
   suggestMapping,
 } from "./export/importers";
 import { useScenesRefresh } from "./export/useRefresh";
+import { formatNumber } from "./locale";
 import { useSessionStore } from "./session";
 
 type Mode = "export" | "import-csv" | "import-manuscript";
@@ -563,7 +564,7 @@ export function ExportScreen() {
               {format(messages.export.splitSummary, {
                 chapters: split.chapters.length,
                 scenes: split.sceneCount,
-                words: split.wordCount.toLocaleString(),
+                words: formatNumber(split.wordCount),
               })}
             </p>
           ) : null}

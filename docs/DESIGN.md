@@ -57,3 +57,16 @@ deterministic bytes. Outputs: `icon-192/512`, `maskable-512` (sparkle inside the
 
 Bottom tab bar (spec §4.0’s phone layout), constellation dividers, per-view motifs (star-sign
 clusters per section), a starlit focus mode for the drafting editor.
+
+## Language (slice 18, decision 22)
+
+English and Ukrainian ship as equal citizens. Copy is never baked into components: every
+string lives in `packages/core/src/i18n` (`en.ts`, `uk.ts`) and is read through the live
+`messages` proxy, so a language switch re-reads the whole interface. First run follows the
+system language (`uk` → Ukrainian, anything else → English); Settings → Language offers an
+explicit choice and a "system language" option, remembered per device in
+`starline.locale`. `<html lang>` follows the active locale (axe reads it), and
+`Intl.NumberFormat` / `DateTimeFormat` / `PluralRules` are driven by the same locale —
+Ukrainian counted phrases use the four real categories (one / few / many / other:
+«1 сцена», «2 сцени», «5 сцен»), never a two-form approximation. PWA-manifest strings stay
+English on purpose: the install sheet is drawn by the OS in the OS language.

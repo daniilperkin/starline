@@ -544,8 +544,9 @@ the active catalogue (649 call sites keep working), `Intl.PluralRules`-backed pl
 TypeScript forces every call site to move), locale-aware `Intl.DateTimeFormat`/`Segmenter`
 usage, `uk.ts` catalogue typed as `Messages` (the compiler proves completeness). Web side:
 first run follows the system language (`uk*` → Ukrainian, else English), Settings gets a
-Language control, the choice persists per device (`starline.locale`), `<html lang>` and the
-PWA manifest follow, the tree remounts on switch.
+Language control, the choice persists per device (`starline.locale`), `<html lang>` follows
+the active locale (the PWA manifest stays English on purpose — the install sheet is drawn by
+the OS in the OS language), and the route tree remounts on switch.
 
 **Exit**: uk journey in `verify-web` (switch → headings/messages in Ukrainian → switch back),
 plural spot-checks in tests, both locales axe-clean, css stays within budget.

@@ -1499,6 +1499,35 @@ try {
   jsonFinalDocument = JSON.parse(jsonFinal.bytes.toString("utf8"));
   await page.screenshot({ path: join(shotDir, "25-gallery.png"), fullPage: true });
 
+  // 4aa. Slice 18: Ukrainian. Settings → Language → Українська switches the whole interface
+  // (html lang included) and the counted phrases follow Ukrainian plural rules; switching back
+  // restores English and the stored choice.
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByTestId("sl-open-settings").click();
+  await page.getByTestId("sl-settings-language").click();
+  await page.getByTestId("sl-locale-uk").click();
+  await page.getByRole("heading", { name: "Налаштування" }).waitFor({ timeout: 15000 });
+  const htmlLang = await page.evaluate(() => document.documentElement.lang);
+  if (htmlLang !== "uk") throw new Error(`html lang after the switch is "${htmlLang}"`);
+  await page.getByRole("link", { name: "Сцени" }).click();
+  await page.getByTestId("sl-scenes-count").waitFor({ timeout: 15000 });
+  const ukCount = await page.getByTestId("sl-scenes-count").innerText();
+  if (!/[0-9]+\s+(сцена|сцени|сцен)/.test(ukCount)) {
+    throw new Error(`Ukrainian plural missing in the scene count: "${ukCount}"`);
+  }
+  await axeScan("scenes-uk");
+  await page.getByRole("link", { name: "План" }).click();
+  await page.getByTestId("sl-open-settings").click();
+  await page.getByTestId("sl-settings-language").click();
+  await page.getByTestId("sl-locale-en").click();
+  await page.getByRole("heading", { name: "Settings", exact: true }).waitFor({ timeout: 15000 });
+  const storedLocale = await page.evaluate(() => localStorage.getItem("starline.locale"));
+  if (storedLocale !== "en") throw new Error(`the remembered choice is "${storedLocale}"`);
+  console.log(
+    `  i18n: Ukrainian switch works (html lang=uk, "${ukCount.trim()}", stored choice) and English restores`,
+  );
+  await page.screenshot({ path: join(shotDir, "26-uk.png"), fullPage: true });
+
   // 5. Reload: back to the start screen; reopening restores the last route (hash history),
   // so tab over to Plan and check the persisted progress.
   await page.reload();

@@ -3,6 +3,7 @@ import {
   format,
   messages,
   orderScenesBookWise,
+  plural,
   richTextFromPlain,
   type SceneContextInfo,
   type SceneSummary,
@@ -27,10 +28,9 @@ import {
   useUpdateScene,
 } from "./data";
 import { IssueList } from "./IssueList";
+import { formatNumber } from "./locale";
 import { PromptsSheet } from "./PromptsSheet";
 import { useAutosave } from "./useAutosave";
-
-const numberFormat = new Intl.NumberFormat();
 
 /**
  * Step 8 — the scene list (spec §4.1 point 7): rows of #, POV, one-line, estimated words;
@@ -149,10 +149,10 @@ export function Step8Editor({ projectId, row }: { projectId: UUID; row: Snowflak
         <p className="mt-2 text-sm font-medium">
           {target !== null
             ? format(messages.step8.estimated, {
-                est: numberFormat.format(estimate),
-                target: numberFormat.format(target),
+                est: formatNumber(estimate),
+                target: formatNumber(target),
               })
-            : format(messages.step8.estimatedNoTarget, { est: numberFormat.format(estimate) })}
+            : plural(messages.step8.estimatedNoTarget, estimate, { est: formatNumber(estimate) })}
         </p>
       </section>
 

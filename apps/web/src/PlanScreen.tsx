@@ -2,6 +2,7 @@ import {
   computeStaleSteps,
   format,
   messages,
+  plural,
   progressOf,
   type RecentEntity,
   type SceneContextInfo,
@@ -25,12 +26,11 @@ import {
   useTakeSnapshot,
   useTrash,
 } from "./data";
+import { formatNumber } from "./locale";
 import { useSessionStore } from "./session";
 import { closeLibrary } from "./storage";
 import { ThemeButton } from "./ThemeButton";
 import { relativeTime } from "./time";
-
-const numberFormat = new Intl.NumberFormat();
 
 export function PlanScreen() {
   const session = useSessionStore((state) => state.session);
@@ -166,8 +166,8 @@ export function PlanScreen() {
                     ? messages.write.continueLast
                     : messages.write.continueNext}
                   {continueTarget.data.wordCount > 0
-                    ? ` · ${format(messages.write.continueWords, {
-                        words: numberFormat.format(continueTarget.data.wordCount),
+                    ? ` · ${plural(messages.write.continueWords, continueTarget.data.wordCount, {
+                        words: formatNumber(continueTarget.data.wordCount),
                       })}`
                     : ""}
                 </p>
@@ -204,7 +204,7 @@ export function PlanScreen() {
                         {idea.title}
                       </span>
                       <span className="text-xs text-muted">
-                        {format(messages.notes.revisitAge, { days: idea.ageDays })}
+                        {plural(messages.notes.revisitAge, idea.ageDays)}
                       </span>
                     </button>
                   </li>
@@ -225,18 +225,18 @@ export function PlanScreen() {
                 <span className="sl-chip">
                   {stats.data.writtenWords > 0
                     ? format(messages.dashboard.wordsWritten, {
-                        written: numberFormat.format(stats.data.writtenWords),
-                        target: numberFormat.format(
+                        written: formatNumber(stats.data.writtenWords),
+                        target: formatNumber(
                           stats.data.targetWordCount ?? stats.data.estimatedWords,
                         ),
                       })
                     : stats.data.targetWordCount !== null
                       ? format(messages.dashboard.words, {
-                          est: numberFormat.format(stats.data.estimatedWords),
-                          target: numberFormat.format(stats.data.targetWordCount),
+                          est: formatNumber(stats.data.estimatedWords),
+                          target: formatNumber(stats.data.targetWordCount),
                         })
                       : format(messages.dashboard.wordsNoTarget, {
-                          est: numberFormat.format(stats.data.estimatedWords),
+                          est: formatNumber(stats.data.estimatedWords),
                         })}
                 </span>
                 {step8Complete ? (

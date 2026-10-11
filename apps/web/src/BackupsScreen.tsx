@@ -1,6 +1,7 @@
 import {
   format,
   messages,
+  plural,
   type RestorableKind,
   SNAPSHOT_COUNT_KEYS,
   type SnapshotCountKey,
@@ -8,6 +9,7 @@ import {
 } from "@starline/core";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
+import { formatDateTime, formatNumber } from "./locale";
 import { useSessionStore } from "./session";
 import {
   chooseMirrorFolder,
@@ -41,12 +43,12 @@ function formatBytes(bytes: number): string {
 
 function relative(timestamp: number): string {
   const seconds = Math.round((Date.now() - timestamp) / 1000);
-  if (seconds < 90) return "just now";
+  if (seconds < 90) return messages.time.justNow;
   const minutes = Math.round(seconds / 60);
-  if (minutes < 90) return `${minutes} min ago`;
+  if (minutes < 90) return plural(messages.time.minutesAgo, minutes);
   const hours = Math.round(minutes / 60);
-  if (hours < 36) return `${hours} h ago`;
-  return new Date(timestamp).toLocaleString();
+  if (hours < 36) return plural(messages.time.hoursAgo, hours);
+  return formatDateTime(timestamp);
 }
 
 /** One delta in the preview: "+3 scenes", "−1 character", "2,140 words changed". */
@@ -56,17 +58,18 @@ function deltaText(diff: SnapshotDiff): string[] {
     const value = diff.delta[key as SnapshotCountKey];
     if (key === "words") continue;
     if (value === 0) continue;
-    const nouns =
-      Math.abs(value) === 1 ? messages.backups.whatOne[key] : messages.backups.what[key];
+    const noun = plural(messages.backups.what[key], Math.abs(value));
     parts.push(
       value > 0
-        ? format(messages.backups.deltaAdded, { n: value, what: nouns })
-        : format(messages.backups.deltaRemoved, { n: Math.abs(value), what: nouns }),
+        ? format(messages.backups.deltaAdded, { n: value, what: noun })
+        : format(messages.backups.deltaRemoved, { n: Math.abs(value), what: noun }),
     );
   }
   if (diff.delta.words !== 0) {
     parts.push(
-      format(messages.backups.deltaWords, { n: Math.abs(diff.delta.words).toLocaleString() }),
+      plural(messages.backups.deltaWords, Math.abs(diff.delta.words), {
+        n: formatNumber(Math.abs(diff.delta.words)),
+      }),
     );
   }
   return parts;
@@ -164,9 +167,9 @@ export function BackupsScreen() {
     try {
       const result = await restoreEntityFromFile(session, row, kind, id);
       setNotice(
-        format(messages.backups.restoreEntityDone, { n: result.restored }) +
+        plural(messages.backups.restoreEntityDone, result.restored) +
           (result.skipped > 0
-            ? ` ${format(messages.backups.restoreEntitySkipped, { n: result.skipped })}`
+            ? ` ${plural(messages.backups.restoreEntitySkipped, result.skipped)}`
             : ""),
       );
       await refresh();
@@ -242,7 +245,7 @@ export function BackupsScreen() {
                   <p className="text-xs text-muted">
                     {format(messages.backups.counts, {
                       scenes: row.sceneCount,
-                      words: row.wordCount.toLocaleString(),
+                      words: formatNumber(row.wordCount),
                     })}{" "}
                     · {formatBytes(row.byteSize)}
                     {row.label.length > 0 ? ` · ${row.label}` : ""}
@@ -348,13 +351,12 @@ export function BackupsScreen() {
             <dl className="sl-diff-table" data-testid="sl-diff-table">
               {SNAPSHOT_COUNT_KEYS.map((key) => (
                 <div key={key} className="flex items-center justify-between gap-3 text-xs">
-                  <dt className="text-muted">{messages.backups.what[key]}</dt>
+                  <dt className="text-muted">
+                    {plural(messages.backups.what[key], preview.diff.snapshot[key])}
+                  </dt>
                   <dd>
-                    {preview.diff.snapshot[key].toLocaleString()}
-                    <span className="text-muted">
-                      {" "}
-                      → {preview.diff.current[key].toLocaleString()}
-                    </span>
+                    {formatNumber(preview.diff.snapshot[key])}
+                    <span className="text-muted"> → {formatNumber(preview.diff.current[key])}</span>
                   </dd>
                 </div>
               ))}

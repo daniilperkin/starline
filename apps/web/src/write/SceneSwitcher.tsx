@@ -1,4 +1,4 @@
-import { format, messages, type UUID } from "@starline/core";
+import { messages, plural, type UUID } from "@starline/core";
 import { useEffect } from "react";
 import { useSceneTree } from "../data";
 
@@ -142,9 +142,7 @@ export function SceneSwitcher({
                   >
                     <span className="truncate">{row.label}</span>
                     <span className="sl-write-switcher-words">
-                      {format(messages.scenes.words, {
-                        words: String(row.words),
-                      })}
+                      {plural(messages.scenes.words, row.words)}
                     </span>
                   </button>
                 </li>

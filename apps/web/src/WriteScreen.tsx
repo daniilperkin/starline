@@ -2,6 +2,7 @@ import {
   format,
   messages,
   orderScenesBookWise,
+  plural,
   type RichText,
   SCENE_STATUS_COLORS,
   type UUID,
@@ -20,14 +21,12 @@ import {
   useSetSceneBody,
   useUpdateScene,
 } from "./data";
+import { formatClock, formatNumber } from "./locale";
 import { RichTextEditor } from "./RichTextEditor";
 import { SceneSheet } from "./SceneSheet";
 import { useAutosave } from "./useAutosave";
 import { readCaret, TYPOGRAPHY_SIZES, useTypography, writeCaret } from "./write/prefs";
 import { SceneSwitcher } from "./write/SceneSwitcher";
-
-const numberFormat = new Intl.NumberFormat();
-const clockFormat = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
 
 interface Draft {
   title: string;
@@ -111,7 +110,7 @@ export function WriteScreen() {
           await updateScene.mutateAsync({ projectId, sceneId, patch: { title: value.title } });
         }
         setSaving(false);
-        setSavedAt(clockFormat.format(new Date()));
+        setSavedAt(formatClock(new Date()));
         // Coming back to this scene later must seed the SAVED text, not the copy this screen
         // loaded when it opened — the body query cache is the only other holder of it.
         void queryClient.invalidateQueries({ queryKey: ["sceneBody"] });
@@ -311,7 +310,7 @@ export function WriteScreen() {
             ✕
           </button>
           <p className="sl-write-float" data-testid="sl-write-words">
-            {format(messages.write.wordsLive, { words: numberFormat.format(words) })}
+            {plural(messages.write.wordsLive, words, { words: formatNumber(words) })}
           </p>
         </>
       ) : (
@@ -319,10 +318,10 @@ export function WriteScreen() {
           <span className="sl-write-words" data-testid="sl-write-words">
             {target !== null
               ? format(messages.write.wordsOf, {
-                  words: numberFormat.format(words),
-                  target: numberFormat.format(target),
+                  words: formatNumber(words),
+                  target: formatNumber(target),
                 })
-              : format(messages.write.wordsLive, { words: numberFormat.format(words) })}
+              : plural(messages.write.wordsLive, words, { words: formatNumber(words) })}
           </span>
           <span className="sl-write-saved" data-testid="sl-write-saved">
             {saving

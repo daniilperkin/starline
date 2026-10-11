@@ -4,7 +4,9 @@ import {
   FIELD_TARGETS,
   FIELD_TYPES,
   LORE_KINDS,
+  type Locale,
   messages,
+  plural,
   TAG_COLORS,
   type UUID,
 } from "@starline/core";
@@ -23,9 +25,10 @@ import {
   useSetTagColor,
   useTags,
 } from "./data";
+import { useLocaleStore } from "./locale";
 import { UndoToast } from "./UndoToast";
 
-type Section = "tags" | "fields";
+type Section = "tags" | "fields" | "language";
 
 /**
  * Settings (spec §4.6) — slice 9 ships its first two sections: the tag manager and the custom
@@ -43,7 +46,7 @@ export function SettingsScreen() {
         <h1 className="text-xl font-semibold tracking-tight">{messages.settings.heading}</h1>
         <fieldset className="sl-segmented sl-fieldset ml-auto">
           <legend className="sr-only">{messages.settings.heading}</legend>
-          {(["tags", "fields"] as const).map((option) => (
+          {(["tags", "fields", "language"] as const).map((option) => (
             <button
               key={option}
               type="button"
@@ -52,13 +55,19 @@ export function SettingsScreen() {
               data-testid={`sl-settings-${option}`}
               onClick={() => setSection(option)}
             >
-              {option === "tags" ? messages.settings.tags : messages.settings.fields}
+              {option === "tags"
+                ? messages.settings.tags
+                : option === "fields"
+                  ? messages.settings.fields
+                  : messages.settings.language}
             </button>
           ))}
         </fieldset>
       </header>
 
-      {project === null ? (
+      {section === "language" ? (
+        <LanguagePanel />
+      ) : project === null ? (
         <p className="text-sm text-muted">{messages.settings.noProject}</p>
       ) : section === "tags" ? (
         <TagsPanel projectId={project.id} />
@@ -169,9 +178,7 @@ function TagsPanel({ projectId }: { projectId: UUID }) {
                   </button>
                 )}
                 <span className="text-xs text-muted" data-testid="sl-tag-count">
-                  {tag.count === 1
-                    ? messages.tags.countOne
-                    : messages.tags.count.replace("{count}", String(tag.count))}
+                  {plural(messages.tags.count, tag.count)}
                 </span>
               </div>
 
@@ -264,7 +271,7 @@ function TagsPanel({ projectId }: { projectId: UUID }) {
                   {confirmDelete === tag.id
                     ? `${messages.tags.delete}?`
                     : tag.count > 0
-                      ? messages.tags.inUse.replace("{count}", String(tag.count))
+                      ? plural(messages.tags.inUse, tag.count)
                       : messages.tags.delete}
                 </button>
               </div>
@@ -482,7 +489,7 @@ function FieldsPanel({ projectId }: { projectId: UUID }) {
                       <span className="text-xs text-muted" data-testid="sl-field-usage">
                         {def.usage === 0
                           ? messages.fieldDefs.usageNone
-                          : messages.fieldDefs.usage.replace("{count}", String(def.usage))}
+                          : plural(messages.fieldDefs.usage, def.usage)}
                       </span>
                       <button
                         type="button"
@@ -530,5 +537,39 @@ function FieldsPanel({ projectId }: { projectId: UUID }) {
         })
       )}
     </div>
+  );
+}
+
+/**
+ * Language picker (decision 22): an explicit choice is remembered per device; "system"
+ * clears it and follows the browser again. Labels stay in their own language on purpose.
+ */
+function LanguagePanel() {
+  const chosen = useLocaleStore((state) => state.chosen);
+  const choose = useLocaleStore((state) => state.choose);
+  const options: Array<{ value: Locale | null; label: string; testId: string }> = [
+    { value: null, label: messages.settings.languageSystem, testId: "sl-locale-system" },
+    { value: "en", label: "English", testId: "sl-locale-en" },
+    { value: "uk", label: "Українська", testId: "sl-locale-uk" },
+  ];
+  return (
+    <section className="flex flex-col gap-3" data-testid="sl-language-panel">
+      <p className="text-xs text-muted">{messages.settings.languageHint}</p>
+      <fieldset className="sl-seg sl-seg-plain">
+        <legend className="sr-only">{messages.settings.language}</legend>
+        {options.map((option) => (
+          <button
+            key={option.testId}
+            type="button"
+            className="sl-segment"
+            aria-pressed={chosen === option.value}
+            data-testid={option.testId}
+            onClick={() => choose(option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </fieldset>
+    </section>
   );
 }

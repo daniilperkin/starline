@@ -12,9 +12,9 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import {
   type ChapterSummary,
-  format,
   messages,
   orderScenesBookWise,
+  plural,
   SCENE_STATUS_COLORS,
   type SceneSummary,
   type UUID,
@@ -34,12 +34,11 @@ import {
   useSetScenePlacement,
   useUpdateChapter,
 } from "./data";
+import { formatNumber } from "./locale";
 import { useNavigationStore } from "./navigation";
 import { PlotlineGrid } from "./PlotlineGrid";
 import { SceneSheet } from "./SceneSheet";
 import { useUndoStore } from "./undo";
-
-const numberFormat = new Intl.NumberFormat();
 
 interface SceneGroup {
   chapter: ChapterSummary | null;
@@ -235,9 +234,9 @@ export function ScenesScreen() {
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">{messages.scenes.heading}</h1>
-          <p className="text-sm text-muted">
-            {format(messages.scenes.sceneCount, { n: scenes.length })} ·{" "}
-            {format(messages.scenes.wordsEst, { words: numberFormat.format(estimate) })}
+          <p className="text-sm text-muted" data-testid="sl-scenes-count">
+            {plural(messages.scenes.sceneCount, scenes.length)} ·{" "}
+            {plural(messages.scenes.wordsEst, estimate, { words: formatNumber(estimate) })}
           </p>
         </div>
         <fieldset className="sl-segmented sl-fieldset">
@@ -347,8 +346,10 @@ export function ScenesScreen() {
                       </h2>
                     )}
                     <span className="shrink-0 text-xs text-muted">
-                      {format(messages.scenes.sceneCount, { n: group.scenes.length })} ·{" "}
-                      {format(messages.scenes.wordsEst, { words: numberFormat.format(groupWords) })}
+                      {plural(messages.scenes.sceneCount, group.scenes.length)} ·{" "}
+                      {plural(messages.scenes.wordsEst, groupWords, {
+                        words: formatNumber(groupWords),
+                      })}
                     </span>
                     {chapter !== null ? (
                       <button
@@ -435,7 +436,7 @@ export function ScenesScreen() {
                         }}
                       >
                         {chapterDeleteConfirm === chapter.id
-                          ? format(messages.scenes.chapterDeleteConfirm, { n: group.scenes.length })
+                          ? plural(messages.scenes.chapterDeleteConfirm, group.scenes.length)
                           : `✕ ${messages.scenes.delete}`}
                       </button>
                     </div>
@@ -478,9 +479,9 @@ export function ScenesScreen() {
                                   </span>
                                   <span className="w-16 shrink-0 text-right text-xs text-muted tabular-nums">
                                     {scene.bodyWordCount > 0
-                                      ? numberFormat.format(scene.bodyWordCount)
+                                      ? formatNumber(scene.bodyWordCount)
                                       : scene.targetWordCount !== null
-                                        ? `≈${numberFormat.format(scene.targetWordCount)}`
+                                        ? `≈${formatNumber(scene.targetWordCount)}`
                                         : ""}
                                   </span>
                                 </button>
