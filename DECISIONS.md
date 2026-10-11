@@ -164,3 +164,26 @@ everything not listed here; entries are folded back into the spec on owner reque
       another note.
     - **Quick capture on the phone:** the PWA manifest carries a `Quick capture` shortcut →
       `#/notes?capture=1` — the phone's answer to spec §4.4.2's global hotkey.
+
+## Owner decisions — M4 planning round (2026-10-10)
+
+22. **M4 shape, settled before Slice 17.** Four answers from the owner, all binding:
+    - **Installers = release-signed APK.** Generate a release keystore **outside the repo**
+      (`%USERPROFILE%\.starline\starline-release.keystore`; credentials in an untracked
+      android `keystore.properties`), wire gradle `signingConfigs.release`, ship a signed
+      release APK. The debug APK stays the QA artifact (it carries the DEV hooks the
+      emulator suite drives); the release build carries none. Documented in
+      `docs/ANDROID-RELEASE.md`.
+    - **CI scope:** ONE workflow on every push to `main` + PRs running the full local gate
+      suite — typecheck, biome, tests (native + browser), chaos, budget checks (bundle /
+      no-network / contrast), web E2E (`verify-web`, `verify-pwa`). Emulator QA stays local:
+      GitHub runners get no Android emulator, and a phone-path budget measured on a runner's
+      software renderer would measure the runner.
+    - **i18n first-run behaviour:** follow the system language (`uk*` → Ukrainian, else
+      English), a Language control in Settings, the choice remembered per device
+      (`starline.locale`). Launch languages stay English + Ukrainian (decision 20).
+    - **a11y audit depth:** automated axe (already green) **plus** scripted manual checks —
+      keyboard-only journey, focus order and visibility, target sizes ≥ 24 px,
+      `prefers-reduced-motion`, 200 % zoom and text-spacing, non-text contrast — collected in
+      a `docs/ACCESSIBILITY.md` WCAG 2.2 AA checklist with per-criterion evidence and an
+      owner sign-off line. No screen-reader pass in this milestone.

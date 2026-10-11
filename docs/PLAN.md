@@ -513,7 +513,69 @@ One ordering lesson the bundle gate taught (recorded so it is not re-learned):
 
 ---
 
-## 5. AI seams (decision 15) — ship none, keep the attach points clean
+## 5. M4 — Polish (slices 17–20)
+
+**Milestone exit (spec §5.7, amended by decisions 20–22):** §5.1 budgets enforced by CI;
+WCAG 2.2 AA checklist signed off; i18n shipping English + Ukrainian; installers in place
+(release-signed APK + PWA install path); docs complete, repo `AGENTS.md` included.
+
+Four slices, CI first so every later slice is checked by the machine rather than by whoever
+remembers to run the gates.
+
+### Slice 17 — CI gates (one workflow, the whole suite)
+
+**Build**: `.github/workflows/ci.yml` on push to `main` + pull requests, one job graph that
+mirrors the local gates exactly: `static` (typecheck, biome, node tests incl. the Rust
+storage CLI via `scripts/cargo.mjs`, browser tests), `durability` (`chaos`, `chaos:web`),
+`budgets` (clean web build → `check:bundle`, `check-no-network`, `check-contrast`), `e2e`
+(`verify-web`, `verify-pwa` on Playwright chromium). Toolchain: pnpm from `packageManager`,
+Node 22, the runner's Rust, `playwright install --with-deps chromium`. Emulator QA stays
+local by decision 22 — GitHub runners get no Android emulator.
+
+**Exit**: workflow green on a real push; a deliberately broken budget and a failing test each
+turn the run red (verified once, then reverted); a local `pnpm ci:gates` script runs the same
+sequence so CI and the laptop cannot drift.
+
+### Slice 18 — Ukrainian (i18n: en + uk)
+
+**Build**: a tiny core i18n runtime — `setLocale`/`getLocale`, `messages` as a live proxy over
+the active catalogue (649 call sites keep working), `Intl.PluralRules`-backed plural entries
+(the ~20 `{n}` strings become `PluralForms` so "1 сцена / 2 сцени / 5 сцен" is correct, and
+TypeScript forces every call site to move), locale-aware `Intl.DateTimeFormat`/`Segmenter`
+usage, `uk.ts` catalogue typed as `Messages` (the compiler proves completeness). Web side:
+first run follows the system language (`uk*` → Ukrainian, else English), Settings gets a
+Language control, the choice persists per device (`starline.locale`), `<html lang>` and the
+PWA manifest follow, the tree remounts on switch.
+
+**Exit**: uk journey in `verify-web` (switch → headings/messages in Ukrainian → switch back),
+plural spot-checks in tests, both locales axe-clean, css stays within budget.
+
+### Slice 19 — Accessibility audit (WCAG 2.2 AA)
+
+**Build**: `scripts/check-a11y.mjs` — scripted manual checks axe cannot do: keyboard-only
+journey (Tab/Shift-Tab/Enter/Escape through the main loops), visible focus on every stop,
+focus order sanity, target sizes ≥ 24×24 CSS px, `prefers-reduced-motion` honoured, 200 %
+zoom + text-spacing without clipping, non-text contrast of UI boundaries, page titles, `lang`
+correctness, live-region status messages. Fix everything it finds.
+`docs/ACCESSIBILITY.md` — the WCAG 2.2 AA checklist with per-criterion evidence, known
+exceptions called out, owner sign-off line.
+
+**Exit**: script green, checklist written, owner signs off.
+
+### Slice 20 — Installers, release signing, docs + the M4 gate
+
+**Build**: release keystore generated outside the repo
+(`%USERPROFILE%\.starline\starline-release.keystore`, credentials in untracked android
+`keystore.properties`), gradle `signingConfigs.release` wired, `assembleRelease` → a signed
+release APK without DEV hooks; `docs/ANDROID-RELEASE.md` (keystore rules, build recipe,
+upgrade constraints, why the debug APK stays for QA). PWA polish: manifest `lang`, install
+path documented. Docs: repo `AGENTS.md`, README refresh, M4 gate table recorded.
+
+**Exit**: release APK installs and runs on the emulator (smoke), signature verified with
+`apksigner`, M4 gate table filled in this file.
+
+---
+## 6. AI seams (decision 15) — ship none, keep the attach points clean
 
 - v1 ships the **static prompt library** only (bundled, offline): wizard steps (Slice 1),
   scene editor prompts, lore/worldbuilding question sets. Content is part of the repo, no
@@ -527,7 +589,7 @@ One ordering lesson the bundle gate taught (recorded so it is not re-learned):
 
 ---
 
-## 6. Engineering conventions for the build phase
+## 7. Engineering conventions for the build phase
 
 - **Slice discipline**: every slice lands on `main` as a small commit series with detailed
   rationale; each slice is only "done" when all gates are green and the APK has been
@@ -551,7 +613,7 @@ One ordering lesson the bundle gate taught (recorded so it is not re-learned):
 - **Reference dataset**: grow a scripted fixture ("reference project": 60 characters,
   150 scenes, 400 lore entries, 300 notes, 2 000 mentions) used by budgets and tests.
 
-## 7. Explicitly out of v1
+## 8. Explicitly out of v1
 
 - Series container (schema-ready; v1.1), collaboration/social/ads (decision 10), AI
   generation (decision 15), Fabula import (no export exists on their side), live sync of
@@ -561,7 +623,7 @@ One ordering lesson the bundle gate taught (recorded so it is not re-learned):
   `docs/CLOUD-BACKUP.md` per owner request (decision 18); candidate after v1 core, requires
   its own go-ahead and an invariant-wording revision.
 
-## 8. Open items — resolved 2026-10-08 (all nine accepted as recommended, decision 17)
+## 9. Open items — resolved 2026-10-08 (all nine accepted as recommended, decision 17)
 
 *Provenance only — every recommendation below is now the shipped default.*
 
@@ -581,7 +643,7 @@ One ordering lesson the bundle gate taught (recorded so it is not re-learned):
 9. **Wizard layout**: each step a separate full page (recommendation — one small unit of
    work at a time) or one continuous scroll?
 
-## 9. Appendix — screen → data map (abridged)
+## 10. Appendix — screen → data map (abridged)
 
 | Screen | Primary reads | Writes (commands) |
 |---|---|---|
