@@ -15,13 +15,20 @@
 import {
   backupSnapshots,
   type CloudManifest,
+  type CloudSnapshotEntry,
   DriveClient,
   readCloudManifest,
   type SnapshotCandidate,
   sha256Hex,
+  withoutEntry,
 } from "@starline/core";
 import { create } from "zustand";
-import { listSnapshots, readSnapshotBytes, setSnapshotTakenListener } from "../snapshots";
+import {
+  listSnapshots,
+  readSnapshotBytes,
+  setSnapshotTakenListener,
+  writeSnapshotBytes,
+} from "../snapshots";
 import { asCloudAccount, signInWithGoogle } from "./auth-web";
 import { cloudConfig } from "./config";
 import type { CloudAccount } from "./types";
@@ -51,6 +58,8 @@ interface CloudStore {
   disable: () => Promise<void>;
   refresh: (library: CloudLibrary) => Promise<void>;
   backUp: (library: CloudLibrary) => Promise<void>;
+  downloadToLocal: (library: CloudLibrary, entry: CloudSnapshotEntry) => Promise<void>;
+  removeFromCloud: (library: CloudLibrary, entry: CloudSnapshotEntry) => Promise<void>;
 }
 
 function readEnabled(): boolean {
@@ -156,6 +165,36 @@ export const useCloudStore = create<CloudStore>((set, get) => ({
         candidates,
       );
       set({ manifest: result.manifest, status: "ready" });
+    } catch (error) {
+      set({ status: "error", message: describe(error) });
+    }
+  },
+  async downloadToLocal(library, entry) {
+    const account = get().account;
+    if (!account) return;
+    set({ status: "busy", message: null, lastLibrary: library });
+    try {
+      // A downloaded snapshot keeps its original file name, so the local machinery parses it and
+      // the writer can preview and restore it exactly like a locally taken one.
+      const bytes = await clientFor(account).download(entry.fileId);
+      await writeSnapshotBytes(entry.name, bytes);
+      set({ status: "ready" });
+    } catch (error) {
+      set({ status: "error", message: describe(error) });
+    }
+  },
+
+  async removeFromCloud(library, entry) {
+    const account = get().account;
+    if (!account) return;
+    set({ status: "busy", message: null, lastLibrary: library });
+    try {
+      await clientFor(account).remove(entry.fileId);
+      const manifest = get().manifest;
+      set({
+        manifest: manifest ? withoutEntry(manifest, entry.fileId) : null,
+        status: "ready",
+      });
     } catch (error) {
       set({ status: "error", message: describe(error) });
     }

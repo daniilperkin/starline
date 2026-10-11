@@ -1,4 +1,5 @@
 import {
+  type CloudSnapshotEntry,
   format,
   messages,
   plural,
@@ -9,6 +10,8 @@ import {
 } from "@starline/core";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
+import { useCloudStore } from "./cloud/session";
+import { useProjects } from "./data";
 import { formatDateTime, formatNumber } from "./locale";
 import { useSessionStore } from "./session";
 import {
@@ -94,6 +97,45 @@ export function BackupsScreen() {
   const [confirm, setConfirm] = useState<string | null>(null);
   const [entityPick, setEntityPick] = useState<string>("");
   const [mirror, setMirror] = useState<MirrorState>(() => mirrorState());
+  const cloudEnabled = useCloudStore((state) => state.enabled);
+  const cloudEntries = useCloudStore((state) => state.manifest?.entries ?? []);
+  const cloudDownload = useCloudStore((state) => state.downloadToLocal);
+  const cloudDelete = useCloudStore((state) => state.removeFromCloud);
+  const projects = useProjects();
+  const project = projects.data?.[0] ?? null;
+
+  const cloudLibrary = project && session ? { id: project.id, name: session.name } : null;
+
+  /** Bring a cloud snapshot down as a local one — it then previews and restores like any other. */
+  async function onDownload(entry: CloudSnapshotEntry): Promise<void> {
+    if (!cloudLibrary) return;
+    setBusy("cloud");
+    setNotice(null);
+    try {
+      await cloudDownload(cloudLibrary, entry);
+      await refresh();
+      setNotice(messages.cloud.downloaded);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** Delete one snapshot from the cloud only; the local copy is untouched. */
+  async function onDelete(entry: CloudSnapshotEntry): Promise<void> {
+    if (!cloudLibrary) return;
+    setBusy("cloud");
+    setNotice(null);
+    try {
+      await cloudDelete(cloudLibrary, entry);
+      setNotice(messages.cloud.deleted);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setBusy(null);
+    }
+  }
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -303,6 +345,54 @@ export function BackupsScreen() {
           ) : null}
         </div>
       </div>
+
+      {cloudEnabled ? (
+        <div className="sl-card" data-testid="sl-cloud-list">
+          <p className="text-sm font-medium">{messages.cloud.heading}</p>
+          {cloudEntries.length === 0 ? (
+            <p className="mt-2 text-xs text-muted" data-testid="sl-cloud-empty">
+              {messages.cloud.empty}
+            </p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-2">
+              {cloudEntries.map((entry) => (
+                <li
+                  key={entry.fileId}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line px-3 py-2"
+                  data-testid="sl-cloud-row"
+                >
+                  <span className="min-w-0 text-xs">
+                    <span className="block truncate">{entry.name}</span>
+                    <span className="text-muted">
+                      {new Date(entry.uploadedAt).toLocaleString()} · {formatBytes(entry.bytes)}
+                    </span>
+                  </span>
+                  <span className="flex gap-2">
+                    <button
+                      type="button"
+                      className="sl-btn-small"
+                      data-testid="sl-cloud-download"
+                      disabled={busy !== null}
+                      onClick={() => void onDownload(entry)}
+                    >
+                      {messages.cloud.download}
+                    </button>
+                    <button
+                      type="button"
+                      className="sl-btn-small"
+                      data-testid="sl-cloud-delete"
+                      disabled={busy !== null}
+                      onClick={() => void onDelete(entry)}
+                    >
+                      {messages.cloud.delete}
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
 
       {preview && previewRow ? (
         <>
