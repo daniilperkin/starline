@@ -704,7 +704,11 @@ flow cannot be scripted without an account) and this file's slice-15 record comp
 | Daily question | one reflective question from the bundled library, deterministic from the local calendar date, hidden per day (`starline.daily.dismissed`); the first thing the dashboard shows that is about writing rather than about the plan |
 | Ukrainian prompts | all nine steps translated (rule, three worked examples, five-plus questions each); `stepPrompt(locale, step)`; the prompts sheet now reads the writer's language |
 
-**Verified:** 321 node tests (10 new: templates parse back as one scene per beat with no POV and no
+**Shipped revision:** `8205911`, validated by CI run `38309665668` (static gates, durability, budgets
+and web E2E — all four green) and Pages run `38309665687`, with the deployed bundle checked against the
+live site (the daily card and the template markers are in the served chunk).
+
+**Verified:** 333 tests (10 new: templates parse back as one scene per beat with no POV and no
 chapter; the two locales match beat for beat; the daily pick is deterministic across a year and
 draws from all nine steps) · WEB-VERIFY OK with both new journeys — the card stable across a reload
 and hidden for the day, three-act previewed, reported and applied (44 → 53 scenes, all titled),
