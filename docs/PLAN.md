@@ -646,16 +646,37 @@ PWA, and a separate `STARLINE_CLOUD=1` flavour so the default build keeps zero c
 | --- | --- | --- |
 | S15a | `22d7ae2` · `9433210` · `0eee91f` · `918027e` | config plumbing (one untracked `cloud.properties` → defines, only with the flag) · manifest (tolerant parse, decision-23c thinning) · Drive client (resumable uploads, `appDataFolder`, injected token) · orchestration (idempotent uploads, thin, rewrite in place) — 36 tests |
 | S15b | `47b87fd` · `a87b430` · `8667cb7` · `0b6fc41` | Settings → Cloud backup (off by default, Google sign-in via Identity Services, honest status line) · uploads on every snapshot plus "Back up now" · Backups → Cloud card (list, download-into-local-snapshots, delete-from-cloud) · lazy cloud module, flavour-aware no-network check |
-| S15c (part) | this commit | the deployed PWA and CI build the cloud flavour; the budgets job checks both flavours' invariants |
+| S15c | `d4ce37b` | the deployed PWA and CI build the cloud flavour; the budgets job checks both flavours' invariants |
+| S15d | `8e40f11` · `90e1316` · `4d56aa9` · this commit | Android sign-in (native `StarlineGoogleAuthPlugin`: email + `drive.appdata` in ONE consent, no Firebase anywhere) · the two on-device bugs below · the enable button freed from the library gate · Settings segments wrap + the a11y check that asserts it · repository variables feed the CI build |
 
-**Verified:** 311/311 tests · both flavours' `check-no-network` green (default 216 files, cloud 218
-with the host allowlist) · a throwaway probe against both builds confirmed the chain
-`cloud.properties` → vite define → config → store → UI (ON: "No network requests — cloud backup is
-off." + enable button; OFF: "This build has no cloud backup").
+**Shipped 2026-10-12 — S15 is complete.** Two bugs were found on the device, and both are the kind
+that never show up in a browser: (1) Capacitor's plugin proxy is thenable, so returning it from an
+`async` function made JavaScript call `StarlineGoogleAuth.then()` on Android and the promise never
+settled — the panel sat at "Talking to Google Drive…" forever with no error; (2) `getToken` throws
+`UserRecoverableAuthException` (`NeedRemoteConsent`) the first time `drive.appdata` is requested,
+which is Google *asking* for the grant, not failing — the plugin now launches that screen and
+retries. Both are recorded in the skill so the next Capacitor plugin does not repeat them.
 
-**Left in S15:** the Android sign-in path — Firebase Auth plus a small Kotlin plugin for the Drive
-access token (`AuthorizationClient`, scope `drive.appdata`), which needs an on-device test with a
-real Google account — and the S15d QA journeys + docs.
+**Verified (measured on the emulator, read from inside the running app rather than from a message):**
+
+- sign-in as a real account → `starline.cloud.enabled = on`
+- upload → **2 snapshots in Drive**, panel: "On — daniilperkin2004@gmail.com, N snapshot(s)"
+- list → the Backups → Cloud card shows both with name, date, size
+- download → "Downloaded — it is in the list above"; the snapshot joins the local list
+- preview → the diff sheet opens ("Nothing changed since this snapshot." for an identical one)
+- restore → completes with no error, returns to the plan, and the guard snapshot fires
+- 311/311 tests · both flavours' `check-no-network` green · a CI-style build with the properties
+  file hidden still carries the client values (repository variables), file restored byte-identical
+
+**Left for the owner:** add `https://daniilperkin.github.io` (and `http://localhost:5187` for local
+dev) as an authorized JavaScript origin on the web OAuth client — the APK signs in without it, the
+PWA cannot. Console: APIs & Services → Credentials → the web client.
+
+**Manual QA drill (the cloud flow needs a real account, so it cannot be scripted):** install the
+cloud-flavour APK → Settings → Cloud backup → Turn on (Google's sheet; on a fresh account a second
+grant screen appears, which is expected and now handled) → open a library → Back up now → confirm
+"N snapshots in your Drive" → Backups → Cloud → Download → Preview → Restore. To reset: Turn off,
+which never touches the local `.starline` files.
 
 ## 5c. The final push (decision 24) — work list
 

@@ -1,6 +1,7 @@
 import { messages, plural } from "@starline/core";
 import { useProjects } from "../data";
 import { useSessionStore } from "../session";
+import { cloudFlavourWithoutConfig } from "./config";
 import { useCloudStore } from "./session";
 
 /**
@@ -34,7 +35,9 @@ export function CloudPanel() {
       <section className="sl-card p-4">
         <h2 className="text-sm font-medium">{messages.cloud.heading}</h2>
         <p className="mt-2 text-xs text-muted" data-testid="sl-cloud-status">
-          {messages.cloud.unavailable}
+          {cloudFlavourWithoutConfig
+            ? messages.cloud.unavailableNoConfig
+            : messages.cloud.unavailable}
         </p>
       </section>
     );

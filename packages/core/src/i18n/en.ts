@@ -276,6 +276,8 @@ export const en = {
     working: "Talking to Google Drive…",
     lastUpload: "Last upload:",
     unavailable: "This build has no cloud backup (built without STARLINE_CLOUD).",
+    unavailableNoConfig:
+      "This build has cloud backup compiled in but no Google configuration (repository variables are unset).",
     error: "Cloud backup failed: {message}",
   },
   attachments: {

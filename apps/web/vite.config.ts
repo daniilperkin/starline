@@ -14,11 +14,28 @@ const isCapacitorBuild = process.env.STARLINE_CAP === "1";
 // default build stays at the root for Cloudflare Pages / Netlify / local preview.
 const base = process.env.STARLINE_BASE ?? "/";
 
-// Cloud backup (slice 15, decisions 18/23). The untracked android/cloud.properties is the single
-// source for both the APK and the PWA build. With STARLINE_CLOUD=1 its four values are injected
-// as VITE_* defines; without it every value stays blank, the cloud config reports "no cloud" and
-// no cloud code is ever imported — the default build stays offline-complete (decision 15).
+// Cloud backup (slice 15, decisions 18/23). With STARLINE_CLOUD=1 four values are injected as
+// VITE_* defines; without it every value stays blank, the cloud config reports "no cloud" and no
+// cloud code is ever imported — the default build stays offline-complete (decision 15).
+//
+// The values come from the untracked android/cloud.properties for local builds (APK and PWA
+// alike), or from repository variables passed in as environment variables when that file is
+// absent — CI runners, where it is deliberately untracked. They are Google client identifiers,
+// not secrets: every deployed web bundle ships them, which is why a repository variable is the
+// right home rather than a secret.
+const CLOUD_ENV_KEYS: Record<string, string> = {
+  "firebase.apiKey": "STARLINE_FIREBASE_API_KEY",
+  "firebase.appId": "STARLINE_FIREBASE_APP_ID",
+  "firebase.projectId": "STARLINE_FIREBASE_PROJECT_ID",
+  "google.webClientId": "STARLINE_GOOGLE_WEB_CLIENT_ID",
+};
+
 function readCloudProperties(): Record<string, string> {
+  const fromEnv: Record<string, string> = {};
+  for (const [key, name] of Object.entries(CLOUD_ENV_KEYS)) {
+    const value = process.env[name];
+    if (value && value.length > 0) fromEnv[key] = value;
+  }
   try {
     const text = readFileSync(
       fileURLToPath(new URL("android/cloud.properties", import.meta.url)),
@@ -33,9 +50,9 @@ function readCloudProperties(): Record<string, string> {
       const value = line.slice(separator + 1).trim();
       if (/^[A-Za-z0-9._]+$/.test(key) && value.length > 0) values[key] = value;
     }
-    return values;
+    return { ...values, ...fromEnv };
   } catch {
-    return {}; // no file = no cloud, never a broken build
+    return fromEnv; // no file is normal on CI; the environment is then the only source
   }
 }
 

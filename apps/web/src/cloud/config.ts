@@ -19,3 +19,11 @@ export const cloudConfig: CloudConfig | null = parseCloudConfig({
 
 /** True when this artifact can offer cloud backup at all (the Settings gate keys off this). */
 export const cloudAvailable: boolean = cloudConfig !== null;
+
+/**
+ * True when the build carried the flag but no usable values — a CI build whose repository
+ * variables are unset, for instance. The panel says so instead of blaming the flag, because the
+ * two situations have different fixes and only one of them is a build-time mistake.
+ */
+export const cloudFlavourWithoutConfig: boolean =
+  import.meta.env.VITE_CLOUD_ENABLED === "1" && cloudConfig === null;

@@ -53,6 +53,13 @@ jobs:
           # The deployed PWA is the cloud flavour (decision 23d): it may offer the optional
           # Google/Drive backup. The default build stays offline-complete, and CI checks both.
           STARLINE_CLOUD: "1"
+          # Client identifiers from repository variables, because android/cloud.properties is
+          # deliberately untracked and a CI runner has no copy of it. Not secrets: every deployed
+          # bundle ships them. Empty values simply leave cloud backup unavailable in the build.
+          STARLINE_FIREBASE_API_KEY: ${{ vars.STARLINE_FIREBASE_API_KEY }}
+          STARLINE_FIREBASE_APP_ID: ${{ vars.STARLINE_FIREBASE_APP_ID }}
+          STARLINE_FIREBASE_PROJECT_ID: ${{ vars.STARLINE_FIREBASE_PROJECT_ID }}
+          STARLINE_GOOGLE_WEB_CLIENT_ID: ${{ vars.STARLINE_GOOGLE_WEB_CLIENT_ID }}"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

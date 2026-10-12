@@ -208,7 +208,11 @@ try {
     const visible = await segment.isVisible().catch(() => false);
     const box = visible ? await segment.boundingBox() : null;
     const onScreen = box !== null && box.x >= 0 && box.x + box.width <= 390;
-    report(onScreen, `settings segment reachable: ${section}`, box ? `x=${Math.round(box.x)} w=${Math.round(box.width)}` : "not visible");
+    report(
+      onScreen,
+      `settings segment reachable: ${section}`,
+      box ? `x=${Math.round(box.x)} w=${Math.round(box.width)}` : "not visible",
+    );
   }
 
   // --- 2.2.2: the moving backdrop has a stop control, and the choice is remembered ---

@@ -296,6 +296,8 @@ export const uk: Messages = {
     working: "Зв'язок із Google Drive…",
     lastUpload: "Останнє завантаження:",
     unavailable: "У цій збірці немає хмарної копії (зібрано без STARLINE_CLOUD).",
+    unavailableNoConfig:
+      "У цій збірці хмарну копію скомпільовано, але конфігурації Google немає (змінні репозиторію не задано).",
     error: "Хмарна копія не вдалася: {message}",
   },
   attachments: {

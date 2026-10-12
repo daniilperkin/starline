@@ -40,7 +40,7 @@ StarLine is a **desktop-first, offline-only-by-default story planning workstatio
 | **Planner-novelist** (primary) | Structured plotting before drafting; wants to see holes | Snowflake wizard with validations and coverage views |
 | **Series / worldbuilder** | Persistent bible across books | Series container, shared lore & characters across projects (v1.1; schema-ready in v1.0) |
 | **Neurodivergent / low-executive-function writer** (quoted in Play reviews as the app's core win) | Small, auto-saved pieces instead of one giant document | Each step/entity is its own atomic, autosaved record |
-| **Privacy-conscious / offline writer** | No account, no telemetry | No network code path in the default build |
+| **Privacy-conscious / offline writer** | No account, no telemetry | No network code path in the default build; the optional cloud backup is an explicitly enabled module that is off by default (decision 23d) |
 | **Scrivener / Plottr migrator** | Keep drafting elsewhere | Lossless Markdown/DOCX/JSON export |
 
 ### 1.4 Competitive differentiation
