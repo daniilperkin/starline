@@ -805,8 +805,12 @@ body {
 
 .sl-segmented {
   display: inline-flex;
+  /* Wraps instead of clipping: Settings carries five segments now, and a pill that hides its last
+     option behind the viewport edge is a switch the writer cannot find. */
+  flex-wrap: wrap;
+  justify-content: center;
   border: 1px solid var(--sl-border);
-  border-radius: 999px;
+  border-radius: 1rem;
   overflow: hidden;
 }
 

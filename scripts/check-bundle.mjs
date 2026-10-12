@@ -25,7 +25,9 @@ const BUDGETS = [
   // 8 → 9 KiB (slice 13): writing mode is a whole screen of new rules and the stylesheet cannot
   // be code-split (it is one global sheet). The raise is 12.5 %, the sheet measures 8.2, and the
   // next UI-heavy slice should trim before adding instead of raising again.
-  { match: /^index-.*\.css$/, label: "styles (gzip)", limitKib: 9 },
+  // 9 → 10 KiB (decision 24): slice 16 adds real UI, and trimming the design to fit was the
+  // worse trade. It stays a gate.
+  { match: /^index-.*\.css$/, label: "styles (gzip)", limitKib: 10 },
   { match: /^worker-.*\.js$/, label: "storage worker (gzip)", limitKib: 72 },
   // The export worker builds DOCX/ZIP bytes off the main thread (spec §4.5.1). Its own budget:
   // it must never grow into the generic route-chunk allowance unnoticed.

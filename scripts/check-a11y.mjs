@@ -199,6 +199,18 @@ try {
     );
   }
 
+  // --- every Settings segment must be reachable, not clipped by its pill ---
+  // (A five-item segmented control once pushed its last option off-screen; document-level overflow
+  // checks cannot see content clipped inside a rounded container, so this asserts each one.)
+  await page.goto(`${url}#/settings`);
+  for (const section of ["tags", "fields", "language", "appearance", "cloud"]) {
+    const segment = page.getByTestId(`sl-settings-${section}`);
+    const visible = await segment.isVisible().catch(() => false);
+    const box = visible ? await segment.boundingBox() : null;
+    const onScreen = box !== null && box.x >= 0 && box.x + box.width <= 390;
+    report(onScreen, `settings segment reachable: ${section}`, box ? `x=${Math.round(box.x)} w=${Math.round(box.width)}` : "not visible");
+  }
+
   // --- 2.2.2: the moving backdrop has a stop control, and the choice is remembered ---
   await page.goto(`${url}#/settings`);
   await page.getByTestId("sl-settings-appearance").click();
