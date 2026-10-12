@@ -657,6 +657,24 @@ off." + enable button; OFF: "This build has no cloud backup").
 access token (`AuthorizationClient`, scope `drive.appdata`), which needs an on-device test with a
 real Google account — and the S15d QA journeys + docs.
 
+## 5c. The final push (decision 24) — work list
+
+**Phase 1 — finish slice 15.** Android sign-in: a Kotlin Capacitor plugin doing Google Sign-In +
+`drive.appdata` in one consent (idToken + access token), gradle wiring, the web adapter, then the
+on-device test (emulator first, phone after). Rebuild the release APK **with `STARLINE_CLOUD=1`** —
+the current one predates the whole slice. Then S15d: the manual QA drill written down (the cloud
+flow cannot be scripted without an account) and this file's slice-15 record completed.
+
+**Phase 2 — slice 16.** Structure templates (three-act, Hero's Journey, Save the Cat, story circle)
+generating scene skeletons through the existing `createScenesFromList`, append-only into the
+unassigned pool, always behind a preview. Offline daily inspiration card on the Plan dashboard,
+deterministic per day from the bundled prompt library. Both fully translated (en + uk).
+
+**Phase 3 — carry-overs.** CSS budget 9 → 10 KiB (recorded in the budgets doc). World category
+drag-nest. Corkboard/card view of the outline. Multi-book UI (a second book inside one library).
+Timeline wide-zoom clustering (the documented v1 overlap). The slice-3 `reviewedCharacterIds`
+stub. The owner reads `docs/ACCESSIBILITY.md` for the sign-off line.
+
 ## 6. AI seams (decision 15) — ship none, keep the attach points clean
 
 - v1 ships the **static prompt library** only (bundled, offline): wizard steps (Slice 1),

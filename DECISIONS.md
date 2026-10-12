@@ -209,3 +209,22 @@ everything not listed here; entries are folded back into the spec on owner reque
       aware of the Google endpoints for the cloud flavor. This is the wording revision decision 15
       / spec §5.2 anticipated: *the default build ships and makes no network requests; cloud
       backup is an explicitly enabled module.*
+
+## Owner decisions — final push (2026-10-12)
+
+24. **Finishing S15, slice 16, and the carry-overs.** Five answers, all binding:
+    - **Android auth: one native Google flow, no Firebase.** The Android side signs in through a
+      small Capacitor plugin that requests `drive.appdata` in the same consent and returns both the
+      idToken and a Drive access token. This **revises decision 18's Firebase wording** — Firebase
+      would have supplied only an ID token while Drive needs its own OAuth token, so it would have
+      been a second mechanism for no gain. The PWA path (Google Identity Services) is unchanged.
+    - **On-device sign-in test: emulator first** (the owner signs a Google account into the Play
+      AVD once), phone after.
+    - **CSS gzip budget raised 9 → 10 KiB**, with the note recorded in the budgets doc: slice 16
+      adds real UI, and trimming the design to fit was the worse trade. It stays a gate.
+    - **Structure templates: all four** (three-act, Hero's Journey, Save the Cat, story circle),
+      **append-only into the unassigned pool, never replacing an existing scene list**, and always
+      behind a preview the writer confirms.
+    - **Carry-overs in this push: all four** — World category drag-nest, the corkboard/card view of
+      the outline, multi-book UI (a second book inside one library), and timeline wide-zoom
+      clustering.
