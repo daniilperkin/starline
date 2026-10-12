@@ -422,6 +422,11 @@ export interface CreateScenesFromListArgs {
   projectId: UUID;
   /** The pasted step-8 list (TSV/CSV-ish/plain lines — see parseSceneList). */
   text: string;
+  /**
+   * Set when each line starts with the scene's title (story templates). The paste flow leaves it
+   * off, which keeps step 8 exactly as the method describes it: one-liners, no titles.
+   */
+  withTitles?: boolean;
 }
 
 export interface CreateScenesFromListResult {
@@ -452,7 +457,10 @@ export const createScenesFromList: Command<CreateScenesFromListArgs, CreateScene
         nameToId.set(alias.trim().toLowerCase(), character.id as UUID);
       }
     }
-    const parsed = parseSceneList(args.text, { knownNames: [...nameToId.keys()] });
+    const parsed = parseSceneList(args.text, {
+      knownNames: [...nameToId.keys()],
+      titleColumn: args.withTitles === true,
+    });
 
     const sourced = await ctx.tx.query<{ id: string; snowflake_source: string }>(
       `SELECT id, snowflake_source FROM scene
@@ -504,7 +512,10 @@ export const createScenesFromList: Command<CreateScenesFromListArgs, CreateScene
         chapterId = id;
       }
 
-      const mergeId = byLine.get(row.line);
+      // A template scaffolds *new* scenes: its beats are not corrections of an earlier paste, so
+      // the per-line merge (which exists so a re-import never duplicates) must not apply — the
+      // first template applied after any import would otherwise merge into the imported scenes.
+      const mergeId = args.withTitles === true ? undefined : byLine.get(row.line);
       if (mergeId !== undefined) {
         const synopsis = richTextFromPlain(row.oneLine);
         const sets = ["synopsis_json = ?", "synopsis_text = ?", "updated_at = ?"];
@@ -555,21 +566,27 @@ export const createScenesFromList: Command<CreateScenesFromListArgs, CreateScene
       await ctx.tx.query(
         `INSERT INTO scene (id, project_id, chapter_id, order_key, title, synopsis_json, synopsis_text,
                             pov_character_id, target_word_count, snowflake_source, created_at, updated_at)
-         VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           sceneId,
           args.projectId,
           chapterId,
           orderKey,
+          row.title ?? "",
           synopsis.json === null ? null : JSON.stringify(synopsis.json),
           synopsis.text,
           povId,
           row.estWords,
-          JSON.stringify({
-            step: 8,
-            line: row.line,
-            oneLine: row.oneLine,
-          } satisfies SnowflakeSource),
+          // Null for template scenes: `snowflake_source` keys the paste flow's line-merge, and a
+          // template scene has no line in a pasted list to key on. The step-8 bookkeeping below
+          // still records it, so the wizard counts these scenes like any other import.
+          args.withTitles === true
+            ? null
+            : JSON.stringify({
+                step: 8,
+                line: row.line,
+                oneLine: row.oneLine,
+              } satisfies SnowflakeSource),
           now,
           now,
         ],

@@ -10,12 +10,20 @@ describe("parseSceneList", () => {
     expect(rows).toEqual([
       {
         line: 1,
+        title: null,
         oneLine: "The ferry crosses at dawn",
         povName: null,
         estWords: null,
         chapterTitle: null,
       },
-      { line: 2, oneLine: "Mina hides the map", povName: null, estWords: null, chapterTitle: null },
+      {
+        line: 2,
+        title: null,
+        oneLine: "Mina hides the map",
+        povName: null,
+        estWords: null,
+        chapterTitle: null,
+      },
     ]);
   });
 
@@ -27,6 +35,7 @@ describe("parseSceneList", () => {
     expect(rows).toEqual([
       {
         line: 1,
+        title: null,
         oneLine: "The ferry crosses at dawn",
         povName: "Mina Voss",
         estWords: 1200,
@@ -34,6 +43,7 @@ describe("parseSceneList", () => {
       },
       {
         line: 2,
+        title: null,
         oneLine: "A knife in the dark",
         povName: "Tor",
         estWords: 1500,

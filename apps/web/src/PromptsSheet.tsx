@@ -1,5 +1,6 @@
-import { messages, type SnowflakeStepNumber, STEP_PROMPTS } from "@starline/core";
+import { messages, type SnowflakeStepNumber, stepPrompt } from "@starline/core";
 import { useEffect } from "react";
+import { useLocaleStore } from "./locale";
 
 /** The bundled offline prompt library as a bottom sheet (spec §4.1, decision 15). */
 export function PromptsSheet({
@@ -11,6 +12,8 @@ export function PromptsSheet({
   step: SnowflakeStepNumber;
   onClose: () => void;
 }) {
+  const locale = useLocaleStore((state) => state.locale);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
@@ -21,7 +24,7 @@ export function PromptsSheet({
   }, [open, onClose]);
 
   if (!open) return null;
-  const prompt = STEP_PROMPTS[step];
+  const prompt = stepPrompt(locale, step);
 
   return (
     <>

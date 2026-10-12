@@ -1,5 +1,7 @@
 import {
   computeStaleSteps,
+  dailyPrompt,
+  dayKey,
   format,
   messages,
   plural,
@@ -26,7 +28,7 @@ import {
   useTakeSnapshot,
   useTrash,
 } from "./data";
-import { formatNumber } from "./locale";
+import { formatNumber, useLocaleStore } from "./locale";
 import { useSessionStore } from "./session";
 import { closeLibrary } from "./storage";
 import { ThemeButton } from "./ThemeButton";
@@ -200,6 +202,8 @@ export function PlanScreen() {
               </button>
             </section>
           ) : null}
+
+          <DailyCard />
 
           {staleIdeas.data && staleIdeas.data.length > 0 ? (
             <section className="sl-card flex flex-col gap-2 p-4" data-testid="sl-revisit-card">
@@ -466,5 +470,56 @@ function displayName(name: string): string {
     return decodeURIComponent(name);
   } catch {
     return name;
+  }
+}
+
+/**
+ * The offline daily inspiration card (slice 16). One reflective question from the bundled prompt
+ * library, chosen deterministically from the local calendar date — the same day always shows the
+ * same question, nothing is fetched, and nothing needs saving to make "today" mean today. Hiding
+ * it records only that one date, so tomorrow's question appears without any further bookkeeping.
+ */
+const DAILY_KEY = "starline.daily.dismissed";
+
+function DailyCard() {
+  const locale = useLocaleStore((state) => state.locale);
+  const today = useMemo(() => dailyPrompt(new Date(), locale), [locale]);
+  const [dismissed, setDismissed] = useState(() => readDismissed() === dayKey(new Date()));
+
+  if (dismissed) return null;
+
+  const hide = () => {
+    try {
+      localStorage.setItem(DAILY_KEY, dayKey(new Date()));
+    } catch {
+      // Private mode: hiding lasts for this session, which is the honest behaviour.
+    }
+    setDismissed(true);
+  };
+
+  return (
+    <section className="sl-card flex flex-col gap-2 p-4" data-testid="sl-daily-card">
+      <h2 className="text-sm font-medium text-muted">{messages.daily.heading}</h2>
+      <p className="text-sm" data-testid="sl-daily-question">
+        {today.question}
+      </p>
+      <p className="text-xs text-muted">{format(messages.daily.fromStep, { step: today.step })}</p>
+      <button
+        type="button"
+        className="sl-btn-small self-start"
+        data-testid="sl-daily-dismiss"
+        onClick={hide}
+      >
+        {messages.daily.dismiss}
+      </button>
+    </section>
+  );
+}
+
+function readDismissed(): string | null {
+  try {
+    return localStorage.getItem(DAILY_KEY);
+  } catch {
+    return null;
   }
 }

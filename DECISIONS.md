@@ -228,3 +228,15 @@ everything not listed here; entries are folded back into the spec on owner reque
     - **Carry-overs in this push: all four** — World category drag-nest, the corkboard/card view of
       the outline, multi-book UI (a second book inside one library), and timeline wide-zoom
       clustering.
+
+25. **Slice 16 shape (owner, 2026-10-12).** Three answers, all binding:
+    - **The daily card draws from the bundled prompt library, and that library is translated into
+      Ukrainian** — which also fixes the prompts sheet, English-only until this slice. Translating
+      the one library, rather than writing a second parallel content set for the card, keeps a
+      single teaching voice and makes the en/uk parity test possible.
+    - **The template picker lives in wizard step 8**, beside the existing "create scenes from
+      list" box.
+    - **A generated scene carries a title and a synopsis and stays in the unassigned pool.** Titles
+      are why the parser gained an opt-in `titleColumn` (and the command a matching `withTitles`):
+      in the method a scene's one-liner *is* its identity, so the paste flow deliberately writes no
+      titles, and it still does not.

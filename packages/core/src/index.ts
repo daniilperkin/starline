@@ -19,5 +19,6 @@ export * from "./settings";
 export * from "./snapshots";
 export * from "./snowflake";
 export * from "./tags";
+export * from "./templates";
 export * from "./timeline";
 export * from "./trash";

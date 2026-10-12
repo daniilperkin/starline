@@ -17,6 +17,12 @@
 export interface SceneListRow {
   /** 1-based line number in the pasted text — becomes `snowflakeSource.line` (spec §3.6). */
   line: number;
+  /**
+   * The scene's title, when the caller asked for a title column (`titleColumn: true`). The paste
+   * flow leaves this null: in the method a scene's one-liner is its identity, and step 8 never
+   * asks for titles. Story templates do ask, because a beat has a name.
+   */
+  title: string | null;
   oneLine: string;
   /** The matched display text; the command resolves it to a character id. */
   povName: string | null;
@@ -33,6 +39,11 @@ export interface SceneListParse {
 export interface ParseSceneListOptions {
   /** Known character names + aliases, used to recognise a POV cell. */
   knownNames?: readonly string[];
+  /**
+   * Treat the first cell of each line as the scene's title (story templates). Off for the
+   * step-8 paste flow, where a one-liner is the scene's identity and titles are not asked for.
+   */
+  titleColumn?: boolean;
 }
 
 const NUMBER_CELL_RE = /^~?\d[\d.,\s]*\s*(w|words?)?$/i;
@@ -72,6 +83,7 @@ function matchesName(cell: string, knownNames: readonly string[]): string | null
 /** Parses pasted scene-list text into rows (pure — no storage access). */
 export function parseSceneList(text: string, options: ParseSceneListOptions = {}): SceneListParse {
   const knownNames = options.knownNames ?? [];
+  const titleColumn = options.titleColumn ?? false;
   const rows: SceneListRow[] = [];
   const skipped: Array<{ line: number; text: string }> = [];
   const lines = text.split(/\r?\n/);
@@ -100,6 +112,17 @@ export function parseSceneList(text: string, options: ParseSceneListOptions = {}
     // `#` column.
     if (cells.length > 1 && /^\d+[.):]?$/.test((cells[0] ?? "").trim())) {
       cells = cells.slice(1);
+    }
+
+    // Leading title cell, only when the caller asked for one (story templates). Taken before the
+    // POV check so a beat whose name matches a character is still a title, not a point of view.
+    let title: string | null = null;
+    if (titleColumn && cells.length > 1) {
+      const candidate = (cells[0] ?? "").trim();
+      if (candidate.length > 0) {
+        title = candidate;
+        cells = cells.slice(1);
+      }
     }
 
     // POV column.
@@ -138,7 +161,7 @@ export function parseSceneList(text: string, options: ParseSceneListOptions = {}
       skipped.push({ line: lineNumber, text: raw.trim() });
       continue;
     }
-    rows.push({ line: lineNumber, oneLine, povName, estWords, chapterTitle });
+    rows.push({ line: lineNumber, title, oneLine, povName, estWords, chapterTitle });
   }
 
   return { rows, skipped };

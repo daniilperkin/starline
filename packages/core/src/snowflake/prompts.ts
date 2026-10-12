@@ -1,4 +1,5 @@
 import type { SnowflakeStepNumber } from "../entities";
+import { STEP_PROMPTS_UK } from "./prompts-uk";
 
 /**
  * The bundled, offline prompt library (spec §4.1: rule + worked examples + reflective questions).
@@ -9,6 +10,14 @@ export interface StepPrompt {
   rule: string;
   examples: Array<{ source: string; text: string }>;
   questions: string[];
+}
+
+/**
+ * The prompt for a step in the writer's language (slice 16). English is the source set; Ukrainian
+ * lives in `prompts-uk.ts` so the two read side by side, and a parity test keeps them in step.
+ */
+export function stepPrompt(locale: "en" | "uk", step: SnowflakeStepNumber): StepPrompt {
+  return locale === "uk" ? STEP_PROMPTS_UK[step] : STEP_PROMPTS[step];
 }
 
 export const STEP_PROMPTS: Record<SnowflakeStepNumber, StepPrompt> = {

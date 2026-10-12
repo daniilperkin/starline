@@ -696,10 +696,29 @@ on-device test (emulator first, phone after). Rebuild the release APK **with `ST
 the current one predates the whole slice. Then S15d: the manual QA drill written down (the cloud
 flow cannot be scripted without an account) and this file's slice-15 record completed.
 
-**Phase 2 — slice 16.** Structure templates (three-act, Hero's Journey, Save the Cat, story circle)
-generating scene skeletons through the existing `createScenesFromList`, append-only into the
-unassigned pool, always behind a preview. Offline daily inspiration card on the Plan dashboard,
-deterministic per day from the bundled prompt library. Both fully translated (en + uk).
+**Phase 2 — slice 16 — shipped 2026-10-12 (decision 25).**
+
+| Piece | What it is |
+| --- | --- |
+| Structure templates | three-act · Hero's Journey · Save the Cat · story circle, each beat one scene through the existing `createScenesFromList`; append-only into the unassigned pool, always behind a preview. The parser gained an opt-in `titleColumn` and the command `withTitles` so template scenes arrive **titled**, while the paste flow still writes no titles at all |
+| Daily question | one reflective question from the bundled library, deterministic from the local calendar date, hidden per day (`starline.daily.dismissed`); the first thing the dashboard shows that is about writing rather than about the plan |
+| Ukrainian prompts | all nine steps translated (rule, three worked examples, five-plus questions each); `stepPrompt(locale, step)`; the prompts sheet now reads the writer's language |
+
+**Verified:** 321 node tests (10 new: templates parse back as one scene per beat with no POV and no
+chapter; the two locales match beat for beat; the daily pick is deterministic across a year and
+draws from all nine steps) · WEB-VERIFY OK with both new journeys — the card stable across a reload
+and hidden for the day, three-act previewed, reported and applied (44 → 53 scenes, all titled),
+then re-applied (53 → 62) proving beats never merge into an earlier paste · bundle app 275.3/330 KiB,
+CSS 9.2/10 KiB — the Ukrainian library and the templates add ~12 KiB gz to the main bundle, which is
+the deliberate trade for offline content the dashboard needs.
+
+**Found while verifying, all fixed:** (1) the paste flow writes `title = ''` — a scene's one-liner
+*is* its identity in the method — so titles needed an opt-in flag rather than a behaviour change;
+(2) templates were merging into an earlier paste because the line-merge is keyed by line number —
+template beats are new scenes, so they are now excluded from that merge and carry no
+`snowflake_source`; (3) `verify-web` was the only gate in the repo with **zero** perf tolerance where
+spec §5.1 allows 5 %, so a 10.2 ms p95 failed a 10 ms budget on a loaded machine — it now uses the
+same allowance `check-bundle` already applies.
 
 **Phase 3 — carry-overs.** CSS budget 9 → 10 KiB (recorded in the budgets doc). World category
 drag-nest. Corkboard/card view of the outline. Multi-book UI (a second book inside one library).

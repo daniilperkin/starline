@@ -255,6 +255,19 @@ export const en = {
     revisitHint: "Incubating for over a month — still worth it?",
     revisitAge: { one: "{days} day", other: "{days} days" },
   },
+  templates: {
+    heading: "Structure templates",
+    hint: "Start from a known shape. Each beat becomes one scene — title and synopsis — left unassigned so you can sort them later.",
+    preview: "Preview",
+    previewTitle: "What this adds",
+    apply: { one: "Add {n} scene", other: "Add {n} scenes" },
+    empty: "This template has no beats.",
+  },
+  daily: {
+    heading: "Today's question",
+    fromStep: "From step {step}",
+    dismiss: "Hide for today",
+  },
   cloud: {
     heading: "Cloud backup",
     off: "No network requests — cloud backup is off.",

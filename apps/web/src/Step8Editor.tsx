@@ -10,12 +10,16 @@ import {
   type SnowflakeStepRow,
   type Step8Content,
   StepBlockedError,
+  TEMPLATE_CONTENT,
+  TEMPLATE_IDS,
+  type TemplateId,
+  templateSceneText,
   type UUID,
   type ValidationIssue,
   validateStep8,
 } from "@starline/core";
 import { useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   useCharacters,
   useCompleteStep,
@@ -28,7 +32,7 @@ import {
   useUpdateScene,
 } from "./data";
 import { IssueList } from "./IssueList";
-import { formatNumber } from "./locale";
+import { formatNumber, useLocaleStore } from "./locale";
 import { PromptsSheet } from "./PromptsSheet";
 import { useAutosave } from "./useAutosave";
 
@@ -60,6 +64,9 @@ export function Step8Editor({ projectId, row }: { projectId: UUID; row: Snowflak
   const [importing, setImporting] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [promptsOpen, setPromptsOpen] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [templateId, setTemplateId] = useState<TemplateId | null>(null);
+  const locale = useLocaleStore((state) => state.locale);
 
   const chapters = useMemo(() => tree.data?.chapters ?? [], [tree.data]);
   const scenes = useMemo(
@@ -122,6 +129,49 @@ export function Step8Editor({ projectId, row }: { projectId: UUID; row: Snowflak
       setImporting(false);
     }
   };
+
+  /**
+   * Apply a structure template: its beats become scenes through the same command the paste flow
+   * uses, with `withTitles` on so each beat's name becomes the scene's title. They arrive
+   * unassigned — sorting them into chapters is the writer's next move, not the template's.
+   */
+  const onApplyTemplate = async (id: TemplateId) => {
+    setImporting(true);
+    try {
+      const result = await createFromList.mutateAsync({
+        projectId,
+        text: templateSceneText(id, locale),
+        withTitles: true,
+      });
+      const parts = [
+        format(messages.step8.reportCreated, { created: result.created, skipped: result.skipped }),
+      ];
+      if (result.updated > 0) parts.push(`${result.updated} updated`);
+      setReport(parts.join(" · "));
+      setContent((previous) => {
+        const ids = new Set<UUID>([...previous.generatedSceneIds, ...result.sceneIds]);
+        return { generatedSceneIds: [...ids], lastImportedAt: Date.now() };
+      });
+      // Deliberately stay open: the report lands in this sheet the same way it lands in the
+      // paste sheet, so the writer sees "9 created" instead of a sheet that vanished.
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Escape closes the template sheet, matching the other sheets (and the a11y harness, which
+  // asserts Escape closes a sheet).
+  useEffect(() => {
+    if (!templateOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setTemplateOpen(false);
+        setTemplateId(null);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [templateOpen]);
 
   const onAddRow = async () => {
     await createScene.mutateAsync({ projectId, chapterId: null });
@@ -198,6 +248,18 @@ export function Step8Editor({ projectId, row }: { projectId: UUID; row: Snowflak
         <button type="button" className="sl-btn" onClick={() => setPromptsOpen(true)}>
           ✦ {messages.prompts.heading}
         </button>
+        <button
+          type="button"
+          className="sl-btn"
+          data-testid="sl-templates-open"
+          onClick={() => {
+            setTemplateId(null);
+            setReport(null);
+            setTemplateOpen(true);
+          }}
+        >
+          ▦ {messages.templates.heading}
+        </button>
       </div>
 
       <button
@@ -261,6 +323,109 @@ export function Step8Editor({ projectId, row }: { projectId: UUID; row: Snowflak
       ) : null}
 
       <PromptsSheet open={promptsOpen} step={8} onClose={() => setPromptsOpen(false)} />
+
+      {templateOpen ? (
+        <>
+          <button
+            type="button"
+            className="sl-sheet-backdrop"
+            aria-label={messages.common.close}
+            onClick={() => {
+              setTemplateOpen(false);
+              setTemplateId(null);
+            }}
+          />
+          <section
+            className="sl-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label={messages.templates.heading}
+            data-testid="sl-template-sheet"
+          >
+            <header className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold tracking-tight">
+                {templateId === null ? messages.templates.heading : messages.templates.previewTitle}
+              </h2>
+              <button
+                type="button"
+                className="sl-btn"
+                aria-label={messages.common.close}
+                onClick={() => {
+                  setTemplateOpen(false);
+                  setTemplateId(null);
+                }}
+              >
+                ✕
+              </button>
+            </header>
+
+            {templateId === null ? (
+              <>
+                <p className="mt-1 text-xs text-muted">{messages.templates.hint}</p>
+                <ul className="mt-3 flex flex-col gap-2">
+                  {TEMPLATE_IDS.map((id) => (
+                    <li key={id}>
+                      <button
+                        type="button"
+                        className="sl-card w-full p-3 text-left"
+                        data-testid={`sl-template-${id}`}
+                        onClick={() => setTemplateId(id)}
+                      >
+                        <span className="block text-sm font-medium">
+                          {TEMPLATE_CONTENT[id][locale].name}
+                        </span>
+                        <span className="block text-xs text-muted">
+                          {TEMPLATE_CONTENT[id][locale].summary}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <>
+                <p className="mt-1 text-xs text-muted">
+                  {TEMPLATE_CONTENT[templateId][locale].summary}
+                </p>
+                <ul className="mt-3 flex flex-col gap-2">
+                  {TEMPLATE_CONTENT[templateId][locale].beats.map((beat) => (
+                    <li key={beat.title} className="text-xs">
+                      <span className="block text-sm font-medium">{beat.title}</span>
+                      <span className="block text-muted">{beat.synopsis}</span>
+                    </li>
+                  ))}
+                </ul>
+                {report ? (
+                  <p
+                    className="sl-notice mt-3 text-xs"
+                    role="status"
+                    data-testid="sl-template-report"
+                  >
+                    {report}
+                  </p>
+                ) : null}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="sl-btn sl-btn-primary"
+                    data-testid="sl-template-apply"
+                    disabled={importing}
+                    onClick={() => void onApplyTemplate(templateId)}
+                  >
+                    {plural(
+                      messages.templates.apply,
+                      TEMPLATE_CONTENT[templateId][locale].beats.length,
+                    )}
+                  </button>
+                  <button type="button" className="sl-btn" onClick={() => setTemplateId(null)}>
+                    {messages.common.close}
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
+        </>
+      ) : null}
     </div>
   );
 }
