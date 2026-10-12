@@ -135,6 +135,19 @@ export function PlanScreen() {
               {messages.plan.createButton}
             </button>
           </div>
+          {/* Settings must be reachable before a story exists: the cloud switch, the language and
+              the appearance toggle all work without a project, and hunting for them behind a story
+              that has not been created yet is exactly the kind of dead end this avoids. */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="sl-btn-small"
+              data-testid="sl-open-settings"
+              onClick={() => void navigate({ to: "/settings" })}
+            >
+              {messages.settings.open}
+            </button>
+          </div>
         </section>
       ) : (
         <>
