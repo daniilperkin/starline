@@ -647,7 +647,7 @@ PWA, and a separate `STARLINE_CLOUD=1` flavour so the default build keeps zero c
 | S15a | `22d7ae2` · `9433210` · `0eee91f` · `918027e` | config plumbing (one untracked `cloud.properties` → defines, only with the flag) · manifest (tolerant parse, decision-23c thinning) · Drive client (resumable uploads, `appDataFolder`, injected token) · orchestration (idempotent uploads, thin, rewrite in place) — 36 tests |
 | S15b | `47b87fd` · `a87b430` · `8667cb7` · `0b6fc41` | Settings → Cloud backup (off by default, Google sign-in via Identity Services, honest status line) · uploads on every snapshot plus "Back up now" · Backups → Cloud card (list, download-into-local-snapshots, delete-from-cloud) · lazy cloud module, flavour-aware no-network check |
 | S15c | `d4ce37b` | the deployed PWA and CI build the cloud flavour; the budgets job checks both flavours' invariants |
-| S15d | `8e40f11` · `90e1316` · `4d56aa9` · this commit | Android sign-in (native `StarlineGoogleAuthPlugin`: email + `drive.appdata` in ONE consent, no Firebase anywhere) · the two on-device bugs below · the enable button freed from the library gate · Settings segments wrap + the a11y check that asserts it · repository variables feed the CI build |
+| S15d | `8e40f11` · `90e1316` · `4d56aa9` · `2277485` | Android sign-in (native `StarlineGoogleAuthPlugin`: email + `drive.appdata` in ONE consent, no Firebase anywhere) · the two on-device bugs below · the enable button freed from the library gate · Settings segments wrap + the a11y check that asserts it · repository variables feed the CI build |
 
 **Shipped 2026-10-12 — S15 is complete.** Two bugs were found on the device, and both are the kind
 that never show up in a browser: (1) Capacitor's plugin proxy is thenable, so returning it from an
@@ -665,8 +665,18 @@ retries. Both are recorded in the skill so the next Capacitor plugin does not re
 - download → "Downloaded — it is in the list above"; the snapshot joins the local list
 - preview → the diff sheet opens ("Nothing changed since this snapshot." for an identical one)
 - restore → completes with no error, returns to the plan, and the guard snapshot fires
-- 311/311 tests · both flavours' `check-no-network` green · a CI-style build with the properties
-  file hidden still carries the client values (repository variables), file restored byte-identical
+- 323/323 tests · both flavours' `check-no-network` green (217 files) · a CI-style build with the
+  properties file hidden still carries the client values (repository variables), file restored
+  byte-identical · the full local gate suite green on the shipped tree: chaos (native + web),
+  bundle budgets (app 263.3/330 KiB, install 3.54/4 MiB), contrast, web + PWA verify, a11y (60 checks)
+
+**Shipped revision:** `2277485`, validated by CI run `38234539341` (static gates, durability, budgets
+and web E2E — all four green) and Pages run `38234539356` (build + deploy, deployed bundle checked
+against the live site). For the record: the first CI run on the S15 commit (`38234252909`) was
+**cancelled**, not failed — a follow-up push superseded it under `cancel-in-progress`, and every
+step that ran in it had passed. The earlier run on `4d56aa9` did fail, at `pnpm lint`, because the
+segment-reachability check added to `scripts/check-a11y.mjs` had never been through biome; `2277485`
+fixes it and the run above is the first that proves it.
 
 **Left for the owner:** add `https://daniilperkin.github.io` (and `http://localhost:5187` for local
 dev) as an authorized JavaScript origin on the web OAuth client — the APK signs in without it, the
