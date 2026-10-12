@@ -34,6 +34,19 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # cloud.properties is deliberately untracked (a clean checkout has no cloud), so the
+      # deployed build materialises it from repository variables. Those four values are public by
+      # design — they ship inside every Firebase app — the repository just never carries them.
+      - name: Cloud config
+        if: ${{ vars.FIREBASE_API_KEY != '' }}
+        run: |
+          {
+            echo "firebase.apiKey=${{ vars.FIREBASE_API_KEY }}"
+            echo "firebase.appId=${{ vars.FIREBASE_APP_ID }}"
+            echo "firebase.projectId=${{ vars.FIREBASE_PROJECT_ID }}"
+            echo "google.webClientId=${{ vars.GOOGLE_WEB_CLIENT_ID }}"
+          } > apps/web/android/cloud.properties
+
       - run: pnpm --filter @starline/web build
         env:
           STARLINE_BASE: /starline/
