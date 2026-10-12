@@ -262,6 +262,7 @@ export const en = {
       one: "On — {email}, {n} snapshot in your Drive.",
       other: "On — {email}, {n} snapshots in your Drive.",
     },
+    onNoLibrary: "On — {email}. Open a library to see its snapshots.",
     hint: "Optional. Snapshots are copied to your own Google Drive; nothing else ever leaves this device.",
     enable: "Turn on cloud backup",
     disable: "Turn off",

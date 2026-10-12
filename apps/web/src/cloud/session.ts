@@ -55,7 +55,7 @@ interface CloudStore {
   lastLibrary: CloudLibrary | null;
   /** True when this artifact was built with the cloud flavour and has a config. */
   available: boolean;
-  enable: (library: CloudLibrary) => Promise<void>;
+  enable: (library: CloudLibrary | null) => Promise<void>;
   disable: () => Promise<void>;
   refresh: (library: CloudLibrary) => Promise<void>;
   backUp: (library: CloudLibrary) => Promise<void>;
@@ -113,7 +113,11 @@ export const useCloudStore = create<CloudStore>((set, get) => ({
       const account = native
         ? await signInNative(config)
         : asCloudAccount(await signInWithGoogle(config));
-      const manifest = await readCloudManifest(clientFor(account), library.id, library.name);
+      // Signing in is device-level: it must not wait for a story to exist. The manifest is the
+      // only library-shaped thing here, so it is read when a library is open and skipped otherwise.
+      const manifest = library
+        ? await readCloudManifest(clientFor(account), library.id, library.name)
+        : null;
       writeEnabled(true);
       set({
         enabled: true,

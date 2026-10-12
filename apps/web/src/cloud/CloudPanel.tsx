@@ -54,8 +54,8 @@ export function CloudPanel() {
             type="button"
             className="sl-btn sl-btn-primary mt-3"
             data-testid="sl-cloud-enable"
-            disabled={status === "connecting" || library === null}
-            onClick={() => library && void enable(library)}
+            disabled={status === "connecting"}
+            onClick={() => void enable(library)}
           >
             {status === "connecting" ? messages.cloud.working : messages.cloud.enable}
           </button>
@@ -65,7 +65,9 @@ export function CloudPanel() {
           <p className="mt-2 text-xs text-muted" data-testid="sl-cloud-status">
             {status === "busy"
               ? messages.cloud.working
-              : plural(messages.cloud.on, entries.length, { email: email ?? "" })}
+              : library === null
+                ? messages.cloud.onNoLibrary.replace("{email}", email ?? "")
+                : plural(messages.cloud.on, entries.length, { email: email ?? "" })}
           </p>
           {last ? (
             <p className="mt-1 text-xs text-muted" data-testid="sl-cloud-last">
