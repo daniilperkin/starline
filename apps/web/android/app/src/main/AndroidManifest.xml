@@ -32,4 +32,7 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- GoogleAuthUtil.getToken reads the account the user signed in with (a normal permission,
+         granted at install time). It is the only reason this app asks for it. -->
+    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
 </manifest>

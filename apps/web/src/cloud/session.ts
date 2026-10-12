@@ -29,6 +29,7 @@ import {
   setSnapshotTakenListener,
   writeSnapshotBytes,
 } from "../snapshots";
+import { isNativeShell, signInNative } from "./auth-native";
 import { asCloudAccount, signInWithGoogle } from "./auth-web";
 import { cloudConfig } from "./config";
 import type { CloudAccount } from "./types";
@@ -106,8 +107,12 @@ export const useCloudStore = create<CloudStore>((set, get) => ({
     }
     set({ status: "connecting", message: null });
     try {
-      const session = await signInWithGoogle(config);
-      const account = asCloudAccount(session);
+      // Android runs inside a WebView, where Google blocks Identity Services — the native plugin
+      // signs in there instead. Same account shape, same Drive layer behind it.
+      const native = await isNativeShell();
+      const account = native
+        ? await signInNative(config)
+        : asCloudAccount(await signInWithGoogle(config));
       const manifest = await readCloudManifest(clientFor(account), library.id, library.name);
       writeEnabled(true);
       set({

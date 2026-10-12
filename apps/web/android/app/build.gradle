@@ -58,6 +58,9 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // Google Sign-In + GoogleAuthUtil for the Drive access token (slice 15, decision 24). No
+    // google-services plugin and no Firebase: the consent flow supplies both tokens on its own.
+    implementation "com.google.android.gms:play-services-auth:21.4.0"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
