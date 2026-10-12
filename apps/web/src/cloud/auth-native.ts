@@ -27,12 +27,18 @@ interface NativeAuthPlugin {
 
 let cached: NativeAuthPlugin | null = null;
 
-async function plugin(): Promise<NativeAuthPlugin> {
-  if (!cached) {
-    const { registerPlugin } = await import("@capacitor/core");
-    cached = registerPlugin<NativeAuthPlugin>("StarlineGoogleAuth");
-  }
-  return cached;
+/**
+ * Loads the plugin into `cached` — and deliberately returns **nothing**.
+ *
+ * Capacitor's plugin proxy is thenable (it forwards property access to the native side), so
+ * returning it from an async function makes the promise adopt it and call `.then()` on the native
+ * plugin, which answers `"StarlineGoogleAuth.then()" is not implemented on android`. Keeping the
+ * proxy inside this module and never handing it across an await boundary is the fix.
+ */
+async function loadPlugin(): Promise<void> {
+  if (cached) return;
+  const { registerPlugin } = await import("@capacitor/core");
+  cached = registerPlugin<NativeAuthPlugin>("StarlineGoogleAuth");
 }
 
 /** True when this app runs inside the Android shell (where Identity Services is blocked). */
@@ -42,7 +48,9 @@ export async function isNativeShell(): Promise<boolean> {
 }
 
 export async function signInNative(config: CloudConfig): Promise<CloudAccount> {
-  const auth = await plugin();
+  await loadPlugin();
+  const auth = cached;
+  if (!auth) throw new Error("the Android sign-in plugin is unavailable");
   const result = await auth.signIn({ webClientId: config.webClientId });
   if (!result.accessToken || !result.subject) {
     throw new Error("Google sign-in returned no Drive access");

@@ -1,6 +1,7 @@
 package app.starline;
 
 import android.accounts.Account;
+import android.util.Log;
 import androidx.activity.result.ActivityResult;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -9,6 +10,7 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.google.android.gms.auth.GoogleAuthUtil;
+import com.google.android.gms.auth.UserRecoverableAuthException;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
@@ -34,6 +36,7 @@ import com.google.android.gms.common.api.Scope;
 public class StarlineGoogleAuthPlugin extends Plugin {
 
     private static final String DRIVE_APPDATA_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
+    private static final String TAG = "StarlineGoogleAuth";
 
     private GoogleSignInOptions signInOptions(String webClientId) {
         GoogleSignInOptions.Builder builder = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -47,13 +50,21 @@ public class StarlineGoogleAuthPlugin extends Plugin {
 
     @PluginMethod
     public void signIn(PluginCall call) {
+        Log.d(TAG, "signIn() called");
         String webClientId = call.getString("webClientId");
         if (webClientId == null || webClientId.isEmpty()) {
             call.reject("webClientId is required");
             return;
         }
         GoogleSignInClient client = GoogleSignIn.getClient(getActivity(), signInOptions(webClientId));
-        startActivityForResult(call, client.getSignInIntent(), "handleSignIn");
+        try {
+            android.content.Intent intent = client.getSignInIntent();
+            Log.d(TAG, "launching sign-in intent");
+            startActivityForResult(call, intent, "handleSignIn");
+        } catch (Exception error) {
+            Log.e(TAG, "could not build the sign-in intent", error);
+            call.reject("could not build the sign-in intent: " + error.getMessage(), error);
+        }
     }
 
     @ActivityCallback
@@ -61,11 +72,13 @@ public class StarlineGoogleAuthPlugin extends Plugin {
         if (call == null) {
             return;
         }
+        Log.d(TAG, "handleSignIn() callback");
         GoogleSignInAccount account;
         try {
             account = GoogleSignIn.getSignedInAccountFromIntent(result.getData())
                     .getResult(ApiException.class);
         } catch (ApiException error) {
+            Log.e(TAG, "sign-in failed with status " + error.getStatusCode(), error);
             // 12501 is the user dismissing the sheet, 12500 a misconfigured client (usually a
             // missing SHA fingerprint for the installed build).
             call.reject("Google sign-in failed (" + error.getStatusCode() + ")", error);
@@ -82,9 +95,22 @@ public class StarlineGoogleAuthPlugin extends Plugin {
             return;
         }
 
+        fetchDriveToken(call, account, raw);
+    }
+
+    /**
+     * Fetches the Drive token on a worker thread.
+     *
+     * The interesting case is UserRecoverableAuthException: Drive's app-data scope is one Google
+     * wants the user to grant explicitly, and the first attempt after sign-in answers
+     * "NeedRemoteConsent". That is not a failure — the exception carries the very screen that asks
+     * for the grant, so it is launched and the token is fetched again once the user is back. Only
+     * a second failure is reported as an error.
+     */
+    private void fetchDriveToken(PluginCall call, GoogleSignInAccount account, Account raw) {
         new Thread(() -> {
             try {
-                // Short-lived (about an hour) OAuth token for the scope the user just consented to;
+                // Short-lived (about an hour) OAuth token for the scope the user consented to;
                 // Google caches it, so a refresh is cheap until it expires.
                 String accessToken = GoogleAuthUtil.getToken(
                         getContext(), raw, "oauth2:" + DRIVE_APPDATA_SCOPE);
@@ -98,11 +124,34 @@ public class StarlineGoogleAuthPlugin extends Plugin {
                 ret.put("email", account.getEmail());
                 ret.put("subject", account.getId());
                 getActivity().runOnUiThread(() -> call.resolve(ret));
+            } catch (UserRecoverableAuthException recoverable) {
+                Log.d(TAG, "Drive wants an explicit grant; launching Google's consent screen");
+                android.content.Intent intent = recoverable.getIntent();
+                if (intent == null) {
+                    getActivity().runOnUiThread(() -> call.reject("Drive authorization needs consent but Google offered no screen for it", recoverable));
+                    return;
+                }
+                getActivity().runOnUiThread(() -> startActivityForResult(call, intent, "handleTokenConsent"));
             } catch (Exception error) {
                 String message = error.getMessage() == null ? error.toString() : error.getMessage();
                 getActivity().runOnUiThread(() -> call.reject("Drive authorization failed: " + message, error));
             }
         }).start();
+    }
+
+    /** The user came back from Google's grant screen: fetch the token once more. */
+    @ActivityCallback
+    private void handleTokenConsent(PluginCall call, ActivityResult result) {
+        if (call == null) {
+            return;
+        }
+        Log.d(TAG, "handleTokenConsent() callback");
+        GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(getContext());
+        if (account == null || account.getAccount() == null) {
+            call.reject("not signed in");
+            return;
+        }
+        fetchDriveToken(call, account, account.getAccount());
     }
 
     /** Re-reads the Drive token for the already-signed-in account (cheap while the grant lives). */
