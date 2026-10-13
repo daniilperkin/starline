@@ -1,6 +1,7 @@
 # StarLine — Deep Plan (phone-first)
 | S29 merge + dossier tabs | `706fe72` | (run at push) | The character merge (relationships, scene presence, mentions with count folding, gallery, fields, POV, timeline, plotlines; aliases appended; the source trashed) and its real inverse `unmergeCharacters`, replayed from the command's moved-row ledger so Undo is honest. The dossier's nine tabs with the draft widened to the schema's long-carried columns. A silent autosave failure found by probing: `values` is reserved and the whitelist emitted it unquoted. |
 | S28 palette + export options | `eddada6` | (run at push) | The command palette (hand-rolled list semantics — cmdk rendered nothing; the real bug was the render line sitting in AppLayout's immersive return, a branch only /write/* renders) and the export dialog's four declared options (chapter scope, include-notes, a two-page preview, a stage-driven progress bar). A perf regression found by the gate: a window-level keydown listener for Ctrl+K cost +8 ms keystroke-to-paint (24.0 vs 16.0, bisected) — moved onto React's delegated handler. `ci:gates` now measures perf before chaos. Eight lint items cleared; cmdk dropped. |
+| S30 settings depth | `35112ac` | (run at push) | The four missing spec §4.6 sections: Editor (smart quotes via TipTap's typography, a hand-rolled auto-pair input rule — TipTap ships none — and the device's spellchecker via the DOM attribute), Statuses (per-project rename + recolour of the six statuses, `settings.statusLabels` with catalogue fallback), Keyboard (the §4.7 map as a reference) and Privacy (the offline statement with its verifiable line). The schema gains `editor` and `statusLabels`; `writeProjectSettings` joins the read as the write path. |
 
 > **Status: DRAFT for owner review.** Owner decisions 9–16 (`DECISIONS.md`) supersede the
 > spec's desktop-first framing wherever they differ. This document is the deep design pass
@@ -889,7 +890,13 @@ no-network over 233 files · contrast · bundle app 270.8 KiB / 330, styles 9.8 
 WEB-VERIFY OK with the dossier and merge journey steps (9 tabs, the psychology edit round-tripped,
 4 -> 3 characters merged with Undo offered) and two new axe scans · PWA-VERIFY OK · A11Y OK ·
 chaos and web chaos · no-network over 235 files · contrast · bundle app 271.0 KiB / 330, styles
-9.8 / 10, install 3.70 MiB / 4 · perf cold start 345 ms / 1200, typing p95 16.0 ms / 16.ms / 1200; typing p95 measured 16.0 ms standalone with the machine
+9.8 / 10, install 3.70 MiB / 4 · perf cold
+
+**Verified on S30's gates:** 350 tests · WEB-VERIFY OK with the settings-depth journey step
+(the editor toggle flipped, a status renamed to Spark, 8 keyboard rows, the privacy line
+rendered) and two new axe scans · PWA-VERIFY OK · A11Y OK · chaos and web chaos · no-network over
+235 files · contrast · bundle app 272.1 KiB / 330, styles 9.9 / 10 (tight), install 3.71 MiB / 4 ·
+perf cold start 284-344 ms / 1200, typing p95 16.0 ms / 16 standalone. start 345 ms / 1200, typing p95 16.0 ms / 16.ms / 1200; typing p95 measured 16.0 ms standalone with the machine
 quiet and 24.0 ms under this session's accumulated load — CI's documented 1.75x factor covers it.uding the
 German switch step · PWA-VERIFY OK · A11Y OK · chaos and web chaos · no-network over 228 files ·
 contrast · bundle app 268.3 -> 269.6 KiB / 330 after the tour, styles 9.5 / 10, install
