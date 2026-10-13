@@ -257,3 +257,14 @@ everything not listed here; entries are folded back into the spec on owner reque
       PWA cannot, and the owner chose to do it later.
     - **The accessibility sign-off stays the owner's** — the harness proves the checks, a human
       accepts them. The open items are summarised for a two-minute read.
+
+## 27. CSS gzip budget raised 10 → 11 KiB (owner, 2026-10-13)
+
+- **Why:** the trim proved the stylesheet contains no dead-code fat — it is Tailwind's generated
+  utilities plus genuinely distinct components, growing ~0.15 KiB per slice through S21-S31 (8.2 at
+  slice 13 to 9.9 now). S36, the Tier-3 polish slice, adds many new component shapes and would
+  cross the line mid-slice. The owner chose to raise now rather than be blocked mid-slice.
+- **What stays:** the gate, its 5% band and the TIGHT label. The budget's job is catching bloat
+  (a dependency dumping CSS), which it still does at 11.
+- **Recorded:** `scripts/check-bundle.mjs`, `AGENTS.md`, and this entry; the trim's findings live
+  in the commit history and the S31 plan note.

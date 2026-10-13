@@ -60,8 +60,7 @@ ports.
 - **Every user-facing string lives in the catalogue** (`packages/core/src/i18n/en.ts` + `uk.ts`)
   and is read through the live `messages` proxy. Never hardcode text in a component — the
   catalogue shape test fails if the two locales drift apart.
-- **Bundle budgets are gates**, not targets: app 330 KiB gz, CSS **9 KiB** gz (tight — trim or
-  earn a decision before adding), storage worker 72 KiB, export worker 40 KiB, install payload
+- **Bundle budgets are gates**, not targets: app 330 KiB gz, CSS **11 KiB** gz (decision 27), storage worker 72 KiB, export worker 40 KiB, install payload
   4 MiB, per-route lazy chunk 150 KiB.
 - **Stage specific files, never `git add -A`.** Commit messages are plain-English imperatives
   with the reasoning behind every decision, not a list of touched files.
