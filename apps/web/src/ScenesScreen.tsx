@@ -8,7 +8,12 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+  rectSortingStrategy,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
   type ChapterSummary,
@@ -67,7 +72,7 @@ export function ScenesScreen() {
   const setPlacement = useSetScenePlacement();
   const pushUndo = useUndoStore((state) => state.push);
 
-  const [mode, setMode] = useState<"list" | "grid">("list");
+  const [mode, setMode] = useState<"list" | "board" | "grid">("list");
   const [sheetSceneId, setSheetSceneId] = useState<UUID | null>(null);
   const [activeSceneId, setActiveSceneId] = useState<UUID | null>(null);
   const [sceneMenuFor, setSceneMenuFor] = useState<UUID | null>(null);
@@ -241,7 +246,7 @@ export function ScenesScreen() {
         </div>
         <fieldset className="sl-segmented sl-fieldset">
           <legend className="sr-only">{messages.grid.heading}</legend>
-          {(["list", "grid"] as const).map((option) => (
+          {(["list", "board", "grid"] as const).map((option) => (
             <button
               key={option}
               type="button"
@@ -250,7 +255,11 @@ export function ScenesScreen() {
               data-testid={`sl-scenes-${option}`}
               onClick={() => setMode(option)}
             >
-              {option === "list" ? messages.grid.list : messages.grid.grid}
+              {option === "list"
+                ? messages.grid.list
+                : option === "board"
+                  ? messages.grid.board
+                  : messages.grid.grid}
             </button>
           ))}
         </fieldset>
@@ -258,6 +267,15 @@ export function ScenesScreen() {
 
       {mode === "grid" ? (
         <PlotlineGrid projectId={projectId} />
+      ) : mode === "board" ? (
+        <SceneBoard
+          groups={groups}
+          bookIndex={bookIndex}
+          onOpen={(sceneId) => setSheetSceneId(sceneId)}
+          sensors={sensors}
+          onActivate={setActiveSceneId}
+          onDragEnd={onDragEnd}
+        />
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2">
@@ -662,5 +680,109 @@ function SortableSceneRow({
         isDragging,
       })}
     </li>
+  );
+}
+
+/**
+ * The corkboard (slice 21): the outline as cards, one per scene, grouped by chapter. Same data,
+ * same drag machinery and same sheet as the list — the difference is what a writer can see at a
+ * glance: a title, what the scene is about, and how far along it is. Drag order is the list's
+ * order; the cards are the browsing view, and management (rename, delete, move) stays in the list
+ * so there is exactly one place where a scene can be destroyed.
+ */
+function SceneBoard({
+  groups,
+  bookIndex,
+  onOpen,
+  sensors,
+  onActivate,
+  onDragEnd,
+}: {
+  groups: SceneGroup[];
+  bookIndex: ReadonlyMap<UUID, number>;
+  onOpen: (sceneId: UUID) => void;
+  sensors: ReturnType<typeof useSensors>;
+  onActivate: (sceneId: UUID) => void;
+  onDragEnd: (event: DragEndEvent) => void;
+}) {
+  if (groups.every((group) => group.scenes.length === 0)) {
+    return <p className="text-sm text-muted">{messages.scenes.empty}</p>;
+  }
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={(event) => onActivate(event.active.id as UUID)}
+      onDragEnd={onDragEnd}
+    >
+      {groups
+        .filter((group) => group.scenes.length > 0)
+        .map((group) => (
+          <section key={group.chapter?.id ?? "unassigned"} className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <h2 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-wide uppercase">
+                {group.chapter !== null ? group.chapter.title : messages.scenes.unassigned}
+              </h2>
+              <span className="shrink-0 text-xs text-muted">
+                {plural(messages.scenes.sceneCount, group.scenes.length)}
+              </span>
+            </div>
+            <SortableContext
+              items={group.scenes.map((candidate) => candidate.id)}
+              strategy={rectSortingStrategy}
+            >
+              <ul className="sl-board" data-testid="sl-board-group">
+                {group.scenes.map((scene) => (
+                  <SortableSceneRow key={scene.id} id={scene.id}>
+                    {({ listeners, isDragging }) => (
+                      <div className="sl-scene-card flex-1" data-dragging={isDragging}>
+                        <button
+                          type="button"
+                          className="sl-scene-card-main"
+                          data-testid="sl-scene-card"
+                          {...listeners}
+                          onClick={() => onOpen(scene.id)}
+                        >
+                          <span className="sl-scene-card-head">
+                            <span className="text-xs text-muted tabular-nums">
+                              {bookIndex.get(scene.id) ?? ""}
+                            </span>
+                            <span
+                              className="sl-chip shrink-0"
+                              style={{ color: SCENE_STATUS_COLORS[scene.status] }}
+                            >
+                              {messages.scenes.status[scene.status]}
+                            </span>
+                          </span>
+                          <span className="sl-scene-card-title">
+                            {scene.title.length > 0
+                              ? scene.title
+                              : scene.synopsis.text.length > 0
+                                ? scene.synopsis.text
+                                : messages.sceneSheet.titlePlaceholder}
+                          </span>
+                          {scene.title.length > 0 && scene.synopsis.text.length > 0 ? (
+                            <span className="sl-scene-card-excerpt">{scene.synopsis.text}</span>
+                          ) : null}
+                          <span className="sl-scene-card-meta">
+                            <span>{scene.povName ?? messages.scenes.noPov}</span>
+                            <span className="tabular-nums">
+                              {scene.bodyWordCount > 0
+                                ? formatNumber(scene.bodyWordCount)
+                                : scene.targetWordCount !== null
+                                  ? `≈${formatNumber(scene.targetWordCount)}`
+                                  : ""}
+                            </span>
+                          </span>
+                        </button>
+                      </div>
+                    )}
+                  </SortableSceneRow>
+                ))}
+              </ul>
+            </SortableContext>
+          </section>
+        ))}
+    </DndContext>
   );
 }

@@ -855,6 +855,7 @@ export const en = {
     detachAction: "Detach",
     list: "List",
     grid: "Grid",
+    board: "Corkboard",
   },
   timeline: {
     heading: "Timeline",

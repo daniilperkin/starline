@@ -969,6 +969,7 @@ export const uk: Messages = {
     detachAction: "Відкріпити",
     list: "Список",
     grid: "Сітка",
+    board: "Дошка",
   },
   timeline: {
     heading: "Хронологія",

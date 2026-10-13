@@ -448,6 +448,29 @@ try {
   // The toast clears on undo — wait it out so no pending action leaks into the drag step.
   await page.getByRole("button", { name: "Undo" }).waitFor({ state: "hidden", timeout: 15000 });
 
+  // 4o2. Slice 21: the corkboard. The same scenes as cards — one card per scene, grouped by
+  // chapter, a card opening the scene sheet — and switching back leaves the list untouched.
+  // Count the rows while the list is still showing: on the board they do not exist, and comparing
+  // against zero would fail for a board that is working perfectly.
+  const boardRows = await page.locator(".sl-scene-line").count();
+  await page.locator('[data-testid="sl-scenes-board"]').click();
+  await page.waitForTimeout(1200);
+  const boardCards = await page.locator('[data-testid="sl-scene-card"]').count();
+  if (boardCards === 0 || boardCards !== boardRows) {
+    throw new Error(`the corkboard shows ${boardCards} cards for ${boardRows} scenes`);
+  }
+  await axeScan("scenes-board");
+  await page.locator('[data-testid="sl-scene-card"]').first().click();
+  await page.locator(".sl-sheet").waitFor({ timeout: 10000 });
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(600);
+  await page.locator('[data-testid="sl-scenes-list"]').click();
+  await page.waitForTimeout(800);
+  await page.locator(".sl-scene-line-main").first().waitFor();
+  console.log(
+    `  corkboard: ${boardCards} cards match ${boardRows} list rows; a card opens the scene sheet`,
+  );
+
   // 4p. Long-press drag: reorder the first row below the second with a mouse drag.
   const rows = page.locator(".sl-scene-line-main");
   const beforeDrag = await rows.nth(0).innerText();

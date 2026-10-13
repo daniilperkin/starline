@@ -4,6 +4,9 @@
 what remains open is listed honestly at the bottom. This checklist is the artifact for the owner's
 sign-off.
 
+**Signed off by the owner, 2026-10-13.** The five open items at the bottom are accepted as
+documented; the timeline wide-zoom clustering is scheduled as slice 24 (M5).
+
 Scope: the phone PWA (`apps/web`). The same DOM runs inside the Android WebView, so one audit
 covers both targets. The offline storage layer, the interchange formats and the Rust CLI have no
 user interface and are out of scope.
