@@ -724,10 +724,8 @@ template beats are new scenes, so they are now excluded from that merge and carr
 spec §5.1 allows 5 %, so a 10.2 ms p95 failed a 10 ms budget on a loaded machine — it now uses the
 same allowance `check-bundle` already applies.
 
-**Phase 3 — carry-overs.** CSS budget 9 → 10 KiB (recorded in the budgets doc). World category
-drag-nest. Corkboard/card view of the outline. Multi-book UI (a second book inside one library).
-Timeline wide-zoom clustering (the documented v1 overlap). The slice-3 `reviewedCharacterIds`
-stub. The owner reads `docs/ACCESSIBILITY.md` for the sign-off line.
+**Phase 3 — carry-overs — now scheduled as M5 below** (section 10). The CSS budget item shipped
+with decision 24; the `reviewedCharacterIds` line was stale (it is implemented in Step5Editor).
 
 ## 6. AI seams (decision 15) — ship none, keep the attach points clean
 
@@ -817,3 +815,50 @@ stub. The owner reads `docs/ACCESSIBILITY.md` for the sign-off line.
 | Export / import | all tables | new-project creation only |
 
 *End of plan — review comments welcome as numbered notes against §8 (or anywhere).*
+
+## 10. M5 — spec completion (slices 21-38)
+
+**Owner decisions (2026-10-13), all binding:**
+
+- **German ships as a third language**, informal *du* register. Full parity — UI catalogue, the
+  nine-step prompt library and the four structure templates — because the catalogue shape test
+  makes a partial translation impossible by construction.
+- **A guided tour ships**: a button on the start screen and in Settings, plus a one-time
+  dismissible offer card on first run. Twelve to fifteen stops covering every tab, the wizard and
+  the key sheets — richer than the five coach-marks the spec sketched.
+- **The audit's findings are all in scope** (`docs/SPEC-GAP-AUDIT.md`, 92 items triaged into
+  three tiers), together with the four carry-overs. Roughly 6-8 weeks of focused work, sequenced
+  below so each slice is independently shippable.
+- **The Google console origins wait** — the APK signs in without them; the deployed PWA does not.
+
+**Sequence** (each slice lands on `main` with its gates green, per the standing convention):
+
+| Slice | Scope | Tier | Effort |
+| --- | --- | --- | --- |
+| S21 | Corkboard/card view of the outline: the Scenes grid becomes real cards (title, status, POV, words, synopsis) with drag ordering | carry-over | 1-2 d |
+| S22 | World category drag-nest (nest a lore category under another) | carry-over | 0.5 d |
+| S23 | Multi-book UI: a book switcher plus create/rename/delete inside one library | carry-over | 2-3 d |
+| S24 | Timeline wide-zoom clustering (the documented v1 overlap) | carry-over | 1 d |
+| S25 | German: the full catalogue, the prompt library and the templates, `du` register; the language switcher and system detection learn `de` | owner | 3-4 d |
+| S26 | The guided tour: a stop engine, 12-15 stops, the start-screen and Settings entry points, the one-time offer card | owner | 2-3 d |
+| S27 | Tier-1 correctness: Ingermanson attribution in-app, snapshot before import/bulk-delete/migration, the scene editor's lore picker, cold-open and typing budgets as gates, sepia + high-contrast themes, `enabledModules` wired or deleted | T1 | 3-4 d |
+| S28 | Command palette; the export dialog's declared options (chapter scope, include-notes, preview, progress) | T1 | 2 d |
+| S29 | Character merge (with mention rewriting and undo) plus the dossier tabs: Psychology, Story arc, Appearance, Backstory, Voice, Appearances, Gallery, Custom | T2 | 4-6 d |
+| S30 | Settings depth: Editor (smart quotes, auto-pair, spellcheck), Statuses (rename/recolour), Keyboard, Privacy | T1/T2 | 2 d |
+| S31 | Lore depth: tag/kind/orphan filters, cards and map views, coordinate pins | T2 | 2-3 d |
+| S32 | Outliner depth: multi-select and bulk actions, filters and dimming, saved filters, column chooser, group-by | T2 | 2-3 d |
+| S33 | @mention depth: rename-safe chips, hover previews, fuzzy and recency ranking, backlinks for scenes and notes | T2 | 2-3 d |
+| S34 | Import/export depth: open a `.starline` directly, per-entity issue reports, DOCX input for the split wizard, the published JSON-Schema, the read-only downgrade policy, the export extras | T2 | 3-4 d |
+| S35 | Migration property tests with `fast-check` (declared but never imported) | T1 | 1 d |
+| S36 | Tier-3 polish: the dashboard and creation extras (form, genre chips, deadline, word-count presets), the character list (avatars, scene counts, pinning, filters, sorts), the trait list, the Scenes statistics strip, the scene-editor extras | T3 | 4-5 d |
+| S37 | First-run onboarding and module visibility (`enabledModules` driving the tab set) | T3 | 2 d |
+| S38 | M5 close: docs, the accessibility re-audit with the owner's sign-off, a release APK | - | 1 d |
+
+**The audit itself** lives at `docs/SPEC-GAP-AUDIT.md`: every item with its spec line and the
+evidence the independent sweep found, plus the corrections it forced (the HTML export ships; the
+slice-3 `reviewedCharacterIds` line in this file was stale and is struck from the carry-over list).
+
+**Ordering rationale:** the four carry-overs first because they are bounded and visible, then
+German and the tour because the owner asked for them by name, then the tiers roughly in order of
+correctness value per hour. S27 is deliberately early: three of its items are data-safety or
+legal, and the perf budgets are the only spec requirement that has never been measured at all.

@@ -240,3 +240,20 @@ everything not listed here; entries are folded back into the spec on owner reque
       are why the parser gained an opt-in `titleColumn` (and the command a matching `withTitles`):
       in the method a scene's one-liner *is* its identity, so the paste flow deliberately writes no
       titles, and it still does not.
+
+26. **M5 — spec completion (owner, 2026-10-13).** The audit (`docs/SPEC-GAP-AUDIT.md`) triaged every
+    spec item the code does not yet do into three tiers. Five answers, all binding:
+    - **German ships as a third language, informal *du*.** Full parity with English and Ukrainian —
+      UI catalogue, the nine-step prompt library and the four structure templates. This revises
+      decision 20 (en + uk, no German): the owner asked for it after living with the Ukrainian
+      build. The catalogue shape test makes a partial translation impossible, which is the point.
+    - **A guided tour ships** — a button on the start screen and in Settings, plus a one-time
+      dismissible offer card on first run. Twelve to fifteen stops covering every tab, the wizard
+      and the key sheets; the spec's five coach-marks were the sketch, not the ceiling.
+    - **The whole audit is in scope** (Tier 1 through 3) plus the four carry-overs — roughly 6-8
+      weeks, sequenced as slices 21-38 in `docs/PLAN.md` section 10. Each slice ships
+      independently with its gates green, per the standing convention.
+    - **The Google console origins wait.** The signed APK signs in without them; only the deployed
+      PWA cannot, and the owner chose to do it later.
+    - **The accessibility sign-off stays the owner's** — the harness proves the checks, a human
+      accepts them. The open items are summarised for a two-minute read.
