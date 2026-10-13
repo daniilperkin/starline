@@ -1,5 +1,6 @@
 import type { SnowflakeStepNumber } from "../entities";
 import { STEP_PROMPTS } from "../snowflake/prompts";
+import { STEP_PROMPTS_DE } from "../snowflake/prompts-de";
 import { STEP_PROMPTS_UK } from "../snowflake/prompts-uk";
 
 /**
@@ -11,7 +12,7 @@ import { STEP_PROMPTS_UK } from "../snowflake/prompts-uk";
  * a counter) is what makes it stable across reloads and reinstalls without persisting anything.
  */
 
-export type PromptLocale = "en" | "uk";
+export type PromptLocale = "en" | "uk" | "de";
 
 export interface DailyPrompt {
   /** Which step of the method the question belongs to — shown as context on the card. */
@@ -22,7 +23,9 @@ export interface DailyPrompt {
 const STEP_NUMBERS: SnowflakeStepNumber[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 function promptsFor(locale: PromptLocale) {
-  return locale === "uk" ? STEP_PROMPTS_UK : STEP_PROMPTS;
+  if (locale === "uk") return STEP_PROMPTS_UK;
+  if (locale === "de") return STEP_PROMPTS_DE;
+  return STEP_PROMPTS;
 }
 
 /** Every question in the library, in a stable order: step by step, question by question. */

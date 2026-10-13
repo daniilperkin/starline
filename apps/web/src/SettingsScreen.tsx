@@ -567,6 +567,7 @@ function LanguagePanel() {
     { value: null, label: messages.settings.languageSystem, testId: "sl-locale-system" },
     { value: "en", label: "English", testId: "sl-locale-en" },
     { value: "uk", label: "Українська", testId: "sl-locale-uk" },
+    { value: "de", label: "Deutsch", testId: "sl-locale-de" },
   ];
   return (
     <section className="flex flex-col gap-3" data-testid="sl-language-panel">

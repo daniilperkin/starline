@@ -1,4 +1,6 @@
 import type { SnowflakeStepNumber } from "../entities";
+import type { PromptLocale } from "../templates/daily";
+import { STEP_PROMPTS_DE } from "./prompts-de";
 import { STEP_PROMPTS_UK } from "./prompts-uk";
 
 /**
@@ -16,8 +18,10 @@ export interface StepPrompt {
  * The prompt for a step in the writer's language (slice 16). English is the source set; Ukrainian
  * lives in `prompts-uk.ts` so the two read side by side, and a parity test keeps them in step.
  */
-export function stepPrompt(locale: "en" | "uk", step: SnowflakeStepNumber): StepPrompt {
-  return locale === "uk" ? STEP_PROMPTS_UK[step] : STEP_PROMPTS[step];
+export function stepPrompt(locale: PromptLocale, step: SnowflakeStepNumber): StepPrompt {
+  if (locale === "uk") return STEP_PROMPTS_UK[step];
+  if (locale === "de") return STEP_PROMPTS_DE[step];
+  return STEP_PROMPTS[step];
 }
 
 export const STEP_PROMPTS: Record<SnowflakeStepNumber, StepPrompt> = {

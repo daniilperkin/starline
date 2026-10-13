@@ -119,7 +119,12 @@ async function createLibrary(page) {
 
 const browser = await chromium.launch();
 try {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const context = await browser.newContext({
+    // The host locale must not leak into the app: German now ships, so an unpinned context
+    // would open in German and every English-first assertion here would miss.
+    locale: "en-US",
+    viewport: { width: 390, height: 844 },
+  });
   const page = await context.newPage();
   await page.goto(url);
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseSceneList } from "../scenes/parse";
 import { STEP_PROMPTS } from "../snowflake/prompts";
+import { STEP_PROMPTS_DE } from "../snowflake/prompts-de";
 import { STEP_PROMPTS_UK } from "../snowflake/prompts-uk";
 import { TEMPLATE_CONTENT, TEMPLATE_IDS, templateSceneText } from "./beats";
 import { dailyPrompt, dayKey, promptPool } from "./daily";
@@ -8,9 +9,9 @@ import { dailyPrompt, dayKey, promptPool } from "./daily";
 const STEPS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 
 describe("structure templates", () => {
-  it("has content for every template in both locales", () => {
+  it("has content for every template in every locale", () => {
     for (const id of TEMPLATE_IDS) {
-      for (const locale of ["en", "uk"] as const) {
+      for (const locale of ["en", "uk", "de"] as const) {
         const content = TEMPLATE_CONTENT[id][locale];
         expect(content.name.length).toBeGreaterThan(0);
         expect(content.summary.length).toBeGreaterThan(0);
@@ -19,29 +20,35 @@ describe("structure templates", () => {
     }
   });
 
-  it("keeps the two locales in step, beat for beat", () => {
+  it("keeps the locales in step, beat for beat", () => {
     for (const id of TEMPLATE_IDS) {
       const en = TEMPLATE_CONTENT[id].en;
-      const uk = TEMPLATE_CONTENT[id].uk;
-      expect(uk.beats.length).toBe(en.beats.length);
-      // Titles and synopses differ by language, so the check is structural: every beat exists,
-      // every field is filled, and no field is accidentally left in English.
-      for (let index = 0; index < en.beats.length; index++) {
-        const english = en.beats[index];
-        const ukrainian = uk.beats[index];
-        expect(english).toBeDefined();
-        expect(ukrainian).toBeDefined();
-        expect(ukrainian?.title.length).toBeGreaterThan(0);
-        expect(ukrainian?.synopsis.length).toBeGreaterThan(0);
-        expect(ukrainian?.title).not.toBe(english?.title);
-        expect(ukrainian?.synopsis).not.toBe(english?.synopsis);
+      for (const locale of ["uk", "de"] as const) {
+        const other = TEMPLATE_CONTENT[id][locale];
+        expect(other.beats.length).toBe(en.beats.length);
+        // Titles and synopses differ by language, so the check is structural: every beat exists,
+        // every field is filled, and no synopsis is accidentally left in English. Titles may
+        // coincide for a loanword ("Finale" is German too) — but only for a loanword, so at most
+        // a couple per template are allowed to match.
+        let sameTitles = 0;
+        for (let index = 0; index < en.beats.length; index++) {
+          const english = en.beats[index];
+          const translated = other.beats[index];
+          expect(english).toBeDefined();
+          expect(translated).toBeDefined();
+          expect(translated?.title.length).toBeGreaterThan(0);
+          expect(translated?.synopsis.length).toBeGreaterThan(0);
+          expect(translated?.synopsis).not.toBe(english?.synopsis);
+          if (translated?.title === english?.title) sameTitles++;
+        }
+        expect(sameTitles).toBeLessThanOrEqual(2);
       }
     }
   });
 
   it("never puts a cell separator inside a beat", () => {
     for (const id of TEMPLATE_IDS) {
-      for (const locale of ["en", "uk"] as const) {
+      for (const locale of ["en", "uk", "de"] as const) {
         for (const beat of TEMPLATE_CONTENT[id][locale].beats) {
           expect(beat.title).not.toContain("|");
           expect(beat.title).not.toContain("\t");
@@ -54,7 +61,7 @@ describe("structure templates", () => {
 
   it("generates text the scene-list parser reads as exactly one scene per beat", () => {
     for (const id of TEMPLATE_IDS) {
-      for (const locale of ["en", "uk"] as const) {
+      for (const locale of ["en", "uk", "de"] as const) {
         const beats = TEMPLATE_CONTENT[id][locale].beats;
         const parsed = parseSceneList(templateSceneText(id, locale), { titleColumn: true });
         expect(parsed.rows.length).toBe(beats.length);
@@ -99,6 +106,32 @@ describe("the prompt library in Ukrainian", () => {
   });
 });
 
+describe("the prompt library in German", () => {
+  it("covers every step, with the same example and question counts", () => {
+    for (const step of STEPS) {
+      const en = STEP_PROMPTS[step];
+      const de = STEP_PROMPTS_DE[step];
+      expect(de.rule.length).toBeGreaterThan(0);
+      expect(de.examples.length).toBe(en.examples.length);
+      expect(de.questions.length).toBe(en.questions.length);
+      for (let index = 0; index < en.examples.length; index++) {
+        expect(de.examples[index]?.source.length).toBeGreaterThan(0);
+        expect(de.examples[index]?.text.length).toBeGreaterThan(0);
+      }
+      for (let index = 0; index < en.questions.length; index++) {
+        expect(de.questions[index]?.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("is actually translated, not copied", () => {
+    for (const step of STEPS) {
+      expect(STEP_PROMPTS_DE[step].rule).not.toBe(STEP_PROMPTS[step].rule);
+      expect(STEP_PROMPTS_DE[step].questions[0]).not.toBe(STEP_PROMPTS[step].questions[0]);
+    }
+  });
+});
+
 describe("the daily inspiration card", () => {
   it("is deterministic for a given day", () => {
     const day = new Date(2026, 9, 12);
@@ -137,6 +170,7 @@ describe("the daily inspiration card", () => {
   it("keeps the pool non-empty in both locales and keys days by the local date", () => {
     expect(promptPool("en").length).toBeGreaterThan(40);
     expect(promptPool("uk").length).toBe(promptPool("en").length);
+    expect(promptPool("de").length).toBe(promptPool("en").length);
     expect(dayKey(new Date(2026, 0, 5))).toBe("2026-01-05");
     expect(dayKey(new Date(2026, 11, 31))).toBe("2026-12-31");
   });

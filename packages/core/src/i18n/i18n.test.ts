@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { en, format, getLocale, issueMessage, messages, plural, setLocale, uk } from "./index";
+import { de, en, format, getLocale, issueMessage, messages, plural, setLocale, uk } from "./index";
 
 function leaves(value: unknown, path: string): Array<[string, unknown]> {
   if (typeof value !== "object" || value === null) return [[path, value]];
@@ -38,6 +38,17 @@ describe("i18n catalogues", () => {
 
   it("uk has exactly the same keys and leaf kinds as en", () => {
     expect(shape(uk)).toEqual(shape(en));
+  });
+
+  it("de has exactly the same keys and leaf kinds as en", () => {
+    expect(shape(de)).toEqual(shape(en));
+  });
+
+  it("every de leaf is a non-empty string", () => {
+    for (const [path, value] of leaves(de, "")) {
+      expect(typeof value, `leaf ${path}`).toBe("string");
+      expect((value as string).trim().length, `leaf ${path}`).toBeGreaterThan(0);
+    }
   });
 
   it("every uk leaf is a non-empty string", () => {

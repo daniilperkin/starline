@@ -33,7 +33,7 @@ export const TEMPLATE_IDS: TemplateId[] = [
   "story-circle",
 ];
 
-export const TEMPLATE_CONTENT: Record<TemplateId, Record<"en" | "uk", TemplateContent>> = {
+export const TEMPLATE_CONTENT: Record<TemplateId, Record<"en" | "uk" | "de", TemplateContent>> = {
   "three-act": {
     en: {
       name: "Three-act structure",
@@ -82,6 +82,57 @@ export const TEMPLATE_CONTENT: Record<TemplateId, Record<"en" | "uk", TemplateCo
           title: "Resolution",
           synopsis:
             "The new world, briefly: what changed, what it cost, and the image that answers the opening.",
+        },
+      ],
+    },
+    de: {
+      name: "Dreiakt-Struktur",
+      summary: "Neun Szenen: die klassische Ausgangslage, Konfrontation und Auflösung.",
+      beats: [
+        {
+          title: "Eröffnungsbild",
+          synopsis:
+            "Zeig die Welt und die Hauptfigur, wie sie jetzt sind, bevor sich etwas ändert — das „Davor“, auf das das Ende antworten wird.",
+        },
+        {
+          title: "Auslösendes Ereignis",
+          synopsis:
+            "Etwas kommt, das sich nicht ignorieren lässt, und stellt die Frage der Geschichte. Die Hauptfigur hat noch nichts entschieden.",
+        },
+        {
+          title: "Erster Wendepunkt",
+          synopsis:
+            "Die Hauptfigur legt sich fest. Die Tür zum alten Leben schließt sich und das Ziel wird konkret.",
+        },
+        {
+          title: "Steigende Komplikationen",
+          synopsis:
+            "Die ersten Versuche scheitern und kosten etwas. Verbündete und Widerstand werden beide deutlicher.",
+        },
+        {
+          title: "Wendepunkt in der Mitte",
+          synopsis:
+            "Eine Wahrheit landet — über das Ziel, einen Verbündeten oder die Hauptfigur selbst — und verändert, was Gewinnen bedeutet.",
+        },
+        {
+          title: "Wachsender Druck",
+          synopsis:
+            "Der Widerstand hält sich nicht mehr zurück. Was vorher funktionierte, funktioniert nicht mehr.",
+        },
+        {
+          title: "Zweiter Wendepunkt",
+          synopsis:
+            "Der tiefste Punkt: der Plan bricht zusammen, etwas Kostbares geht verloren, und die Hauptfigur sieht, was sie aufgeben muss.",
+        },
+        {
+          title: "Klimax",
+          synopsis:
+            "Die Konfrontation, auf die die ganze Geschichte zielte. Die Hauptfigur handelt nach dem, was sie gelernt hat — zu einem echten Preis.",
+        },
+        {
+          title: "Auflösung",
+          synopsis:
+            "Die neue Welt, kurz: was sich geändert hat, was es gekostet hat und das Bild, das dem Eröffnungsbild antwortet.",
         },
       ],
     },
@@ -201,6 +252,72 @@ export const TEMPLATE_CONTENT: Record<TemplateId, Record<"en" | "uk", TemplateCo
           title: "Return with the elixir",
           synopsis:
             "The hero comes home changed, carrying something that heals or frees the ordinary world.",
+        },
+      ],
+    },
+    de: {
+      name: "Reise des Helden",
+      summary: "Zwölf Szenen: Campbells Monomythos, Stufe für Stufe.",
+      beats: [
+        {
+          title: "Gewohnte Welt",
+          synopsis:
+            "Der Alltag des Helden, mit sichtbaren Lücken und Grenzen. Zeig, was die Normalität ihn kostet.",
+        },
+        {
+          title: "Ruf des Abenteuers",
+          synopsis:
+            "Die Störung kommt: eine Einladung, eine Drohung, eine Entdeckung, die sich nicht rückgängig machen lässt.",
+        },
+        {
+          title: "Verweigerung des Rufs",
+          synopsis:
+            "Der Held zögert — aus Angst, Pflicht oder Unglauben. Zeig, warum die gewohnte Welt ihn noch hält.",
+        },
+        {
+          title: "Begegnung mit dem Mentor",
+          synopsis:
+            "Jemand oder etwas gibt dem Helden, was er zum Anfangen braucht: Wissen, ein Werkzeug, einen Schubs.",
+        },
+        {
+          title: "Überschreiten der Schwelle",
+          synopsis:
+            "Der Held legt sich fest und betritt die unbekannte Welt. Hier gelten andere Regeln, und er kennt sie noch nicht.",
+        },
+        {
+          title: "Prüfungen, Verbündete, Feinde",
+          synopsis:
+            "Die neue Welt lehrt durch Prüfungen. Freunde und Feinde zeigen sich, und der Held lernt die lokalen Regeln.",
+        },
+        {
+          title: "Annäherung an die tiefste Höhle",
+          synopsis:
+            "Vorbereitung und Grauen: Der Held nähert sich dem, was er am meisten fürchtet, und der Preis des Scheiterns wird deutlich.",
+        },
+        {
+          title: "Die Feuerprobe",
+          synopsis:
+            "Die zentrale Krise. Der Held begegnet dem Tod — dem leiblichen oder dem seiner Identität — und kommt nicht unverändert hindurch.",
+        },
+        {
+          title: "Der Lohn",
+          synopsis:
+            "Der Held überlebt und nimmt den Preis: einen Gegenstand, eine Wahrheit, eine Versöhnung. Es ist nie ganz das, was er erwartet hat.",
+        },
+        {
+          title: "Der Rückweg",
+          synopsis:
+            "Die Heimreise, mit Folgen im Nacken. Die alte Welt wartet nicht unversehrt auf ihn.",
+        },
+        {
+          title: "Auferstehung",
+          synopsis:
+            "Die letzte Prüfung, mit den höchsten Einsätzen, in der der Held beweist, dass der Wandel echt ist — und dafür bezahlt.",
+        },
+        {
+          title: "Rückkehr mit dem Elixier",
+          synopsis:
+            "Der Held kehrt verändert heim und trägt etwas mit, das die gewohnte Welt heilt oder befreit.",
         },
       ],
     },
@@ -352,6 +469,87 @@ export const TEMPLATE_CONTENT: Record<TemplateId, Record<"en" | "uk", TemplateCo
         },
       ],
     },
+    de: {
+      name: "Save the Cat",
+      summary: "Fünfzehn Szenen: Blake Snyders Beat-Sheet, Beat für Beat.",
+      beats: [
+        {
+          title: "Eröffnungsbild",
+          synopsis:
+            "Ein Schnappschuss der Welt vor der Geschichte — das „Davor“, auf das das Schlussbild antworten wird.",
+        },
+        {
+          title: "Thema genannt",
+          synopsis:
+            "Jemand sagt fast beiläufig, worum es in dieser Geschichte wirklich geht. Die Hauptfigur hört noch nicht zu.",
+        },
+        {
+          title: "Einführung",
+          synopsis:
+            "Stell die Besetzung und die sechs Dinge vor, die repariert werden müssen. Zeig das Leben der Hauptfigur als auf eine bestimmte Weise unbefriedigend.",
+        },
+        {
+          title: "Katalysator",
+          synopsis:
+            "Die Nachricht, das Klopfen, die Entdeckung, die den gewohnten Tag zerbricht und nicht mehr vergessen werden kann.",
+        },
+        {
+          title: "Debatte",
+          synopsis:
+            "Die Hauptfigur streitet mit sich oder anderen: Soll sie gehen? Was riskiert sie, wenn sie bleibt?",
+        },
+        {
+          title: "Eintritt in den zweiten Akt",
+          synopsis:
+            "Eine bewusste Entscheidung für die neue Welt. Die Frage der Geschichte wechselt von „Was wäre, wenn“ zu „Was jetzt“.",
+        },
+        {
+          title: "Die B-Geschichte",
+          synopsis:
+            "Die Beziehung, die das Thema trägt, kommt an — Liebe, Freundschaft, Mentorschaft — und beginnt zu lehren, was die Handlung nicht kann.",
+        },
+        {
+          title: "Spiel und Spaß",
+          synopsis:
+            "Das Versprechen der Prämisse: Die Hauptfigur spielt in der neuen Welt und hat genug Erfolg, damit der Fall wehtut.",
+        },
+        {
+          title: "Die Mitte",
+          synopsis:
+            "Falscher Sieg oder falsche Niederlage: Die Einsätze steigen, eine Uhr läuft an, und die Hauptfigur hört auf zu spielen.",
+        },
+        {
+          title: "Die Bösen rücken näher",
+          synopsis:
+            "Der Widerstand zieht sich zusammen. Innere Risse und äußerer Druck kommen zusammen, und alte Verbündete versagen.",
+        },
+        {
+          title: "Alles ist verloren",
+          synopsis:
+            "Der tiefste Punkt: Das Ziel wirkt tot und etwas Unersetzliches ist fort. Ein Hauch von Tod.",
+        },
+        {
+          title: "Die dunkle Nacht der Seele",
+          synopsis:
+            "Die Hauptfigur sitzt im Trümmerhaufen. Lass das Thema, das in der B-Geschichte gesät wurde, auftauchen und verstanden werden.",
+        },
+        {
+          title: "Eintritt in den dritten Akt",
+          synopsis:
+            "Die Erkenntnis, die einen neuen Plan möglich macht: A- und B-Geschichte treffen sich, und die Hauptfigur wählt erneut.",
+        },
+        {
+          title: "Finale",
+          synopsis:
+            "Der Plan in Ausführung, in steigenden Stufen: das Team sammeln, die Burg stürmen, dem Schlimmsten begegnen und mit Kosten gewinnen.",
+        },
+        {
+          title: "Schlussbild",
+          synopsis:
+            "Das Spiegelbild des Eröffnungsbilds, das zeigt, was sich geändert hat — der Beweis, dass die Geschichte etwas bedeutet hat.",
+        },
+      ],
+    },
     uk: {
       name: "Save the Cat",
       summary: "П'ятнадцять сцен: біт-лист Блейка Снайдера, біт за бітом.",
@@ -480,6 +678,51 @@ export const TEMPLATE_CONTENT: Record<TemplateId, Record<"en" | "uk", TemplateCo
         },
       ],
     },
+    de: {
+      name: "Kreis der Geschichte",
+      summary: "Acht Szenen: Dan Harmons Kreis — eine Figur geht, bekommt und bezahlt.",
+      beats: [
+        {
+          title: "Du — Komfortzone",
+          synopsis: "Eine Figur in ihrer Komfortzone. Zeig, was sie hat und was ihr fehlt.",
+        },
+        {
+          title: "Bedürfnis",
+          synopsis:
+            "Sie will etwas. Das Wollen ist klar genug ausgesprochen, dass das Publikum es später messen kann.",
+        },
+        {
+          title: "Los — unbekannte Situation",
+          synopsis:
+            "Sie betritt eine unbekannte Situation, aus Wahl oder aus Zwang, und die Regeln ändern sich unter ihren Füßen.",
+        },
+        {
+          title: "Suche — Anpassung",
+          synopsis:
+            "Sie passt sich an, versucht, scheitert und versucht es anders. Das ist die längste Strecke: Der Preis des Wollens wird bereits bezahlt.",
+        },
+        {
+          title: "Finden — das Gewünschte bekommen",
+          synopsis:
+            "Sie findet, weswegen sie kam. Gib es ihr ganz, damit die Kosten des Behaltens spürbar werden.",
+        },
+        {
+          title: "Nehmen — ein hoher Preis",
+          synopsis:
+            "Es zu bekommen kostet mehr als erwartet. Etwas anderes wird ausgegeben — eine Beziehung, ein Glaube, Sicherheit.",
+        },
+        {
+          title: "Rückkehr — zurück ins Vertraute",
+          synopsis:
+            "Sie kommt dorthin zurück, wo sie anfing, verändert, und der vertraute Ort passt nicht mehr.",
+        },
+        {
+          title: "Wandel",
+          synopsis:
+            "Sie hat sich verändert, zum Besseren oder Schlechteren. Zeig es in einer Handlung, nicht in einem Satz — der Kreis schließt sich und öffnet sich.",
+        },
+      ],
+    },
     uk: {
       name: "Коло історії",
       summary: "Вісім сцен: коло Дена Гармона — персонаж іде, здобуває і платить.",
@@ -531,7 +774,7 @@ export const TEMPLATE_CONTENT: Record<TemplateId, Record<"en" | "uk", TemplateCo
  * The template as text for `createScenesFromList`: one `Title | Synopsis` line per beat.
  * The parser splits on `|`, so neither a title nor a synopsis may contain one.
  */
-export function templateSceneText(id: TemplateId, locale: "en" | "uk"): string {
+export function templateSceneText(id: TemplateId, locale: "en" | "uk" | "de"): string {
   return TEMPLATE_CONTENT[id][locale].beats
     .map((beat) => `${beat.title} | ${beat.synopsis}`)
     .join("\n");

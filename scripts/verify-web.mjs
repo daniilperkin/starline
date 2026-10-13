@@ -1635,7 +1635,24 @@ try {
   await page.getByTestId("sl-open-settings").waitFor({ timeout: 20000 });
   await page.getByTestId("sl-open-settings").click();
   await page.getByTestId("sl-settings-language").click();
-  await page.getByTestId("sl-locale-en").click();
+  // German ships too (decision 26) — informal du, full catalogue parity. Switch to it and read
+  // two strings that must have changed, then back to English.
+  await page.getByTestId("sl-locale-de").click();
+  await page.waitForTimeout(1500);
+  const germanText = await page.locator("body").innerText();
+  if (!germanText.includes("Einstellungen") || !germanText.includes("Darstellung")) {
+    throw new Error("German did not apply to the interface");
+  }
+  // The switch remounts the route tree, so the sheet comes back on its first segment (Tags).
+  // Re-select Language before reaching for the locale buttons — retrying once, because the
+  // remount can land between the click and React's next render.
+  await page.getByTestId("sl-settings-language").click();
+  const englishOption = page.getByTestId("sl-locale-en");
+  if (!(await englishOption.isVisible().catch(() => false))) {
+    await page.getByTestId("sl-settings-language").click();
+    await englishOption.waitFor({ timeout: 8000 });
+  }
+  await englishOption.click();
   await page.getByRole("heading", { name: "Settings", exact: true }).waitFor({ timeout: 15000 });
   const storedLocale = await page.evaluate(() => localStorage.getItem("starline.locale"));
   if (storedLocale !== "en") throw new Error(`the remembered choice is "${storedLocale}"`);

@@ -19,7 +19,6 @@ import { UndoToast } from "./UndoToast";
 export function AppLayout() {
   const router = useRouter();
   const session = useSessionStore((state) => state.session);
-  const projects = useProjects();
   const { project: activeProject } = useActiveProject();
   const openEntity = useOpenEntity();
   const [healthDismissed, setHealthDismissed] = useState(false);

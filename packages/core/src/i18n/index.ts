@@ -1,15 +1,17 @@
 /**
- * The i18n runtime (decision 20: launch languages English + Ukrainian).
+ * The i18n runtime (decision 20: launch languages English + Ukrainian; decision 26 adds German).
  *
  * `messages` is a live proxy over the active catalogue, so the ~650 existing call sites keep
  * working unchanged; switching locale re-reads every string on the next render. The app
  * remounts its route tree on a switch, which is what makes that re-read happen.
  */
+
+import { de } from "./de";
 import { en } from "./en";
 import { uk } from "./uk";
 
 /** Locales that ship with the app. */
-export const availableLocales = ["en", "uk"] as const;
+export const availableLocales = ["en", "uk", "de"] as const;
 export type Locale = (typeof availableLocales)[number];
 
 /** A counted noun phrase; categories follow the locale's own plural rules (uk: one/few/many/other). */
@@ -29,7 +31,7 @@ type Widen<T> = T extends string
 /** The catalogue shape with widened leaves: every locale implements it, the strings differ. */
 export type Messages = Widen<typeof en>;
 
-export const catalogues: Record<Locale, Messages> = { en, uk };
+export const catalogues: Record<Locale, Messages> = { en, uk, de };
 
 let activeLocale: Locale = "en";
 const rules = new Map<Locale, Intl.PluralRules>();
@@ -85,5 +87,6 @@ export function issueMessage(code: string): string {
   return (catalogues[activeLocale].issues as Record<string, string>)[code] ?? code;
 }
 
+export { de } from "./de";
 export { en } from "./en";
 export { uk } from "./uk";
