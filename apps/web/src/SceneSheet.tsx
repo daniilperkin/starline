@@ -23,6 +23,7 @@ import {
   useSetScenePlotline,
   useUpdateScene,
 } from "./data";
+import { SceneLorePicker } from "./SceneLorePicker";
 import { TagPicker } from "./TagPicker";
 import { useUndoStore } from "./undo";
 import { useAutosave } from "./useAutosave";
@@ -447,10 +448,7 @@ function SceneSheetBody({
         </div>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <span className="sl-label">{messages.sceneSheet.lore}</span>
-        <p className="text-xs text-muted">{messages.sceneSheet.loreEmpty}</p>
-      </div>
+      <SceneLorePicker projectId={projectId} sceneId={sceneId} selected={detail.loreIds} />
 
       <div className="flex gap-3">
         <div className="flex flex-1 flex-col gap-1">

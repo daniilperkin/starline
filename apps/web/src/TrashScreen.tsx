@@ -1,7 +1,10 @@
 import { format, messages, type TrashEntityType, type UUID } from "@starline/core";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { useEmptyTrash, useProjects, useRestoreEntity, useTrash } from "./data";
+import { useActiveProject } from "./active-project";
+import { useEmptyTrash, useRestoreEntity, useTrash } from "./data";
+import { useSessionStore } from "./session";
+import { takeSnapshot } from "./snapshots";
 import { relativeTime } from "./time";
 
 /**
@@ -10,8 +13,8 @@ import { relativeTime } from "./time";
  */
 export function TrashScreen() {
   const navigate = useNavigate();
-  const projects = useProjects();
-  const project = projects.data?.[0] ?? null;
+  const { project } = useActiveProject();
+  const session = useSessionStore((state) => state.session);
   const trash = useTrash(project?.id ?? null);
   const restore = useRestoreEntity();
   const empty = useEmptyTrash();
@@ -30,13 +33,19 @@ export function TrashScreen() {
     }
   };
 
-  const onEmpty = () => {
+  const onEmpty = async () => {
     if (!confirmEmpty) {
       setConfirmEmpty(true);
       window.setTimeout(() => setConfirmEmpty(false), 2500);
       return;
     }
-    if (project !== null) empty.mutate({ projectId: project.id });
+    if (project !== null) {
+      // Emptying the trash is the one action here that cannot be undone; snapshot first.
+      if (session !== null) {
+        await takeSnapshot(session, "pre_bulk_delete", messages.trash.emptyTrash);
+      }
+      empty.mutate({ projectId: project.id });
+    }
     setConfirmEmpty(false);
   };
 

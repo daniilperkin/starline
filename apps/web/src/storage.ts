@@ -1,5 +1,5 @@
 import type { MigrationReport, OpenResult } from "@starline/db";
-import { runMigrations } from "@starline/db";
+import { LATEST_SCHEMA_VERSION, runMigrations } from "@starline/db";
 import { TauriStorageDriver, WorkerTransport } from "@starline/driver-wasm";
 import {
   assessSessionHealth,
@@ -9,6 +9,7 @@ import {
   type SessionHealth,
 } from "./health";
 import type { LibrarySession } from "./session";
+import { takeSnapshot } from "./snapshots";
 
 /**
  * M0 storage factory for the web build: libraries live in the OPFS sahpool.
@@ -177,6 +178,18 @@ export interface OpenedLibrary {
 export async function openLibraryFully(name: string, create: boolean): Promise<OpenedLibrary> {
   const { driver, transport, info } = await openLibrary(name, create);
   try {
+    // A file that is about to be migrated gets a snapshot first, taken while it is still the old
+    // schema: this is the only moment a copy of the pre-update state exists. A failure here must
+    // not block the open — the migration itself is transactional, and the snapshot is insurance.
+    const pending = await driver.query<{ user_version: number }>("PRAGMA user_version");
+    const pendingVersion = pending[0]?.user_version ?? 0;
+    if (pendingVersion > 0 && pendingVersion < LATEST_SCHEMA_VERSION) {
+      await takeSnapshot(
+        { driver, transport, name } as unknown as LibrarySession,
+        "pre_migration",
+        `v${pendingVersion}`,
+      ).catch(() => undefined);
+    }
     const report = await runMigrations(driver);
     const health = await assessSessionHealth(driver);
     await markSessionOpen(driver);

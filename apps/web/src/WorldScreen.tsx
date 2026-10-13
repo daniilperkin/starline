@@ -33,6 +33,8 @@ import {
 } from "./data";
 import { LoreSheet } from "./LoreSheet";
 import { useNavigationStore } from "./navigation";
+import { useSessionStore } from "./session";
+import { takeSnapshot } from "./snapshots";
 import { TimelineView } from "./timeline/TimelineView";
 
 /** World tab v1 (PLAN slice 6): the category tree plus the entry list of the chosen node. */
@@ -47,6 +49,7 @@ function kindLabel(entry: LoreEntrySummary): string {
 }
 
 export function WorldScreen() {
+  const session = useSessionStore((state) => state.session);
   const projects = useProjects();
   const project = projects.data?.[0] ?? null;
   const categories = useLoreCategories(project?.id ?? null);
@@ -177,6 +180,10 @@ export function WorldScreen() {
       return;
     }
     setCascadeFor(null);
+    // A category cascade can remove a whole subtree in one tap; snapshot first.
+    if (session !== null) {
+      await takeSnapshot(session, "pre_bulk_delete", messages.world.deleteCategory);
+    }
     await deleteCategory
       .mutateAsync({ projectId, categoryId: category.id, cascade: count > 0 })
       .then(() => {

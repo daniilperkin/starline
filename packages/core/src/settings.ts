@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { SceneStatusPalette } from "./entities";
+import type { UUID } from "./primitives";
 
 export const hexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 
@@ -68,4 +69,33 @@ export function defaultProjectSettings(): ProjectSettings {
     timelineCalendar: { ...DEFAULT_TIMELINE_CALENDAR },
     enabledModules: ["snowflake", "characters", "graph", "outliner", "timeline", "wiki", "notes"],
   };
+}
+
+/**
+ * Reads the project's settings (slice 27): the `project.settings` JSON has been written at
+ * creation since the schema landed and nothing has ever read it, which is what "wire or delete"
+ * in the audit was about. Every failure path returns the defaults rather than throwing — settings
+ * are configuration, and a malformed row must not keep a writer out of their own book.
+ */
+/** The slice of the driver this read needs — structural, so core does not import the db package. */
+export interface SettingsQueryRunner {
+  query<T = Record<string, unknown>>(sql: string, params?: readonly unknown[]): Promise<T[]>;
+}
+
+export async function readProjectSettings(
+  driver: SettingsQueryRunner,
+  projectId: UUID,
+): Promise<ProjectSettings> {
+  const rows = await driver.query<{ settings: string | null }>(
+    "SELECT settings FROM project WHERE id = ?",
+    [projectId],
+  );
+  const raw = rows[0]?.settings;
+  if (raw === null || raw === undefined) return defaultProjectSettings();
+  try {
+    const parsed = projectSettingsSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : defaultProjectSettings();
+  } catch {
+    return defaultProjectSettings();
+  }
 }

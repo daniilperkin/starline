@@ -78,6 +78,8 @@ export function PromptsSheet({
             <li key={question}>• {question}</li>
           ))}
         </ul>
+
+        <p className="mt-4 text-xs text-muted">{messages.prompts.credit}</p>
       </section>
     </>
   );

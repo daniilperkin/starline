@@ -100,6 +100,7 @@ import {
   promoteNote,
   purgeExpiredTrash,
   type RelationshipPatch,
+  readProjectSettings,
   renameProject,
   renameTag,
   restoreEntity,
@@ -828,6 +829,18 @@ export function useLoreCategories(projectId: UUID | null) {
     queryFn: async () => {
       if (!session || !projectId) throw new Error("no project open");
       return listLoreCategories(session.driver, projectId);
+    },
+  });
+}
+
+export function useProjectSettings(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["settings", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return readProjectSettings(session.driver, projectId);
     },
   });
 }

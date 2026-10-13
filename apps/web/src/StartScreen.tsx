@@ -228,7 +228,10 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
         <p className="rounded-2xl border border-danger px-4 py-3 text-sm text-danger">{error}</p>
       ) : null}
 
-      <footer className="text-center text-xs text-muted">{messages.app.installHint}</footer>
+      <footer className="flex flex-col gap-1 text-center text-xs text-muted">
+        <span>{messages.app.installHint}</span>
+        <span>{messages.app.credit}</span>
+      </footer>
     </div>
   );
 }

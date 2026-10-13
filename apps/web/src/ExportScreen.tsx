@@ -21,6 +21,7 @@ import {
 import { useScenesRefresh } from "./export/useRefresh";
 import { formatNumber } from "./locale";
 import { useSessionStore } from "./session";
+import { takeSnapshot } from "./snapshots";
 
 type Mode = "export" | "import-csv" | "import-manuscript";
 
@@ -189,6 +190,9 @@ export function ExportScreen() {
     setBusy(true);
     setError(null);
     try {
+      // The import writes rows into the open library; a snapshot first is the difference between
+      // "merge went wrong" and "merge went wrong and I lost the morning".
+      await takeSnapshot(session, "pre_import", messages.export.csvImport);
       const result = await importCsv(session, projectId as UUID, csvText, csvTarget, mapping);
       setCsvDone(
         format(messages.export.csvDone, {
@@ -213,6 +217,8 @@ export function ExportScreen() {
 
   const onImportManuscript = async () => {
     if (projectId === null || split === null) return;
+    // Same reasoning as the CSV import: rows land in the open library, so snapshot first.
+    await takeSnapshot(session, "pre_import", messages.export.tabManuscript);
     setBusy(true);
     setError(null);
     try {

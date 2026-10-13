@@ -24,6 +24,42 @@
   --sl-font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
 
+/* Sepia (slice 27): warm paper for long reading sessions; same token set, warmer and lower
+   in glare. Contrast (slice 27): pure black and white with strong borders, for readers who need
+   the highest contrast the palette can give — the interactive colour stays gold on black. */
+[data-theme="sepia"] {
+  --sl-bg: #f2e8d5;
+  --sl-surface: #faf3e3;
+  --sl-surface-2: #eadfc6;
+  --sl-text: #3b2f1e;
+  --sl-muted: #6f5e40;
+  --sl-border: #d9c9a6;
+  --sl-accent: #8a5a2b;
+  --sl-primary: #7a4a1e;
+  --sl-on-primary: #ffffff;
+  --sl-danger: #a33a2a;
+  --sl-star: #c9b98f;
+  --sl-glow: rgba(122, 74, 30, 0.18);
+}
+[data-theme="contrast"] {
+  --sl-bg: #000000;
+  --sl-surface: #000000;
+  --sl-surface-2: #141414;
+  --sl-text: #ffffff;
+  --sl-muted: #e8e8e8;
+  --sl-border: #ffffff;
+  --sl-accent: #ffe066;
+  --sl-primary: #ffe066;
+  --sl-on-primary: #000000;
+  --sl-danger: #ff8080;
+  --sl-star: #ffffff;
+  --sl-glow: transparent;
+}
+[data-theme="contrast"] .sl-btn,
+[data-theme="contrast"] .sl-input {
+  border-width: 2px;
+}
+
 [data-theme="dark"] {
   --sl-bg: #060714;
   --sl-surface: #0e1023;

@@ -1,12 +1,14 @@
-export type ThemePreference = "system" | "light" | "dark";
+export type ThemePreference = "system" | "light" | "dark" | "sepia" | "contrast";
 
 const STORAGE_KEY = "starline.theme";
-const ORDER: ThemePreference[] = ["system", "light", "dark"];
+const ORDER: ThemePreference[] = ["system", "light", "dark", "sepia", "contrast"];
 
 export function getThemePreference(): ThemePreference {
   const stored = localStorage.getItem(STORAGE_KEY);
   // The star library is a night sky: dark is the default until the writer chooses otherwise.
-  return stored === "light" || stored === "dark" || stored === "system" ? stored : "dark";
+  return stored !== null && (ORDER as string[]).includes(stored)
+    ? (stored as ThemePreference)
+    : "dark";
 }
 
 export function applyTheme(preference: ThemePreference): void {

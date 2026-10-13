@@ -92,6 +92,34 @@ export function WriteScreen() {
     rememberScene({ projectId, sceneId });
   }, [projectId, sceneId, rememberScene]);
 
+  // Typing budget (spec §5.1, ≤ 16 ms keystroke-to-paint): a keystroke must not pay for a render
+  // of the whole screen. The editor streams every change here; the draft state — which the header,
+  // the counters and the autosave all read — updates at most every 250 ms, and the last value is
+  // flushed on unmount so nothing can be stranded in the ref.
+  const pendingBody = useRef<RichText | null>(null);
+  const bodyTimer = useRef<number | null>(null);
+  const pushBody = (value: RichText) => {
+    pendingBody.current = value;
+    if (bodyTimer.current !== null) return;
+    bodyTimer.current = window.setTimeout(() => {
+      bodyTimer.current = null;
+      const body = pendingBody.current;
+      if (body !== null) {
+        setDraft((current) => (current === null ? current : { ...current, body }));
+      }
+    }, 250);
+  };
+  useEffect(
+    () => () => {
+      if (bodyTimer.current !== null) window.clearTimeout(bodyTimer.current);
+      const body = pendingBody.current;
+      if (body !== null) {
+        setDraft((current) => (current === null ? current : { ...current, body }));
+      }
+    },
+    [],
+  );
+
   const flush = useAutosave(
     draft,
     async (value) => {
@@ -291,9 +319,7 @@ export function WriteScreen() {
             ariaLabel={messages.write.bodyLabel}
             mentionables={mentionables.data ?? []}
             onEditor={onEditor}
-            onChange={(value) => {
-              setDraft((current) => (current === null ? current : { ...current, body: value }));
-            }}
+            onChange={pushBody}
           />
         )}
       </div>
