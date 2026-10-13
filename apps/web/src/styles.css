@@ -14,8 +14,10 @@
   --sl-primary: #5b46d6; /* nebula violet — interactive text/fills */
   --sl-on-primary: #ffffff;
   --sl-danger: #b3261e;
+  --sl-star: #a6aede;
   --sl-glow: rgba(91, 70, 214, 0.18);
   --sl-wordmark-a: #5b46d6; /* day sky: the gold cannot carry text, so the mark turns violet */
+  --sl-wordmark-b: #2f6fd6;
   /* Bundled faces first, OS stacks as the fallback for anything they do not cover. */
   --sl-font-sans: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
   --sl-font-serif: "Literata", Georgia, "Times New Roman", serif;
@@ -36,6 +38,7 @@
   --sl-primary: #7a4a1e;
   --sl-on-primary: #ffffff;
   --sl-danger: #a33a2a;
+  --sl-star: #c9b98f;
   --sl-glow: rgba(122, 74, 30, 0.18);
 }
 [data-theme="contrast"] {
@@ -49,6 +52,7 @@
   --sl-primary: #ffe066;
   --sl-on-primary: #000000;
   --sl-danger: #ff8080;
+  --sl-star: #ffffff;
   --sl-glow: transparent;
 }
 [data-theme="contrast"] .sl-btn,
