@@ -499,6 +499,42 @@ try {
   await page.getByRole("heading", { name: "World" }).waitFor();
   await page.locator(".sl-tree-row").filter({ hasText: "Geography" }).waitFor();
   await page.locator(".sl-tree-row").filter({ hasText: "Magic & Technology" }).waitFor();
+
+  // 4p2. Slice 22: category drag-nest. Drag Species onto Items — it becomes a child (rendered
+  // after its parent, one indent deeper) — then drag it onto the World root to un-nest, which
+  // leaves the tree exactly as it was found. Both moves run through the real pointer path.
+  const depthOf = async (name) =>
+    page
+      .locator(".sl-tree-row")
+      .filter({ hasText: name })
+      .first()
+      .evaluate((el) => getComputedStyle(el).paddingLeft);
+  const dragRow = async (from, to) => {
+    const a = await page.locator(".sl-tree-row").filter({ hasText: from }).first().boundingBox();
+    const b = await page.locator(".sl-tree-row").filter({ hasText: to }).first().boundingBox();
+    if (!a || !b) throw new Error(`cannot drag ${from} onto ${to}`);
+    await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(a.x + a.width / 2 + 15, a.y + a.height / 2 + 15, { steps: 8 });
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 12 });
+    await page.mouse.up();
+    await page.waitForTimeout(1800);
+  };
+  const depthBefore = await depthOf("Species");
+  await dragRow("Species", "Items");
+  const depthNested = await depthOf("Species");
+  if (depthNested === depthBefore) {
+    throw new Error(`dragging Species onto Items did not nest it (depth stayed ${depthBefore})`);
+  }
+  await dragRow("Species", "World");
+  const depthRestored = await depthOf("Species");
+  if (depthRestored !== depthBefore) {
+    throw new Error(`un-nesting did not restore the depth (${depthRestored} vs ${depthBefore})`);
+  }
+  await axeScan("world-tree");
+  console.log(
+    `  world drag-nest: Species nested under Items (${depthBefore} → ${depthNested}) and back to the root`,
+  );
   await page.locator(".sl-tree-row").filter({ hasText: "Geography" }).click();
 
   const addEntry = async (name) => {

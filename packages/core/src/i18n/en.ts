@@ -514,6 +514,7 @@ export const en = {
     heading: "World",
     empty: "No lore yet — create a category, then fill it with people, places and rules.",
     newCategory: "New category",
+    moveUnder: "Move under {parent}",
     newEntry: "New entry",
     uncategorised: "Uncategorised",
     entries: { one: "{n} entry", other: "{n} entries" },

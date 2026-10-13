@@ -1,5 +1,16 @@
 import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
   buildCategoryTree,
+  format,
   LORE_KIND_GLYPHS,
   type LoreCategory,
   type LoreCategoryNode,
@@ -15,6 +26,7 @@ import {
   useDeleteLoreCategory,
   useLoreCategories,
   useLoreEntries,
+  useMoveLoreCategory,
   useMoveLoreEntry,
   useProjects,
   useSeedLoreTaxonomy,
@@ -72,6 +84,31 @@ export function WorldScreen() {
     if (categoryList.length === 0) void seed.mutateAsync(projectId).catch(() => undefined);
   }, [projectId, categoryList, seed]);
 
+  const moveCategory = useMoveLoreCategory();
+  // A tap must still select: the drag only starts after 8 px of movement, which is the same
+  // constraint the scene list uses.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+  /**
+   * Drop a category onto another (or onto the World root) and it moves there. The command refuses
+   * cycles, so dropping a parent into its own child surfaces the error instead of corrupting the
+   * tree. Ordering appends after the target's last child.
+   */
+  const onCategoryDrop = async (draggedId: UUID, targetId: UUID | null) => {
+    if (projectId === null || draggedId === targetId) return;
+    const siblings = (categories.data ?? []).filter((category) =>
+      targetId === null ? category.parentId === null : category.parentId === targetId,
+    );
+    const lastKey = siblings
+      .map((category) => category.orderKey)
+      .sort()
+      .at(-1);
+    const orderKey = between(lastKey ?? "", "zzzz");
+    await moveCategory
+      .mutateAsync({ projectId, categoryId: draggedId, parentId: targetId, orderKey })
+      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)));
+  };
+
   const tree = useMemo(() => {
     const counts = new Map<string, number>();
     for (const entry of entries.data ?? []) {
@@ -105,6 +142,11 @@ export function WorldScreen() {
     selection === ALL || selection === UNCATEGORISED
       ? null
       : ((categories.data ?? []).find((category) => category.id === selection) ?? null);
+
+  const moveUnderName =
+    selection === ALL || selection === UNCATEGORISED
+      ? null
+      : ((categories.data ?? []).find((category) => category.id === selection)?.name ?? null);
 
   const onAddCategory = async () => {
     const name = newCategory.trim();
@@ -215,40 +257,53 @@ export function WorldScreen() {
             </p>
           ) : null}
 
-          <section aria-label={messages.world.heading} className="flex flex-col gap-1">
-            <button
-              type="button"
-              className="sl-tree-row"
-              data-active={selection === ALL}
-              onClick={() => setSelection(ALL)}
-            >
-              <span aria-hidden="true">✧</span>
-              <span className="flex-1 text-left">{messages.tabs.world}</span>
-              <span className="text-xs text-muted">{entries.data?.length ?? 0}</span>
-            </button>
-            {tree.map((node) => (
-              <CategoryRow
-                key={node.id}
-                node={node}
-                depth={0}
-                selection={selection}
-                onSelect={setSelection}
-                onDelete={(category) => void onDeleteCategory(category)}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={(event: DragEndEvent) => {
+              const target = event.over?.id;
+              if (target === undefined) return;
+              void onCategoryDrop(
+                event.active.id as UUID,
+                target === ROOT_DROPPABLE ? null : (target as UUID),
+              );
+            }}
+          >
+            <section aria-label={messages.world.heading} className="flex flex-col gap-1">
+              <RootRow
+                count={entries.data?.length ?? 0}
+                active={selection === ALL}
+                onSelect={() => setSelection(ALL)}
               />
-            ))}
-            {uncategorisedCount > 0 ? (
-              <button
-                type="button"
-                className="sl-tree-row"
-                data-active={selection === UNCATEGORISED}
-                onClick={() => setSelection(UNCATEGORISED)}
-              >
-                <span aria-hidden="true">◦</span>
-                <span className="flex-1 text-left">{messages.world.uncategorised}</span>
-                <span className="text-xs text-muted">{uncategorisedCount}</span>
-              </button>
-            ) : null}
-          </section>
+              {tree.map((node) => (
+                <CategoryRow
+                  key={node.id}
+                  node={node}
+                  depth={0}
+                  selection={selection}
+                  onSelect={setSelection}
+                  onDelete={(category) => void onDeleteCategory(category)}
+                  onMoveUnder={(parentId, parentName) =>
+                    void onCategoryDrop(node.id, parentId).then(() => setError(null))
+                  }
+                  moveUnderName={moveUnderName}
+                  selectedId={selection}
+                />
+              ))}
+              {uncategorisedCount > 0 ? (
+                <button
+                  type="button"
+                  className="sl-tree-row"
+                  data-active={selection === UNCATEGORISED}
+                  onClick={() => setSelection(UNCATEGORISED)}
+                >
+                  <span aria-hidden="true">◦</span>
+                  <span className="flex-1 text-left">{messages.world.uncategorised}</span>
+                  <span className="text-xs text-muted">{uncategorisedCount}</span>
+                </button>
+              ) : null}
+            </section>
+          </DndContext>
 
           <form
             className="flex gap-2"
@@ -398,33 +453,90 @@ function subtreeEntryCount(nodes: LoreCategoryNode[], categoryId: UUID): number 
   return sum(node);
 }
 
+/** The World root doubles as the drop target for un-nesting. */
+const ROOT_DROPPABLE = "lore-root";
+
+function RootRow({
+  count,
+  active,
+  onSelect,
+}: {
+  count: number;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: ROOT_DROPPABLE });
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      className="sl-tree-row"
+      data-active={active}
+      data-drop={isOver}
+      onClick={onSelect}
+    >
+      <span aria-hidden="true">✧</span>
+      <span className="flex-1 text-left">{messages.tabs.world}</span>
+      <span className="text-xs text-muted">{count}</span>
+    </button>
+  );
+}
+
 function CategoryRow({
   node,
   depth,
   selection,
   onSelect,
   onDelete,
+  onMoveUnder,
+  moveUnderName,
+  selectedId,
 }: {
   node: LoreCategoryNode;
   depth: number;
   selection: Selection;
   onSelect: (id: UUID) => void;
   onDelete: (category: LoreCategory) => void;
+  onMoveUnder: (parentId: UUID | null, parentName: string) => void;
+  moveUnderName: string | null;
+  selectedId: Selection;
 }) {
+  const drag = useDraggable({ id: node.id });
+  const drop = useDroppable({ id: node.id });
+  const canMoveUnder = moveUnderName !== null && selectedId !== node.id && selectedId !== ALL;
   return (
     <>
-      <div className="sl-tree-group">
+      <div
+        ref={drop.setNodeRef}
+        className="sl-tree-group"
+        data-dragging={drag.isDragging}
+        data-drop={drop.isOver}
+      >
         <button
+          ref={drag.setNodeRef}
           type="button"
           className="sl-tree-row"
           data-active={selection === node.id}
           style={{ paddingLeft: `${12 + depth * 14}px` }}
+          {...drag.listeners}
+          {...drag.attributes}
           onClick={() => onSelect(node.id)}
         >
           <span aria-hidden="true">{node.icon || "◦"}</span>
           <span className="flex-1 text-left">{node.name}</span>
           <span className="text-xs text-muted">{node.entryCount}</span>
         </button>
+        {canMoveUnder ? (
+          <button
+            type="button"
+            className="sl-tree-delete"
+            data-testid="sl-tree-nest"
+            aria-label={`${format(messages.world.moveUnder, { parent: moveUnderName ?? "" })}: ${node.name}`}
+            onClick={() => onMoveUnder(selectedId as UUID, moveUnderName ?? "")}
+          >
+            ↳
+          </button>
+        ) : null}
         <button
           type="button"
           className="sl-tree-delete"
@@ -442,6 +554,9 @@ function CategoryRow({
           selection={selection}
           onSelect={onSelect}
           onDelete={onDelete}
+          onMoveUnder={onMoveUnder}
+          moveUnderName={moveUnderName}
+          selectedId={selectedId}
         />
       ))}
     </>

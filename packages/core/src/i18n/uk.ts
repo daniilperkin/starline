@@ -571,6 +571,7 @@ export const uk: Messages = {
     heading: "Світ",
     empty: "Записів ще немає — створіть категорію й наповніть її людьми, місцями та правилами.",
     newCategory: "Нова категорія",
+    moveUnder: "Перемістити до {parent}",
     newEntry: "Новий запис",
     uncategorised: "Без категорії",
     entries: { one: "{n} запис", few: "{n} записи", many: "{n} записів", other: "{n} записи" },

@@ -87,6 +87,7 @@ import {
   mergeTags,
   moveChapter,
   moveFieldDef,
+  moveLoreCategory,
   moveLoreEntry,
   moveNote,
   moveScene,
@@ -971,6 +972,21 @@ export function useMoveLoreEntry() {
     }) => {
       if (!session) throw new Error("no library open");
       return runCommand(session.driver, moveLoreEntry, args);
+    },
+  });
+}
+
+export function useMoveLoreCategory() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: {
+      projectId: UUID;
+      categoryId: UUID;
+      parentId: UUID | null;
+      orderKey: string;
+    }) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, moveLoreCategory, args);
     },
   });
 }
