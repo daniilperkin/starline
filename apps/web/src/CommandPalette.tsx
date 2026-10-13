@@ -243,10 +243,10 @@ export function CommandPalette({
         {/* biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: ARIA's listbox/option pattern on a ul is deliberate */}
         <ul id="sl-palette-list" role="listbox" aria-label={messages.palette.title} ref={listRef}>
           {entries.length === 0 ? (
-            <li className="sl-palette-empty">{messages.palette.empty}</li>
+            <li role="presentation" className="sl-palette-empty">{messages.palette.empty}</li>
           ) : (
             entries.map((entry, index) => (
-              <li key={entry.key}>
+              <li key={entry.key} role="presentation">
                 <button
                   type="button"
                   id={`sl-palette-${entry.key}`}
