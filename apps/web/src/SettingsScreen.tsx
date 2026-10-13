@@ -19,7 +19,6 @@ import {
   useFieldDefsAdmin,
   useMergeTags,
   useMoveFieldDef,
-  useProjects,
   useRenameTag,
   useSetTagColor,
   useTags,
@@ -33,6 +32,7 @@ const CloudPanel = lazy(() =>
   import("./cloud/CloudPanel").then((module) => ({ default: module.CloudPanel })),
 );
 
+import { useActiveProject } from "./active-project";
 import { UndoToast } from "./UndoToast";
 
 type Section = "tags" | "fields" | "language" | "appearance" | "cloud";
@@ -44,8 +44,7 @@ type Section = "tags" | "fields" | "language" | "appearance" | "cloud";
  */
 export function SettingsScreen() {
   const [section, setSection] = useState<Section>("tags");
-  const projects = useProjects();
-  const project = projects.data?.[0] ?? null;
+  const { project } = useActiveProject();
   // Built per render so a locale switch relabels the segments (no module-level capture).
   const sections = [
     ["tags", messages.settings.tags],

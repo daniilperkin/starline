@@ -1722,6 +1722,56 @@ ${text.slice(0, 400)}`);
   console.log(`  imported library: ${importedScenes} scenes · ${importedCharacters} characters`);
   await page.screenshot({ path: join(shotDir, "23-imported.png"), fullPage: true });
 
+  // 4y2. Slice 23: books in one library. Create a second book, confirm the screens follow it
+  // (a fresh wizard, not the first book's), then switch back and confirm the first book's step-1
+  // text is exactly where it was. Switching is a display concern; the data must never move.
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.waitForTimeout(1500);
+  await page.locator('[data-testid="sl-book-switcher"]').click();
+  await page.waitForTimeout(900);
+  const booksBefore = await page.locator('[data-testid="sl-book-row"]').count();
+  await page
+    .locator('[data-testid="sl-book-create"]')
+    .locator("xpath=preceding-sibling::input")
+    .fill("Second Book");
+  await page.locator('[data-testid="sl-book-create"]').click();
+  await page.waitForTimeout(4500);
+  const switchedTitle = (await page.locator('[data-testid="sl-book-switcher"]').innerText()).trim();
+  if (!switchedTitle.includes("Second Book")) {
+    throw new Error(`the switcher did not open the new book: "${switchedTitle}"`);
+  }
+  await page.locator('[data-testid="sl-book-switcher"]').click();
+  await page.waitForTimeout(900);
+  const booksAfter = await page.locator('[data-testid="sl-book-row"]').count();
+  if (booksAfter !== booksBefore + 1) {
+    throw new Error(
+      `the library lists ${booksAfter} books after creating one, expected ${booksBefore + 1}`,
+    );
+  }
+  await page
+    .locator('[data-testid="sl-book-row"]')
+    .filter({ hasText: "The Cartographer" })
+    .first()
+    .locator('[data-testid="sl-book-open"]')
+    .click();
+  await page.waitForTimeout(3500);
+  const backTitle = (await page.locator('[data-testid="sl-book-switcher"]').innerText()).trim();
+  if (backTitle.includes("Second Book")) {
+    throw new Error("switching back did not return to the first book");
+  }
+  await page.locator(".sl-step-row").filter({ hasText: "One sentence" }).click();
+  await page.waitForTimeout(2000);
+  const stepOne = await page.getByRole("textbox").first().inputValue();
+  if (!stepOne.includes("harbour") && stepOne.trim().length === 0) {
+    throw new Error("the first book's step-1 text did not survive the round trip");
+  }
+  await page.getByRole("button", { name: "Back" }).click();
+  await page.waitForTimeout(1200);
+  console.log(
+    `  books: ${booksBefore} → ${booksAfter} in one library; switching follows the screens and the first book's text survived`,
+  );
+  await axeScan("book-switcher");
+
   // 4z. Slice 16 — the daily inspiration card and the structure templates.
   // The card must be deterministic for the calendar date: the same question across a reload, and
   // hiding it sticks for that day. Both checks read the real UI, not the module.

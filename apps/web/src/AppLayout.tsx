@@ -3,6 +3,8 @@ import { Capacitor } from "@capacitor/core";
 import { format, messages } from "@starline/core";
 import { Outlet, useRouter, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useActiveProject } from "./active-project";
+import { BookSwitcher } from "./BookSwitcher";
 import { lastActivityTime, onActivity, queryClient, useProjects } from "./data";
 import { useLocaleStore } from "./locale";
 import { useOpenEntity } from "./openEntity";
@@ -18,9 +20,11 @@ export function AppLayout() {
   const router = useRouter();
   const session = useSessionStore((state) => state.session);
   const projects = useProjects();
+  const { project: activeProject } = useActiveProject();
   const openEntity = useOpenEntity();
   const [healthDismissed, setHealthDismissed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [booksOpen, setBooksOpen] = useState(false);
 
   // Android back button: step back through history, then minimise the app (decision 12).
   useEffect(() => {
@@ -117,7 +121,10 @@ export function AppLayout() {
     return (
       <div className="sl-immersive">
         {banner}
-        <Outlet key={locale} />
+        {/* Remount the screens when the book changes: their editors hold local state initialised
+          from the row they were given, so switching books without a remount would show the
+          previous book's content — the data was never at risk, but the display lied. */}
+        <Outlet key={`${locale}-${activeProject?.id ?? ""}`} />
         <UndoToast />
       </div>
     );
@@ -127,6 +134,16 @@ export function AppLayout() {
     <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-5 px-4 pt-6 pb-28">
       <header className="sl-appbar">
         <span className="sl-wordmark">StarLine</span>
+        {session && activeProject ? (
+          <button
+            type="button"
+            className="sl-btn-small"
+            data-testid="sl-book-switcher"
+            onClick={() => setBooksOpen(true)}
+          >
+            <span aria-hidden="true">▤</span> {activeProject.title}
+          </button>
+        ) : null}
         {session ? (
           <button
             type="button"
@@ -140,9 +157,10 @@ export function AppLayout() {
       </header>
       {banner}
       <Outlet key={locale} />
+      {booksOpen ? <BookSwitcher open onClose={() => setBooksOpen(false)} /> : null}
       {searchOpen ? (
         <SearchSheet
-          projectId={projects.data?.[0]?.id ?? null}
+          projectId={activeProject?.id ?? null}
           onClose={() => setSearchOpen(false)}
           onOpenHit={(hit) => openEntity(hit.entityType, hit.entityId)}
         />

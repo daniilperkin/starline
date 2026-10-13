@@ -14,10 +14,10 @@ import {
 } from "@starline/core";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useActiveProject } from "./active-project";
 import {
   useCompleteStep,
   useCopyLineToSynopsis,
-  useProjects,
   useSaveStep,
   useSceneTree,
   useUpdateScene,
@@ -35,8 +35,7 @@ import { useAutosave } from "./useAutosave";
  */
 export function Step9Editor({ projectId, row }: { projectId: UUID; row: SnowflakeStepRow }) {
   const navigate = useNavigate();
-  const projects = useProjects();
-  const project = projects.data?.[0] ?? null;
+  const { project } = useActiveProject();
   const tree = useSceneTree(projectId);
   const saveStep = useSaveStep();
   const completeStep = useCompleteStep();

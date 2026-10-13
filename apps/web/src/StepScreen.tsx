@@ -1,8 +1,9 @@
 import { format, messages, type SnowflakeStepNumber, STEP_NUMBERS } from "@starline/core";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { useActiveProject } from "./active-project";
 import { ComingSoonScreen } from "./ComingSoonScreen";
-import { useProjects, useSteps } from "./data";
+import { useSteps } from "./data";
 import { Step1Editor } from "./Step1Editor";
 import { Step2Editor } from "./Step2Editor";
 import { Step3Editor } from "./Step3Editor";
@@ -15,8 +16,7 @@ import { Step9Editor } from "./Step9Editor";
 export function StepScreen() {
   const { step: stepParam } = useParams({ from: "/plan/step/$step" });
   const navigate = useNavigate();
-  const projects = useProjects();
-  const project = projects.data?.[0] ?? null;
+  const { project } = useActiveProject();
   const steps = useSteps(project?.id ?? null);
   const step = Number.parseInt(stepParam, 10);
   const valid = STEP_NUMBERS.some((candidate) => candidate === step);

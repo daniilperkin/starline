@@ -10,8 +10,8 @@ import {
 } from "@starline/core";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
+import { useActiveProject } from "./active-project";
 import { useCloudStore } from "./cloud/session";
-import { useProjects } from "./data";
 import { formatDateTime, formatNumber } from "./locale";
 import { useSessionStore } from "./session";
 import {
@@ -107,8 +107,7 @@ export function BackupsScreen() {
   const cloudEntries = cloudManifest?.entries ?? EMPTY_ENTRIES;
   const cloudDownload = useCloudStore((state) => state.downloadToLocal);
   const cloudDelete = useCloudStore((state) => state.removeFromCloud);
-  const projects = useProjects();
-  const project = projects.data?.[0] ?? null;
+  const { project } = useActiveProject();
 
   const cloudLibrary = project && session ? { id: project.id, name: session.name } : null;
 

@@ -1,5 +1,5 @@
 import { messages, plural } from "@starline/core";
-import { useProjects } from "../data";
+import { useActiveProject } from "../active-project";
 import { useSessionStore } from "../session";
 import { cloudFlavourWithoutConfig } from "./config";
 import { useCloudStore } from "./session";
@@ -12,8 +12,7 @@ import { useCloudStore } from "./session";
  */
 export function CloudPanel() {
   const session = useSessionStore((state) => state.session);
-  const projects = useProjects();
-  const project = projects.data?.[0] ?? null;
+  const { project } = useActiveProject();
 
   const available = useCloudStore((state) => state.available);
   const enabled = useCloudStore((state) => state.enabled);

@@ -15,12 +15,12 @@ import {
 } from "@starline/core";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useActiveProject } from "./active-project";
 import {
   useConsistencyChecks,
   useContinueTarget,
   useCreateProject,
   useDashboardStats,
-  useProjects,
   useSceneTree,
   useSnapshots,
   useStaleIdeas,
@@ -38,17 +38,18 @@ export function PlanScreen() {
   const session = useSessionStore((state) => state.session);
   const setSession = useSessionStore((state) => state.setSession);
   const navigate = useNavigate();
-  const projects = useProjects();
   const createProject = useCreateProject();
-  const steps = useSteps(projects.data?.[0]?.id ?? null);
-  const tree = useSceneTree(projects.data?.[0]?.id ?? null);
-  const stats = useDashboardStats(projects.data?.[0]?.id ?? null);
-  const continueTarget = useContinueTarget(projects.data?.[0]?.id ?? null);
-  const staleIdeas = useStaleIdeas(projects.data?.[0]?.id ?? null);
+  const { project: activeProject } = useActiveProject();
+  const activeProjectId = activeProject?.id ?? null;
+  const steps = useSteps(activeProjectId);
+  const tree = useSceneTree(activeProjectId);
+  const stats = useDashboardStats(activeProjectId);
+  const continueTarget = useContinueTarget(activeProjectId);
+  const staleIdeas = useStaleIdeas(activeProjectId);
   const snapshots = useSnapshots();
   const takeSnapshot = useTakeSnapshot();
-  const trash = useTrash(projects.data?.[0]?.id ?? null);
-  const checks = useConsistencyChecks(projects.data?.[0]?.id ?? null);
+  const trash = useTrash(activeProjectId);
+  const checks = useConsistencyChecks(activeProjectId);
   const [title, setTitle] = useState("");
   const [closing, setClosing] = useState(false);
 
@@ -66,7 +67,7 @@ export function PlanScreen() {
 
   if (!session) return null;
 
-  const project = projects.data?.[0] ?? null;
+  const project = activeProject;
   const progress = progressOf(steps.data ?? []);
   const nextStep = nextStepOf(steps.data ?? []);
   const staleSteps = computeStaleSteps(steps.data ?? []);

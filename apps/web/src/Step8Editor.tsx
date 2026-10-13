@@ -20,13 +20,13 @@ import {
 } from "@starline/core";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useActiveProject } from "./active-project";
 import {
   useCharacters,
   useCompleteStep,
   useCreateScene,
   useCreateScenesFromList,
   useDeleteScene,
-  useProjects,
   useSaveStep,
   useSceneTree,
   useUpdateScene,
@@ -44,8 +44,7 @@ import { useAutosave } from "./useAutosave";
  */
 export function Step8Editor({ projectId, row }: { projectId: UUID; row: SnowflakeStepRow }) {
   const navigate = useNavigate();
-  const projects = useProjects();
-  const project = projects.data?.[0] ?? null;
+  const { project } = useActiveProject();
   const tree = useSceneTree(projectId);
   const characters = useCharacters(projectId);
   const saveStep = useSaveStep();

@@ -9,15 +9,10 @@ import {
 } from "@starline/core";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
+import { useActiveProject } from "./active-project";
 import { BacklinksPanel } from "./BacklinksPanel";
 import { draftOf, patchOf } from "./characterDraft";
-import {
-  useCharacters,
-  useDeleteCharacter,
-  useProjects,
-  useRestoreEntity,
-  useUpdateCharacter,
-} from "./data";
+import { useCharacters, useDeleteCharacter, useRestoreEntity, useUpdateCharacter } from "./data";
 import { CharacterGallery } from "./Gallery";
 import { useOpenEntity } from "./openEntity";
 import { CharacterRelationships } from "./relationships/CharacterRelationships";
@@ -37,8 +32,7 @@ const ARC_TYPES: readonly ArcType[] = [
 /** Dossier v1 — the overview tab: identity, arc, and the Snowflake quartet. */
 export function CharacterScreen() {
   const { characterId } = useParams({ from: "/people/$characterId" });
-  const projects = useProjects();
-  const project = projects.data?.[0] ?? null;
+  const { project } = useActiveProject();
   const characters = useCharacters(project?.id ?? null);
   const character = characters.data?.find((candidate) => candidate.id === characterId) ?? null;
 

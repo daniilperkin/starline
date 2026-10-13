@@ -1,5 +1,5 @@
 import { type ConsistencyCheck, format, messages } from "@starline/core";
-
+import { useActiveProject } from "./active-project";
 import { useConsistencyChecks, useProjects } from "./data";
 import { useOpenEntity } from "./openEntity";
 import { useSessionStore } from "./session";
@@ -21,8 +21,8 @@ const CHECK_GLYPHS: Record<string, string> = {
 
 export function ChecksScreen() {
   const session = useSessionStore((state) => state.session);
-  const projects = useProjects();
-  const projectId = projects.data?.[0]?.id ?? null;
+  const { project } = useActiveProject();
+  const projectId = project?.id ?? null;
   const checks = useConsistencyChecks(projectId);
   const openEntity = useOpenEntity();
 

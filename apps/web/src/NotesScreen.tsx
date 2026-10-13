@@ -17,6 +17,7 @@ import {
 } from "@starline/core";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useActiveProject } from "./active-project";
 import { useCreateNote, useMoveNote, useNoteCounts, useNotes, useProjects } from "./data";
 import { NoteSheet } from "./NoteSheet";
 
@@ -101,8 +102,8 @@ function NoteRow({
 }
 
 export function NotesScreen() {
-  const projects = useProjects();
-  const projectId = projects.data?.[0]?.id ?? null;
+  const { project } = useActiveProject();
+  const projectId = project?.id ?? null;
   const navigate = useNavigate();
   const search = useSearch({ from: "/notes" });
   const counts = useNoteCounts(projectId);

@@ -7,11 +7,11 @@ import {
 } from "@starline/core";
 import { Link } from "@tanstack/react-router";
 import { type FormEvent, lazy, Suspense, useMemo, useState } from "react";
+import { useActiveProject } from "./active-project";
 import {
   useCharacters,
   useCreateCharacter,
   useGraphPositions,
-  useProjects,
   useRelationshipCounts,
   useRelationshipMatrix,
   useSceneTree,
@@ -41,8 +41,7 @@ type Mode = "list" | "matrix" | "graph";
  * and the web (the visual one). Every mode reads one matrix query, so they never disagree.
  */
 export function PeopleScreen() {
-  const projects = useProjects();
-  const project = projects.data?.[0] ?? null;
+  const { project } = useActiveProject();
   const projectId = project?.id ?? null;
   const characters = useCharacters(projectId);
   const counts = useRelationshipCounts(projectId);

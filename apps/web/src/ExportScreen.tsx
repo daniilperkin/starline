@@ -1,7 +1,6 @@
 import { format, messages, readProjectExport, type UUID } from "@starline/core";
 import { useRef, useState } from "react";
-
-import { useProjects } from "./data";
+import { useActiveProject } from "./active-project";
 import { buildExportFile, type ExportFormat, type ExportOptions } from "./export/build";
 import type { ExportWorkerMessage } from "./export/export.worker";
 import { type SaveResult, saveExportFile } from "./export/files";
@@ -60,7 +59,6 @@ function formatBytes(bytes: number): string {
  */
 export function ExportScreen() {
   const session = useSessionStore((state) => state.session);
-  const projects = useProjects();
   const refreshScenes = useScenesRefresh();
   const workerRef = useRef<Worker | null>(null);
 
@@ -92,7 +90,8 @@ export function ExportScreen() {
   const [split, setSplit] = useState<SplitResult | null>(null);
   const [splitDone, setSplitDone] = useState<string | null>(null);
 
-  const projectId = projects.data?.[0]?.id ?? null;
+  const { project } = useActiveProject();
+  const projectId = project?.id ?? null;
 
   if (!session) return null;
 

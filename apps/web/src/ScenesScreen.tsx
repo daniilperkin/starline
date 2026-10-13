@@ -26,6 +26,7 @@ import {
 } from "@starline/core";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { useActiveProject } from "./active-project";
 import {
   useCreateChapter,
   useCreateScene,
@@ -33,7 +34,6 @@ import {
   useDeleteScene,
   useMoveChapter,
   useMoveScene,
-  useProjects,
   useRestoreEntity,
   useSceneTree,
   useSetScenePlacement,
@@ -56,8 +56,7 @@ interface SceneGroup {
  * reassigns chapters (the non-drag alternative required by the a11y rules).
  */
 export function ScenesScreen() {
-  const projects = useProjects();
-  const project = projects.data?.[0] ?? null;
+  const { project } = useActiveProject();
   const projectId = project?.id ?? null;
   const tree = useSceneTree(projectId);
   const navigate = useNavigate();
