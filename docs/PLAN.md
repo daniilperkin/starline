@@ -1,4 +1,5 @@
 # StarLine — Deep Plan (phone-first)
+| S31 lore depth | `8a182e8` | (run at push) | The World tab's kind/tag/untagged filters, the Tree/Cards/Map view switcher, and the map's coordinate pins saved to `meta.lore_positions` (the graph's slice-8 pattern — device-independent, travels in the file). The core gains `lore/positions.ts`; the tags come from one batched `listTagsForEntities` call. |
 | S29 merge + dossier tabs | `706fe72` | (run at push) | The character merge (relationships, scene presence, mentions with count folding, gallery, fields, POV, timeline, plotlines; aliases appended; the source trashed) and its real inverse `unmergeCharacters`, replayed from the command's moved-row ledger so Undo is honest. The dossier's nine tabs with the draft widened to the schema's long-carried columns. A silent autosave failure found by probing: `values` is reserved and the whitelist emitted it unquoted. |
 | S28 palette + export options | `eddada6` | (run at push) | The command palette (hand-rolled list semantics — cmdk rendered nothing; the real bug was the render line sitting in AppLayout's immersive return, a branch only /write/* renders) and the export dialog's four declared options (chapter scope, include-notes, a two-page preview, a stage-driven progress bar). A perf regression found by the gate: a window-level keydown listener for Ctrl+K cost +8 ms keystroke-to-paint (24.0 vs 16.0, bisected) — moved onto React's delegated handler. `ci:gates` now measures perf before chaos. Eight lint items cleared; cmdk dropped. |
 | S30 settings depth | `35112ac` | (run at push) | The four missing spec §4.6 sections: Editor (smart quotes via TipTap's typography, a hand-rolled auto-pair input rule — TipTap ships none — and the device's spellchecker via the DOM attribute), Statuses (per-project rename + recolour of the six statuses, `settings.statusLabels` with catalogue fallback), Keyboard (the §4.7 map as a reference) and Privacy (the offline statement with its verifiable line). The schema gains `editor` and `statusLabels`; `writeProjectSettings` joins the read as the write path. |
@@ -897,7 +898,13 @@ chaos and web chaos · no-network over 235 files · contrast · bundle app 271.0
 rendered) and two new axe scans · PWA-VERIFY OK · A11Y OK · chaos and web chaos · no-network over
 235 files · contrast · bundle app 272.1 KiB / 330, styles 9.9 / 10 (tight), install 3.71 MiB / 4 ·
 perf cold start 284-344 ms / 1200, typing p95 16.0 ms / 16 standalone. start 345 ms / 1200, typing p95 16.0 ms / 16.ms / 1200; typing p95 measured 16.0 ms standalone with the machine
-quiet and 24.0 ms under this session's accumulated load — CI's documented 1.75x factor covers it.uding the
+quiet and 24.0 ms under this session's accumulated load — CI's documented 1.75x factor covers 
+
+**Verified on S31's gates:** 350 tests · WEB-VERIFY OK with the lore-depth journey step
+(2 cards, 2 map pins with one dragged, kind filter -> 0, untagged -> 2) and the world-views axe
+scan · PWA-VERIFY OK · A11Y OK · chaos and web chaos · no-network over 236 files · contrast ·
+bundle app 272.0 KiB / 330, styles 9.9 / 10 (tight), install 3.72 MiB / 4 · perf cold start
+279 ms / 1200, typing p95 16.0 ms / 16.it.uding the
 German switch step · PWA-VERIFY OK · A11Y OK · chaos and web chaos · no-network over 228 files ·
 contrast · bundle app 268.3 -> 269.6 KiB / 330 after the tour, styles 9.5 / 10, install
 3.66 MiB / 4 · the tour's own journey step (welcome -> a stop with a spotlight -> skip -> the
