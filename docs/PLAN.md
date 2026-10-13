@@ -863,7 +863,7 @@ German and the tour because the owner asked for them by name, then the tiers rou
 correctness value per hour. S27 is deliberately early: three of its items are data-safety or
 legal, and the perf budgets are the only spec requirement that has never been measured at all.
 
-### Slices 21–26 shipped (the four carry-overs, German and the tour)
+### Slices 21–27 shipped (the four carry-overs, German, the tour and Tier-1 correctness)
 
 | Slice | Revision | CI | What shipped |
 | --- | --- | --- | --- |
@@ -873,10 +873,14 @@ legal, and the perf budgets are the only spec requirement that has never been me
 | S24 timeline clustering | `2ddd120` + `4d206ce` | `38388542877` | `clusterTimelineItems` groups events closer than a fraction of the visible window (anchored, so a long run splits), and the lane renders a chip that opens the list. Zoom-aware: nothing clusters at the narrow zooms. |
 | S25 German | `5d8a06c` | (run at push) | Full third locale, informal *du*: the catalogue (48 sections, ~890 leaves), the 9-step prompt library, the 4 templates (44 beats), the daily card for free. `availableLocales`/`catalogues`/`PromptLocale` widened; verify-pwa and check-a11y pinned to en-US, because German now really does open on a German machine. |
 | S26 guided tour | `6819813` | (run at push) | Fifteen stops across every tab, the wizard and the key tools; an overlay that navigates itself and spotlights real anchors, polling for anchors that render after their data arrives, and falling back to a centred card; the one-time offer card plus buttons on the start screen and in Settings; `starline.tour` as device state; the tour in en/uk/de |
+| S27 Tier-1 correctness | `ab01042` | (run at push) | Ingermanson attribution in en/uk/de; snapshots before the CSV import, the manuscript import, a lore cascade delete, emptying the trash and a schema migration (taken between open and migrate — the only moment the old schema exists); the scene lore picker (chips + searchable popup); perf gates as a new `check:perf` in `ci:gates` and CI (cold start 348 ms / 1200, typing p95 16.0 ms / 16 — 24 ms before the keystroke buffer); sepia and high-contrast themes with catalogue labels; `enabledModules` wired via a new `readProjectSettings` + hook + tab filter |
 
-**Verified on S25's and S26's gates:** 345 tests (12 new German parity clauses) · WEB-VERIFY OK including the
+**Verified on S25–S27's gates:** 345 tests (12 new German parity clauses) · WEB-VERIFY OK including the
 German switch step · PWA-VERIFY OK · A11Y OK · chaos and web chaos · no-network over 228 files ·
 contrast · bundle app 268.3 -> 269.6 KiB / 330 after the tour, styles 9.5 / 10, install
 3.66 MiB / 4 · the tour's own journey step (welcome -> a stop with a spotlight -> skip -> the
 choice remembered) and an axe scan while the tour is on screen.
 
+**Verified on S27's gates:** 345 tests · WEB-VERIFY OK · PWA-VERIFY OK · A11Y OK · chaos and web
+chaos · PERF OK (cold start 348 ms / 1200, typing p95 16.0 ms / 16) · no-network over 233 files ·
+contrast · bundle app 269.8 KiB / 330, styles 9.7 / 10, install 3.66 MiB / 4.
