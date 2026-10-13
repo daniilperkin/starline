@@ -290,7 +290,7 @@ export function WorldScreen() {
                   selection={selection}
                   onSelect={setSelection}
                   onDelete={(category) => void onDeleteCategory(category)}
-                  onMoveUnder={(parentId, parentName) =>
+                  onMoveUnder={(parentId, _parentName) =>
                     void onCategoryDrop(node.id, parentId).then(() => setError(null))
                   }
                   moveUnderName={moveUnderName}

@@ -70,6 +70,8 @@ export function buildExportFile(request: BuildRequest): BuiltFile {
     includeBody: options.includeBody,
     sceneSeparator: options.sceneSeparator,
     statuses: options.statuses,
+    includeNotes: options.includeNotes,
+    chapters: options.chapters,
   };
   switch (format) {
     case "json": {

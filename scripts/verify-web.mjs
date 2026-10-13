@@ -1692,6 +1692,52 @@ try {
   );
   await page.screenshot({ path: join(shotDir, "26-uk.png"), fullPage: true });
 
+  // 4ac. Slice 28: the command palette and the export dialog's options. The palette opens from
+  // its app-bar trigger, lists the commands, filters to one, runs it on Enter and closes itself;
+  // the export dialog carries the chapter scope, the notes option, the preview and the progress.
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.waitForTimeout(1200);
+  await page.locator('[data-testid="sl-palette-open"]').click();
+  await page.getByTestId("sl-palette").waitFor({ timeout: 10000 });
+  const paletteCommands = await page.locator('[data-testid="sl-palette-command"]').count();
+  if (paletteCommands < 8) throw new Error(`the palette lists only ${paletteCommands} commands`);
+  await axeScan("palette");
+  await page.getByTestId("sl-palette-input").fill("scenes");
+  await page.waitForTimeout(600);
+  const filtered = await page.locator('[data-testid="sl-palette-command"]').count();
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(1500);
+  const paletteHash = await page.evaluate(() => location.hash);
+  if (!paletteHash.includes("/scenes")) {
+    throw new Error(`the palette's Enter did not navigate: ${paletteHash}`);
+  }
+  if ((await page.locator('[data-testid="sl-palette"]').count()) !== 0) {
+    throw new Error("the palette stayed open after running a command");
+  }
+  console.log(
+    `  palette: ${paletteCommands} commands, "scenes" filtered to ${filtered}, Enter navigated to ${paletteHash} and closed it`,
+  );
+
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.waitForTimeout(1000);
+  await page.getByTestId("sl-open-export").click();
+  await page.getByTestId("sl-export-notes").waitFor({ timeout: 10000 });
+  const notesOption = await page.locator('[data-testid="sl-export-notes"]').count();
+  const chapterOption = await page.locator('[data-testid="sl-export-chapters"]').count();
+  const previewButton = await page.locator('[data-testid="sl-export-preview-run"]').count();
+  if (notesOption + chapterOption + previewButton < 3) {
+    throw new Error("the export dialog is missing its declared options");
+  }
+  await page.getByTestId("sl-export-preview-run").click();
+  await page.getByTestId("sl-export-preview").waitFor({ timeout: 20000 });
+  const previewText = await page.locator(".sl-export-preview-text").innerText();
+  console.log(
+    `  export options: notes, chapter scope (${chapterOption > 0 ? "present" : "no chapters yet"}), preview ${previewText.length} chars`,
+  );
+  await axeScan("export-options");
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.waitForTimeout(1000);
+
   // 5. Reload: back to the start screen; reopening restores the last route (hash history),
   // so tab over to Plan and check the persisted progress.
   await page.reload();

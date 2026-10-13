@@ -1,6 +1,14 @@
-import { format, messages, readProjectExport, type UUID } from "@starline/core";
+import {
+  buildManuscript,
+  buildMarkdownManuscript,
+  format,
+  messages,
+  readProjectExport,
+  type UUID,
+} from "@starline/core";
 import { useRef, useState } from "react";
 import { useActiveProject } from "./active-project";
+import { useSceneTree } from "./data";
 import { buildExportFile, type ExportFormat, type ExportOptions } from "./export/build";
 import type { ExportWorkerMessage } from "./export/export.worker";
 import { type SaveResult, saveExportFile } from "./export/files";
@@ -67,9 +75,12 @@ export function ExportScreen() {
   const [preset, setPreset] = useState<ExportFormat>("json");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [includeSynopsis, setIncludeSynopsis] = useState(false);
+  const [includeNotes, setIncludeNotes] = useState(false);
+  const [chapterScope, setChapterScope] = useState<UUID[]>([]);
   const [includeBody, setIncludeBody] = useState(true);
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [saved, setSaved] = useState<{ result: SaveResult; name: string; bytes: number } | null>(
     null,
   );
@@ -92,6 +103,8 @@ export function ExportScreen() {
   const [splitDone, setSplitDone] = useState<string | null>(null);
 
   const { project } = useActiveProject();
+  const tree = useSceneTree(project?.id ?? null);
+  const chapters = tree.data?.chapters ?? [];
   const projectId = project?.id ?? null;
 
   if (!session) return null;
@@ -99,12 +112,37 @@ export function ExportScreen() {
   const options: ExportOptions = {
     includeSynopsis,
     includeBody,
+    includeNotes,
+    chapters: chapterScope,
     statuses:
       statusFilter === "all"
         ? []
         : statusFilter === "done"
           ? ["done"]
           : ["drafted", "revising", "done"],
+  };
+
+  // The preview is the first ~two pages of the manuscript the settings describe — built on the
+  // main thread from a read-only pass, so the writer sees the shape before committing to a file.
+  const onPreview = async () => {
+    if (projectId === null) return;
+    setError(null);
+    setBusy(true);
+    setStage(messages.export.stageReading);
+    try {
+      const data = await readProjectExport(session.driver, projectId as UUID, {
+        includeAttachments: false,
+      });
+      const document = buildManuscript(data, {});
+      setPreview(
+        buildMarkdownManuscript(document, { ...options, includeBody: true }).slice(0, 2400),
+      );
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setStage(null);
+      setBusy(false);
+    }
   };
 
   const onExport = async () => {
@@ -312,6 +350,31 @@ export function ExportScreen() {
             </select>
           </div>
 
+          {chapters.length > 0 ? (
+            <fieldset className="sl-field" data-testid="sl-export-chapters">
+              <legend className="sl-label">{messages.export.scopeChapters}</legend>
+              <div className="sl-export-chapter-list">
+                {chapters.map((chapter) => (
+                  <label key={chapter.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      data-testid="sl-export-chapter"
+                      checked={chapterScope.includes(chapter.id)}
+                      onChange={(event) =>
+                        setChapterScope((current) =>
+                          event.target.checked
+                            ? [...current, chapter.id]
+                            : current.filter((id) => id !== chapter.id),
+                        )
+                      }
+                    />
+                    {chapter.title.trim().length > 0 ? chapter.title : messages.export.untitled}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
+
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -330,8 +393,40 @@ export function ExportScreen() {
             />
             {messages.export.includeBody}
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              data-testid="sl-export-notes"
+              checked={includeNotes}
+              onChange={(event) => setIncludeNotes(event.target.checked)}
+            />
+            {messages.export.includeNotes}
+          </label>
+
+          {stage !== null ? (
+            <progress
+              className="sl-export-progress"
+              data-testid="sl-export-progress"
+              aria-label={stage}
+            />
+          ) : null}
+          {preview !== null ? (
+            <div className="flex flex-col gap-1" data-testid="sl-export-preview">
+              <p className="sl-label">{messages.export.previewTitle}</p>
+              <pre className="sl-export-preview-text">{preview}</pre>
+            </div>
+          ) : null}
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="sl-btn"
+              data-testid="sl-export-preview-run"
+              disabled={busy || projectId === null}
+              onClick={() => void onPreview()}
+            >
+              {messages.export.previewRun}
+            </button>
             <button
               type="button"
               className="sl-btn sl-btn-primary"

@@ -1,4 +1,4 @@
-import { format, messages, type UUID } from "@starline/core";
+import { messages, type UUID } from "@starline/core";
 import { useEffect, useState } from "react";
 import { useActiveProject } from "./active-project";
 import { useCreateProject, useDeleteProject, useRenameProject, useRestoreProject } from "./data";

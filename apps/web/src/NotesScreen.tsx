@@ -18,7 +18,7 @@ import {
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useActiveProject } from "./active-project";
-import { useCreateNote, useMoveNote, useNoteCounts, useNotes, useProjects } from "./data";
+import { useCreateNote, useMoveNote, useNoteCounts, useNotes } from "./data";
 import { NoteSheet } from "./NoteSheet";
 
 function relativeDay(at: number): string {

@@ -1,6 +1,6 @@
 import { type ConsistencyCheck, format, messages } from "@starline/core";
 import { useActiveProject } from "./active-project";
-import { useConsistencyChecks, useProjects } from "./data";
+import { useConsistencyChecks } from "./data";
 import { useOpenEntity } from "./openEntity";
 import { useSessionStore } from "./session";
 

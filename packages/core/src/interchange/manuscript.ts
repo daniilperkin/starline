@@ -16,6 +16,8 @@ export interface ManuscriptOptions {
   includeBody?: boolean;
   /** Scene statuses to keep; empty = every scene. */
   statuses?: readonly string[];
+  /** Chapter ids to keep; empty = every chapter (slice 28's chapter scope). */
+  chapters?: readonly string[];
 }
 
 export interface ManuscriptScene {
@@ -98,6 +100,7 @@ export function buildManuscript(
   const chapterById = new Map(chapters.map((row) => [String(row.id), row]));
   const partById = new Map(parts.map((row) => [String(row.id), row]));
   const statuses = options.statuses ?? [];
+  const chapterFilter = options.chapters ?? [];
 
   const partOf = (chapterId: string): ExportRow | null => {
     const chapter = chapterById.get(chapterId);
@@ -130,6 +133,8 @@ export function buildManuscript(
   const kept: ManuscriptScene[] = [];
   for (const scene of ordered) {
     if (statuses.length > 0 && !statuses.includes(String(scene.status ?? ""))) continue;
+    if (chapterFilter.length > 0 && !chapterFilter.includes(String(scene.chapter_id ?? "")))
+      continue;
     const chapterId = typeof scene.chapter_id === "string" ? scene.chapter_id : "";
     const chapter = chapterById.get(chapterId);
     const part = partOf(chapterId);
@@ -205,6 +210,15 @@ export function buildPlainText(
     if (options.includeBody !== false && entry.body.trim().length > 0) {
       lines.push(entry.body.trim());
       lines.push("");
+    }
+    // The scene's own notes (slice 28's "include notes"): planning material kept apart from the
+    // prose, so a manuscript export can carry it without pretending it is text.
+    if (options.includeNotes === true) {
+      const notes = String(entry.scene.notes_text ?? "").trim();
+      if (notes.length > 0) {
+        lines.push(notes);
+        lines.push("");
+      }
     }
   });
   return `${lines
