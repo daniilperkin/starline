@@ -70,6 +70,68 @@ export const createProject: Command<CreateProjectArgs, { projectId: UUID }> = {
   },
 };
 
+export interface RenameProjectArgs {
+  projectId: UUID;
+  title: string;
+}
+
+/** Renames a book. The library file holds many; this is the one place a title changes. */
+export const renameProject: Command<RenameProjectArgs, void> = {
+  name: "project.rename",
+  async run(ctx, args) {
+    const title = args.title.trim();
+    if (title.length === 0) throw new Error("project title is required");
+    if (title.length > 200) throw new Error("project title is too long");
+    await ctx.tx.query(
+      `UPDATE project SET title = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`,
+      [title, epochNow(), args.projectId],
+    );
+    return {
+      result: undefined,
+      changes: [{ table: "project", op: "update", id: args.projectId }],
+    };
+  },
+};
+
+export interface ProjectIdArgs {
+  projectId: UUID;
+}
+
+/**
+ * Soft-deletes a book, exactly like every other entity: the row stays, `deleted_at` hides it, and
+ * `restoreProject` brings it back. Its scenes and characters are untouched — deleting the only
+ * book leaves a library that offers "Start your story", which is a state the app already handles.
+ */
+export const deleteProject: Command<ProjectIdArgs, void> = {
+  name: "project.delete",
+  async run(ctx, args) {
+    const now = epochNow();
+    await ctx.tx.query(
+      `UPDATE project SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`,
+      [now, now, args.projectId],
+    );
+    return {
+      result: undefined,
+      changes: [{ table: "project", op: "delete", id: args.projectId }],
+    };
+  },
+};
+
+/** The undo half of a delete; the toast in the UI is the only caller. */
+export const restoreProject: Command<ProjectIdArgs, void> = {
+  name: "project.restore",
+  async run(ctx, args) {
+    await ctx.tx.query(`UPDATE project SET deleted_at = NULL, updated_at = ? WHERE id = ?`, [
+      epochNow(),
+      args.projectId,
+    ]);
+    return {
+      result: undefined,
+      changes: [{ table: "project", op: "update", id: args.projectId }],
+    };
+  },
+};
+
 export interface SaveStepContentArgs {
   projectId: UUID;
   step: SnowflakeStepNumber;

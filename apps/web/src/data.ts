@@ -34,6 +34,7 @@ import {
   deleteLoreEntry,
   deleteNote,
   deletePlotline,
+  deleteProject,
   deleteRelationship,
   deleteRelationshipGroup,
   deleteScene,
@@ -99,8 +100,10 @@ import {
   promoteNote,
   purgeExpiredTrash,
   type RelationshipPatch,
+  renameProject,
   renameTag,
   restoreEntity,
+  restoreProject,
   runConsistencyChecks,
   type SceneSummary,
   type SearchResults,
@@ -987,6 +990,36 @@ export function useMoveLoreCategory() {
     }) => {
       if (!session) throw new Error("no library open");
       return runCommand(session.driver, moveLoreCategory, args);
+    },
+  });
+}
+
+export function useRenameProject() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: { projectId: UUID; title: string }) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, renameProject, args);
+    },
+  });
+}
+
+export function useDeleteProject() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: { projectId: UUID }) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, deleteProject, args);
+    },
+  });
+}
+
+export function useRestoreProject() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (args: { projectId: UUID }) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, restoreProject, args);
     },
   });
 }
