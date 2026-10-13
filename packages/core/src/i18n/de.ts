@@ -574,6 +574,13 @@ export const de = {
     dismiss: "Ausblenden",
   },
   world: {
+    view: "Ansicht",
+    tree: "Baum",
+    cards: "Karten",
+    map: "Karte",
+    kindFilter: "Jede Art",
+    tagFilter: "Jedes Schlagwort",
+    orphans: "Nur ohne Schlagwort",
     heading: "Welt",
     empty: "Noch kein Lore — lege eine Kategorie an und fülle sie mit Menschen, Orten und Regeln.",
     newCategory: "Neue Kategorie",

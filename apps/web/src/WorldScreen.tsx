@@ -11,14 +11,20 @@ import {
 import {
   buildCategoryTree,
   format,
+  getLorePositions,
   LORE_KIND_GLYPHS,
+  LORE_KINDS,
   type LoreCategory,
   type LoreCategoryNode,
   type LoreEntrySummary,
+  type LorePositions,
+  listTagsForEntities,
   messages,
   plural,
+  setLorePositions,
   type UUID,
 } from "@starline/core";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import {
   useCreateLoreCategory,
@@ -64,12 +70,42 @@ export function WorldScreen() {
   const [query, setQuery] = useState("");
   const [openEntryId, setOpenEntryId] = useState<UUID | null>(null);
   const [mode, setMode] = useState<"lore" | "timeline">("lore");
+  const [view, setView] = useState<"tree" | "cards" | "map">("tree");
+  const [kindFilter, setKindFilter] = useState("");
+  const [tagFilter, setTagFilter] = useState("");
+  const [orphanOnly, setOrphanOnly] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [newEntry, setNewEntry] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [cascadeFor, setCascadeFor] = useState<{ id: UUID; count: number } | null>(null);
 
   const projectId = project?.id ?? null;
+
+  // Slice 31: the tags per entry (one batched query) and the map's pins.
+  const tagsByEntry = useQuery({
+    queryKey: ["loreTags", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      const ids = (entries.data ?? []).map((entry) => entry.id);
+      return listTagsForEntities(session.driver, "lore_entry", ids);
+    },
+  });
+  const positions = useQuery({
+    queryKey: ["lorePositions", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    queryFn: async () => {
+      if (!session || !projectId) throw new Error("no project open");
+      return getLorePositions(session.driver, projectId);
+    },
+  });
+  const tagNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const tags of tagsByEntry.data?.values() ?? []) {
+      for (const tag of tags) names.add(tag.name);
+    }
+    return [...names].sort();
+  }, [tagsByEntry.data]);
 
   // A search hit, backlink row or check item can ask for one specific entry (slice 7).
   const pendingTarget = useNavigationStore((state) => state.target);
@@ -127,10 +163,17 @@ export function WorldScreen() {
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
+    const tags = tagsByEntry.data;
     return (entries.data ?? []).filter((entry) => {
       if (selection === UNCATEGORISED && entry.categoryId !== null) return false;
       if (selection !== ALL && selection !== UNCATEGORISED && entry.categoryId !== selection) {
         return false;
+      }
+      if (kindFilter.length > 0 && entry.kind !== kindFilter) return false;
+      if (orphanOnly && (tags?.get(entry.id)?.length ?? 0) > 0) return false;
+      if (tagFilter.length > 0) {
+        const names = (tags?.get(entry.id) ?? []).map((tag) => tag.name);
+        if (!names.includes(tagFilter)) return false;
       }
       if (needle.length === 0) return true;
       return (
@@ -139,7 +182,7 @@ export function WorldScreen() {
         entry.aliases.some((alias) => alias.toLowerCase().includes(needle))
       );
     });
-  }, [entries.data, query, selection]);
+  }, [entries.data, query, selection, kindFilter, tagFilter, orphanOnly, tagsByEntry.data]);
 
   const selectedCategory =
     selection === ALL || selection === UNCATEGORISED
@@ -246,6 +289,24 @@ export function WorldScreen() {
         </fieldset>
       </header>
 
+      {mode === "timeline" ? null : (
+        <fieldset className="sl-segmented sl-fieldset" data-testid="sl-world-views">
+          <legend className="sr-only">{messages.world.view}</legend>
+          {(["tree", "cards", "map"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              className="sl-segment"
+              aria-pressed={view === option}
+              data-testid={`sl-world-view-${option}`}
+              onClick={() => setView(option)}
+            >
+              {messages.world[option]}
+            </button>
+          ))}
+        </fieldset>
+      )}
+
       {mode === "timeline" && projectId !== null ? <TimelineView projectId={projectId} /> : null}
 
       {mode === "timeline" ? null : (
@@ -257,6 +318,46 @@ export function WorldScreen() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
+
+          <div className="flex flex-wrap items-center gap-2" data-testid="sl-world-filters">
+            <select
+              className="sl-select"
+              aria-label={messages.world.kindFilter}
+              data-testid="sl-world-kind"
+              value={kindFilter}
+              onChange={(event) => setKindFilter(event.target.value)}
+            >
+              <option value="">{messages.world.kindFilter}</option>
+              {LORE_KINDS.map((kind) => (
+                <option key={kind} value={kind}>
+                  {messages.kinds[kind]}
+                </option>
+              ))}
+            </select>
+            <select
+              className="sl-select"
+              aria-label={messages.world.tagFilter}
+              data-testid="sl-world-tag"
+              value={tagFilter}
+              onChange={(event) => setTagFilter(event.target.value)}
+            >
+              <option value="">{messages.world.tagFilter}</option>
+              {tagNames.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <label className="sl-check">
+              <input
+                type="checkbox"
+                data-testid="sl-world-orphans"
+                checked={orphanOnly}
+                onChange={(event) => setOrphanOnly(event.target.checked)}
+              />
+              {messages.world.orphans}
+            </label>
+          </div>
 
           {error !== null ? (
             <p className="sl-error" role="alert">
@@ -350,14 +451,30 @@ export function WorldScreen() {
             </button>
           </form>
 
-          {visible.length === 0 ? (
+          {view === "map" && visible.length > 0 ? (
+            <LoreMap
+              entries={visible}
+              positions={positions.data ?? {}}
+              onPin={async (entryId, x, y) => {
+                if (!session || projectId === null) return;
+                await setLorePositions(session.driver, projectId, {
+                  ...(positions.data ?? {}),
+                  [entryId]: { x, y },
+                });
+                await positions.refetch();
+              }}
+              onOpen={setOpenEntryId}
+            />
+          ) : null}
+
+          {view === "map" ? null : visible.length === 0 ? (
             <p className="text-sm text-muted">
               {query.trim().length > 0
                 ? messages.world.noResults.replace("{query}", query.trim())
                 : messages.world.empty}
             </p>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className={view === "cards" ? "grid grid-cols-2 gap-2" : "flex flex-col gap-2"}>
               {visible.map((entry) => (
                 <li key={entry.id} className="sl-lore-card">
                   <button
@@ -440,6 +557,60 @@ export function WorldScreen() {
           ) : null}
         </>
       )}
+    </div>
+  );
+}
+
+/** The map view: entries pinned on a canvas; drag to place, tap to open. */
+function LoreMap({
+  entries,
+  positions,
+  onPin,
+  onOpen,
+}: {
+  entries: LoreEntrySummary[];
+  positions: LorePositions;
+  onPin: (entryId: UUID, x: number, y: number) => Promise<void>;
+  onOpen: (entryId: UUID) => void;
+}) {
+  const [drag, setDrag] = useState<{ id: UUID; x: number; y: number } | null>(null);
+  // The auto-layout: a loose grid until the writer pins an entry by hand.
+  const STEP_X = 130;
+  const STEP_Y = 110;
+  return (
+    <div className="sl-lore-map" data-testid="sl-lore-map">
+      {entries.map((entry, index) => {
+        const pinned = positions[entry.id];
+        const x = drag?.id === entry.id ? drag.x : (pinned?.x ?? (index % 3) * STEP_X + 12);
+        const y =
+          drag?.id === entry.id ? drag.y : (pinned?.y ?? Math.floor(index / 3) * STEP_Y + 12);
+        return (
+          <button
+            key={entry.id}
+            type="button"
+            className="sl-lore-pin"
+            data-testid="sl-lore-pin"
+            style={{ left: x, top: y }}
+            onPointerDown={(event) => {
+              (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+              setDrag({ id: entry.id, x, y });
+            }}
+            onPointerMove={(event) => {
+              if (drag?.id !== entry.id) return;
+              setDrag({ id: entry.id, x: drag.x + event.movementX, y: drag.y + event.movementY });
+            }}
+            onPointerUp={() => {
+              if (drag?.id !== entry.id) return;
+              void onPin(entry.id, drag.x, drag.y);
+              setDrag(null);
+            }}
+            onClick={() => onOpen(entry.id)}
+          >
+            <span aria-hidden="true">{LORE_KIND_GLYPHS[entry.kind]}</span>
+            <span className="truncate">{entry.name}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

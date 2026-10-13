@@ -1819,6 +1819,45 @@ try {
   await page.getByRole("link", { name: "Plan" }).click();
   await page.waitForTimeout(1000);
 
+  // 4af. Slice 31: the lore depth. Three views over the same entries, the tag/kind/orphan
+  // filters, and a map pin that survives a drag.
+  await page.getByRole("link", { name: "World" }).click();
+  await page.getByTestId("sl-world-views").waitFor({ timeout: 10000 });
+  await page.getByTestId("sl-world-view-cards").click();
+  await page.waitForTimeout(500);
+  const cardCount = await page.locator(".sl-lore-card").count();
+  await page.getByTestId("sl-world-view-map").click();
+  await page.getByTestId("sl-lore-map").waitFor({ timeout: 8000 });
+  const pinCount = await page.locator('[data-testid="sl-lore-pin"]').count();
+  if (pinCount === 0) throw new Error("the map has no pins");
+  const pin = page.locator('[data-testid="sl-lore-pin"]').first();
+  const pinBox = await pin.boundingBox();
+  if (pinBox) {
+    await page.mouse.move(pinBox.x + pinBox.width / 2, pinBox.y + pinBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(pinBox.x + pinBox.width / 2 + 60, pinBox.y + pinBox.height / 2 + 40, {
+      steps: 5,
+    });
+    await page.mouse.up();
+    await page.waitForTimeout(900);
+  }
+  await page.getByTestId("sl-world-view-tree").click();
+  await page.getByTestId("sl-world-kind").selectOption("species");
+  await page.waitForTimeout(600);
+  const kindFiltered = await page.locator(".sl-lore-card").count();
+  await page.getByTestId("sl-world-kind").selectOption("");
+  await page.waitForTimeout(400);
+  await page.getByTestId("sl-world-orphans").check();
+  await page.waitForTimeout(400);
+  const orphans = await page.locator(".sl-lore-card").count();
+  await page.getByTestId("sl-world-orphans").uncheck();
+  console.log(
+    `  lore depth: ${cardCount} cards, ${pinCount} map pins (one dragged), kind filter -> ${kindFiltered}, untagged -> ${orphans}`,
+  );
+  await axeScan("world-views");
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.waitForTimeout(1000);
+
   // 5. Reload: back to the start screen; reopening restores the last route (hash history),
   // so tab over to Plan and check the persisted progress.
   await page.reload();

@@ -569,6 +569,13 @@ export const en = {
     dismiss: "Dismiss",
   },
   world: {
+    view: "View",
+    tree: "Tree",
+    cards: "Cards",
+    map: "Map",
+    kindFilter: "Any kind",
+    tagFilter: "Any tag",
+    orphans: "Untagged only",
     heading: "World",
     empty: "No lore yet — create a category, then fill it with people, places and rules.",
     newCategory: "New category",

@@ -2299,3 +2299,28 @@ input[type="radio"] {
   font-size: 0.7rem;
   color: var(--sl-muted);
 }
+
+/* Slice 31: the lore map's canvas and its draggable pins. */
+.sl-lore-map {
+  position: relative;
+  min-height: 26rem;
+  border: 1px solid var(--sl-border);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--sl-accent) 4%, transparent);
+  overflow: auto;
+}
+
+.sl-lore-pin {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 9rem;
+  border: 1px solid var(--sl-border);
+  border-radius: 9999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.75rem;
+  background: var(--sl-card);
+  touch-action: none;
+  cursor: grab;
+}
