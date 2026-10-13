@@ -1046,6 +1046,8 @@ export const uk: Messages = {
     },
     parseError: "Вкажіть рік (1247), місяць (1247-03) або повну дату (1247-03-12)",
     sceneBadge: "Сцена",
+    clusterEvents: "{n} тут",
+    clusterTitle: "Події в цій точці",
   },
   export: {
     heading: "Експорт та імпорт",

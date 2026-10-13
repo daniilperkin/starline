@@ -2105,3 +2105,10 @@ input[type="radio"] {
   font-size: 0.68rem;
   color: var(--sl-muted);
 }
+
+/* A cluster chip (slice 24): same block anatomy, visually distinct so it reads as "several
+   events", not as one with a strange label. */
+.sl-timeline-cluster {
+  border-style: dashed;
+  font-variant-numeric: tabular-nums;
+}

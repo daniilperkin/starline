@@ -1,4 +1,6 @@
 import {
+  clusterTimelineItems,
+  format,
   formatStoryTimeFull,
   messages,
   parseStoryTimeInput,
@@ -41,6 +43,14 @@ export function TimelineView({ projectId }: { projectId: UUID }) {
   const moveItem = useMoveTimelineItem();
 
   const [zoomId, setZoomId] = useState("years");
+  const [clusterItems, setClusterItems] = useState<TimelineItem[] | null>(null);
+
+  /** One place that decides what tapping an item does, for the lane and for a cluster's list. */
+  const openItem = (item: TimelineItem) => {
+    if (item.kind !== "event") return;
+    setSheetEventId(item.id);
+    setSheetOpen(true);
+  };
   const [drag, setDrag] = useState<DragState | null>(null);
   const [sheetEventId, setSheetEventId] = useState<UUID | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -211,6 +221,7 @@ export function TimelineView({ projectId }: { projectId: UUID }) {
                   )
                 }
                 onDragEnd={commitDrag}
+                onOpenCluster={(items) => setClusterItems(items)}
                 onOpen={(item) => {
                   if (item.kind !== "event") return;
                   setSheetEventId(item.id);
@@ -266,6 +277,56 @@ export function TimelineView({ projectId }: { projectId: UUID }) {
         {moveItem.error ? <p className="sl-error">{moveItem.error.message}</p> : null}
       </div>
 
+      {clusterItems !== null ? (
+        <>
+          <button
+            type="button"
+            className="sl-sheet-backdrop"
+            aria-label={messages.common.close}
+            onClick={() => setClusterItems(null)}
+          />
+          <section
+            className="sl-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label={messages.timeline.clusterTitle}
+            data-testid="sl-cluster-sheet"
+          >
+            <header className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold tracking-tight">
+                {messages.timeline.clusterTitle}
+              </h2>
+              <button
+                type="button"
+                className="sl-btn"
+                aria-label={messages.common.close}
+                onClick={() => setClusterItems(null)}
+              >
+                ✕
+              </button>
+            </header>
+            <ul className="mt-3 flex flex-col gap-2">
+              {clusterItems.map((entry) => (
+                <li key={`${entry.kind}:${entry.id}`}>
+                  <button
+                    type="button"
+                    className="sl-btn w-full text-left"
+                    data-testid="sl-cluster-item"
+                    onClick={() => {
+                      setClusterItems(null);
+                      openItem(entry);
+                    }}
+                  >
+                    {entry.title.trim().length > 0 ? entry.title : messages.timeline.sceneBadge}
+                    {calendar ? ` — ${formatStoryTimeFull(calendar, entry.storyTime)}` : ""}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </>
+      ) : null}
+
       {sheetOpen && calendar ? (
         <EventSheet
           projectId={projectId}
@@ -287,6 +348,7 @@ function TimelineLaneRow({
   onDragMove,
   onDragEnd,
   onOpen,
+  onOpenCluster,
   onTrackRef,
 }: {
   lane: TimelineLane;
@@ -297,6 +359,7 @@ function TimelineLaneRow({
   onDragMove: (clientX: number) => void;
   onDragEnd: () => void;
   onOpen: (item: TimelineItem) => void;
+  onOpenCluster: (items: TimelineItem[]) => void;
   onTrackRef: (node: HTMLDivElement | null) => void;
 }) {
   return (
@@ -308,7 +371,31 @@ function TimelineLaneRow({
         {lane.label}
       </span>
       <div className="sl-timeline-track" ref={onTrackRef}>
-        {lane.items.map((item) => {
+        {clusterTimelineItems(lane.items, window, MIN_BLOCK_PX / CANVAS_PX).map((cluster) => {
+          // Denser than one block's width: show a chip that says how many events are there.
+          // At the wide zooms this is the difference between a readable lane and a pile of
+          // overlapping labels; at the narrow ones nothing clusters and this never renders.
+          if (cluster.items.length > 1) {
+            const at = positionFraction(cluster.storyTime, window) * 100;
+            const when = calendar ? formatStoryTimeFull(calendar, cluster.storyTime) : "";
+            const count = format(messages.timeline.clusterEvents, { n: cluster.items.length });
+            return (
+              <button
+                key={`cluster:${cluster.key}`}
+                type="button"
+                className="sl-timeline-block sl-timeline-cluster"
+                data-testid="sl-timeline-cluster"
+                style={{ left: `${at}%`, minWidth: `${MIN_BLOCK_PX}px` }}
+                title={`${count} — ${when}`}
+                aria-label={`${count}, ${when}`}
+                onClick={() => onOpenCluster(cluster.items)}
+              >
+                <span className="sl-timeline-block-label">{count}</span>
+              </button>
+            );
+          }
+          const item = cluster.items[0];
+          if (item === undefined) return null;
           const dragging = drag?.item.id === item.id && drag.laneId === lane.id;
           const offset = dragging ? drag.deltaX : 0;
           const left = positionFraction(item.storyTime, window) * 100;

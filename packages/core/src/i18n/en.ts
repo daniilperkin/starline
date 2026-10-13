@@ -925,6 +925,8 @@ export const en = {
     items: { one: "{count} item", other: "{count} items" },
     parseError: "Use a year (1247), a month (1247-03) or a full date (1247-03-12)",
     sceneBadge: "Scene",
+    clusterEvents: "{n} here",
+    clusterTitle: "Events at this point",
   },
   export: {
     heading: "Export & import",
