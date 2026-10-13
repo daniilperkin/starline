@@ -863,7 +863,7 @@ German and the tour because the owner asked for them by name, then the tiers rou
 correctness value per hour. S27 is deliberately early: three of its items are data-safety or
 legal, and the perf budgets are the only spec requirement that has never been measured at all.
 
-### Slices 21–25 shipped (the four carry-overs and German)
+### Slices 21–26 shipped (the four carry-overs, German and the tour)
 
 | Slice | Revision | CI | What shipped |
 | --- | --- | --- | --- |
@@ -872,8 +872,11 @@ legal, and the perf budgets are the only spec requirement that has never been me
 | S23 multi-book UI | `dd8bf4d` + `321c092` | `38384700256` | One library, many books: `project.rename`/`delete`/`restore`, `useActiveProject` (18 call sites across 13 files), the app-bar switcher. Two display bugs found by probing — `StepScreen` read the first book directly, and the step editors kept state across a switch; the database was proven intact first. |
 | S24 timeline clustering | `2ddd120` + `4d206ce` | `38388542877` | `clusterTimelineItems` groups events closer than a fraction of the visible window (anchored, so a long run splits), and the lane renders a chip that opens the list. Zoom-aware: nothing clusters at the narrow zooms. |
 | S25 German | `5d8a06c` | (run at push) | Full third locale, informal *du*: the catalogue (48 sections, ~890 leaves), the 9-step prompt library, the 4 templates (44 beats), the daily card for free. `availableLocales`/`catalogues`/`PromptLocale` widened; verify-pwa and check-a11y pinned to en-US, because German now really does open on a German machine. |
+| S26 guided tour | `6819813` | (run at push) | Fifteen stops across every tab, the wizard and the key tools; an overlay that navigates itself and spotlights real anchors, polling for anchors that render after their data arrives, and falling back to a centred card; the one-time offer card plus buttons on the start screen and in Settings; `starline.tour` as device state; the tour in en/uk/de |
 
-**Verified on S25's gates:** 345 tests (12 new German parity clauses) · WEB-VERIFY OK including the
+**Verified on S25's and S26's gates:** 345 tests (12 new German parity clauses) · WEB-VERIFY OK including the
 German switch step · PWA-VERIFY OK · A11Y OK · chaos and web chaos · no-network over 228 files ·
-contrast · bundle app 268.3 KiB / 330, styles 9.3 / 10, install 3.64 MiB / 4.
+contrast · bundle app 268.3 -> 269.6 KiB / 330 after the tour, styles 9.5 / 10, install
+3.66 MiB / 4 · the tour's own journey step (welcome -> a stop with a spotlight -> skip -> the
+choice remembered) and an axe scan while the tour is on screen.
 
