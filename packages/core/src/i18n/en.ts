@@ -837,7 +837,7 @@ export const en = {
     keysEdit: "Edit the focused cell",
     keysClose: "Close a sheet",
     privacyStatement: "This app makes no network requests. Your book lives in one file you own.",
-    privacyStatus: "Verified offline: no fetch, XHR or WebSocket exists in the shipped code.",
+    privacyStatus: "Verified offline: the shipped code contains no network primitives.",
     starfield: "Animated starfield",
     starfieldHint: "The twinkling backdrop. Turning it off keeps a still night sky.",
     languageSystem: "System language",

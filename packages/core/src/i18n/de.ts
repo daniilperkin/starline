@@ -844,7 +844,7 @@ export const de = {
     keysClose: "Ein Blatt schließen",
     privacyStatement:
       "Diese App macht keine Netzwerkaufrufe. Dein Buch lebt in einer Datei, die dir gehört.",
-    privacyStatus: "Offline geprüft: kein fetch, XHR oder WebSocket im ausgelieferten Code.",
+    privacyStatus: "Offline geprüft: der ausgelieferte Code enthält keine Netzwerk-Primitive.",
     starfield: "Animierter Sternenhimmel",
     starfieldHint: "Der funkelnde Hintergrund. Ausgeschaltet bleibt ein stiller Nachthimmel.",
     languageSystem: "Systemsprache",
