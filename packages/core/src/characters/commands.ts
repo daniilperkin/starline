@@ -59,10 +59,7 @@ export const createCharacter: Command<CreateCharacterArgs, { characterId: UUID }
  * edit them yet) but the CSV importer writes them, so they are whitelisted here rather than
  * reaching around the command layer.
  */
-const UPDATABLE_COLUMNS: Record<
-  keyof CharacterDraft | "pronouns" | "age" | "occupation" | "aliases",
-  string
-> = {
+const UPDATABLE_COLUMNS: Record<keyof CharacterDraft | "aliases", string> = {
   name: "name",
   role: "role",
   color: "color",
@@ -77,13 +74,24 @@ const UPDATABLE_COLUMNS: Record<
   age: "age",
   occupation: "occupation",
   aliases: "aliases",
+  want: "want",
+  need: "need",
+  lie: "lie",
+  truth: "truth",
+  flaws: "flaws",
+  strengths: "strengths",
+  fears: "fears",
+  values: '"values"', // reserved word: keep the quotes in the emitted SQL
+  internalConflictText: "internal_conflict_text",
+  externalConflictText: "external_conflict_text",
+  ghostText: "ghost_text",
+  voiceNotesText: "voice_notes_text",
+  appearanceText: "appearance_text",
+  backstoryText: "backstory_text",
+  storylineText: "storyline_text",
 };
 
 export type CharacterPatch = Partial<CharacterDraft> & {
-  /** Dossier basics the character forms do not edit yet (the CSV importer does). */
-  pronouns?: string;
-  age?: string;
-  occupation?: string;
   /** The alias list is a JSON column; the command stringifies it. */
   aliases?: string[];
   /** Step 5 storyline — written as both `storyline_json` and `storyline_text`. */

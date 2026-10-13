@@ -2260,3 +2260,24 @@ input[type="radio"] {
   padding: 12px 8px;
   color: var(--sl-muted);
 }
+
+/* Slice 29: the dossier's tab strip and the merge sheet's rows. */
+.sl-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.sl-tab {
+  border: 1px solid var(--sl-border);
+  border-radius: 9999px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.75rem;
+  color: var(--sl-muted);
+}
+
+.sl-tab-active {
+  border-color: var(--sl-accent);
+  color: var(--sl-fg);
+  background: color-mix(in srgb, var(--sl-accent) 12%, transparent);
+}

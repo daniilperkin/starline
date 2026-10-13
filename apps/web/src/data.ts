@@ -84,7 +84,9 @@ import {
   listSteps,
   listTags,
   listTrash,
+  type MergeCharactersResult,
   markStepComplete,
+  mergeCharacters,
   mergeTags,
   moveChapter,
   moveFieldDef,
@@ -129,6 +131,7 @@ import {
   toggleEntityTag,
   type UUID,
   unlinkMention,
+  unmergeCharacters,
   updateChapter,
   updateCharacter,
   updateFieldDef,
@@ -302,6 +305,33 @@ export function useUpdateCharacter() {
     mutationFn: async (variables: UpdateCharacterVariables) => {
       if (!session) throw new Error("no library open");
       return runCommand(session.driver, updateCharacter, variables);
+    },
+  });
+}
+
+export interface MergeCharactersVariables {
+  projectId: UUID;
+  sourceId: UUID;
+  targetId: UUID;
+}
+
+/** Slice 29: the merge and its inverse — both real commands, so Undo stays honest. */
+export function useMergeCharacters() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (variables: MergeCharactersVariables) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, mergeCharacters, variables);
+    },
+  });
+}
+
+export function useUnmergeCharacters() {
+  const session = useSessionStore((state) => state.session);
+  return useMutation({
+    mutationFn: async (variables: { projectId: UUID; result: MergeCharactersResult }) => {
+      if (!session) throw new Error("no library open");
+      return runCommand(session.driver, unmergeCharacters, variables);
     },
   });
 }

@@ -1,4 +1,5 @@
 import {
+  format,
   type MatrixCell,
   messages,
   type RelationshipEdge,
@@ -12,13 +13,16 @@ import {
   useCharacters,
   useCreateCharacter,
   useGraphPositions,
+  useMergeCharacters,
   useRelationshipCounts,
   useRelationshipMatrix,
   useSceneTree,
+  useUnmergeCharacters,
 } from "./data";
 import { EdgeSheet } from "./relationships/EdgeSheet";
 import { GroupSheet } from "./relationships/GroupSheet";
 import { RelationshipList } from "./relationships/RelationshipList";
+import { useUndoStore } from "./undo";
 
 // Lazy: the matrix pulls react-virtual, the web pulls xyflow + d3-force — the bundle gate keeps
 // each route under 150 KiB gz, so neither may land in the People chunk.
@@ -59,6 +63,12 @@ export function PeopleScreen() {
     pair?: { sourceId: UUID; targetId: UUID };
   } | null>(null);
   const [groupsOpen, setGroupsOpen] = useState(false);
+  const [mergeSource, setMergeSource] = useState<UUID | null>(null);
+  const [mergeTarget, setMergeTarget] = useState<UUID | null>(null);
+  const [merging, setMerging] = useState(false);
+  const pushUndo = useUndoStore((state) => state.push);
+  const merge = useMergeCharacters();
+  const unmerge = useUnmergeCharacters();
 
   const list = useMemo(() => {
     const all = characters.data ?? [];
@@ -91,6 +101,39 @@ export function PeopleScreen() {
     link.download = "relationships.csv";
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  const onMerge = async () => {
+    if (projectId === null || mergeSource === null || mergeTarget === null) return;
+    setMerging(true);
+    try {
+      const merged = await merge.mutateAsync({
+        projectId,
+        sourceId: mergeSource,
+        targetId: mergeTarget,
+      });
+      const moved =
+        merged.relationshipsMoved +
+        merged.scenesMoved +
+        merged.mentionsMoved +
+        merged.galleryMoved +
+        merged.fieldsMoved +
+        merged.timelineMoved +
+        merged.povMoved +
+        merged.plotlinesMoved;
+      const dropped =
+        merged.relationshipsDropped +
+        merged.scenesDropped +
+        merged.galleryDropped +
+        merged.fieldsDropped;
+      pushUndo(format(messages.dossier.merged, { moved, dropped }), async () => {
+        await unmerge.mutateAsync({ projectId, result: merged });
+      });
+      setMergeSource(null);
+      setMergeTarget(null);
+    } finally {
+      setMerging(false);
+    }
   };
 
   const openCell = (pair: { sourceId: UUID; targetId: UUID }, cell: MatrixCell | null) => {
@@ -161,11 +204,11 @@ export function PeopleScreen() {
           ) : (
             <ul className="flex flex-col gap-2">
               {list.map((character) => (
-                <li key={character.id}>
+                <li key={character.id} className="sl-card flex items-center gap-2 p-3">
                   <Link
                     to="/people/$characterId"
                     params={{ characterId: character.id }}
-                    className="sl-card flex items-center gap-3 p-4"
+                    className="flex min-w-0 flex-1 items-center gap-3"
                   >
                     <span
                       className="h-3 w-3 shrink-0 rounded-full"
@@ -185,10 +228,65 @@ export function PeopleScreen() {
                     </span>
                     <span className="sl-chip">{messages.roles[character.role]}</span>
                   </Link>
+                  <button
+                    type="button"
+                    className="sl-btn-small"
+                    data-testid="sl-merge-open"
+                    aria-label={`${messages.dossier.merge}: ${character.name}`}
+                    onClick={() => setMergeSource(character.id)}
+                  >
+                    ⇄
+                  </button>
                 </li>
               ))}
             </ul>
           )}
+
+          {mergeSource !== null ? (
+            <div className="sl-card flex flex-col gap-3 p-4" data-testid="sl-merge-sheet">
+              <h2 className="text-sm font-semibold">{messages.dossier.mergeTitle}</h2>
+              <p className="text-xs text-muted">{messages.dossier.mergeExplain}</p>
+              <fieldset className="flex flex-col gap-2">
+                <legend className="sr-only">{messages.dossier.mergeTitle}</legend>
+                {list
+                  .filter((candidate) => candidate.id !== mergeSource)
+                  .map((candidate) => (
+                    <label key={candidate.id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="radio"
+                        name="merge-target"
+                        data-testid="sl-merge-target"
+                        value={candidate.id}
+                        checked={mergeTarget === candidate.id}
+                        onChange={() => setMergeTarget(candidate.id)}
+                      />
+                      {candidate.name}
+                    </label>
+                  ))}
+              </fieldset>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="sl-btn sl-btn-primary"
+                  data-testid="sl-merge-confirm"
+                  disabled={mergeTarget === null || merging}
+                  onClick={() => void onMerge()}
+                >
+                  {messages.dossier.mergeConfirm}
+                </button>
+                <button
+                  type="button"
+                  className="sl-btn"
+                  onClick={() => {
+                    setMergeSource(null);
+                    setMergeTarget(null);
+                  }}
+                >
+                  {messages.common.cancel}
+                </button>
+              </div>
+            </div>
+          ) : null}
         </>
       ) : null}
 

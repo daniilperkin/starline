@@ -28,6 +28,23 @@ export async function listCharacters(
     goal: string;
     conflict: string;
     epiphany: string;
+    pronouns: string;
+    age: string;
+    occupation: string;
+    want: string;
+    need: string;
+    lie: string;
+    truth: string;
+    flaws: string;
+    strengths: string;
+    fears: string;
+    values: string;
+    internal_conflict_text: string;
+    external_conflict_text: string;
+    ghost_text: string;
+    voice_notes_text: string;
+    appearance_text: string;
+    backstory_text: string;
     storyline_json: string | null;
     storyline_text: string;
     order_key: string;
@@ -35,6 +52,10 @@ export async function listCharacters(
   }>(
     `SELECT id, project_id, name, aliases, role, color, arc_type, one_line,
             one_paragraph_text, motivation, goal, conflict, epiphany,
+            pronouns, age, occupation, want, need, lie, truth,
+            flaws, strengths, fears, "values",
+            internal_conflict_text, external_conflict_text,
+            ghost_text, voice_notes_text, appearance_text, backstory_text,
             storyline_json, storyline_text, order_key, updated_at
        FROM character
       WHERE project_id = ? AND deleted_at IS NULL
@@ -55,6 +76,24 @@ export async function listCharacters(
     goal: row.goal,
     conflict: row.conflict,
     epiphany: row.epiphany,
+    pronouns: row.pronouns,
+    age: row.age,
+    occupation: row.occupation,
+    want: row.want,
+    need: row.need,
+    lie: row.lie,
+    truth: row.truth,
+    flaws: row.flaws,
+    strengths: row.strengths,
+    fears: row.fears,
+    values: row.values,
+    internalConflictText: row.internal_conflict_text,
+    externalConflictText: row.external_conflict_text,
+    ghostText: row.ghost_text,
+    voiceNotesText: row.voice_notes_text,
+    appearanceText: row.appearance_text,
+    backstoryText: row.backstory_text,
+    storylineText: row.storyline_text,
     storyline: {
       json: parseJson<RichText["json"]>(row.storyline_json ?? "", null),
       text: row.storyline_text,

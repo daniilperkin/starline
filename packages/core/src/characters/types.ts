@@ -45,6 +45,25 @@ export interface CharacterDraft {
   goal: string;
   conflict: string;
   epiphany: string;
+  // Slice 29: the dossier tabs. Lists are comma-separated in the form and JSON arrays in the row.
+  pronouns: string;
+  age: string;
+  occupation: string;
+  want: string;
+  need: string;
+  lie: string;
+  truth: string;
+  flaws: string;
+  strengths: string;
+  fears: string;
+  values: string;
+  internalConflictText: string;
+  externalConflictText: string;
+  ghostText: string;
+  voiceNotesText: string;
+  appearanceText: string;
+  backstoryText: string;
+  storylineText: string;
 }
 
 /** A character row with parsed JSON columns, ordered by `order_key`. */

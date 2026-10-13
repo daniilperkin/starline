@@ -1568,6 +1568,9 @@ try {
   );
   await page.getByRole("link", { name: "People" }).click();
   await page.getByRole("link", { name: /Mira Holt/ }).click();
+  // Slice 29: the gallery moved onto the dossier's Gallery tab.
+  await page.getByTestId("sl-dossier-gallery").click();
+  await page.waitForTimeout(500);
   await page.getByTestId("sl-gallery-input").setInputFiles(pngPath);
   await page.waitForTimeout(2000);
   const attachment = await page.evaluate(async () => {
@@ -1735,6 +1738,50 @@ try {
     `  export options: notes, chapter scope (${chapterOption > 0 ? "present" : "no chapters yet"}), preview ${previewText.length} chars`,
   );
   await axeScan("export-options");
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.waitForTimeout(1000);
+
+  // 4ad. Slice 29: the dossier tabs and the character merge. The dossier opens on its overview and
+  // carries nine tabs; a psychology edit round-trips through autosave. The merge folds one character
+  // into another from the People list, and the Undo toast offers the inverse.
+  await page.getByRole("link", { name: "People" }).click();
+  await page.waitForTimeout(1400);
+  const peopleBefore = await page.locator('[data-testid="sl-merge-open"]').count();
+  await page.locator("li.sl-card a").first().click();
+  await page.getByTestId("sl-dossier-psychology").waitFor({ timeout: 10000 });
+  const dossierTabs = await page.locator('[role="tab"]').count();
+  if (dossierTabs < 9) throw new Error(`the dossier shows only ${dossierTabs} tabs`);
+  await page.getByTestId("sl-dossier-psychology").click();
+  await page.waitForTimeout(500);
+  await page.locator("#character-want").fill("To be believed");
+  await page.waitForTimeout(1200);
+  const wantSaved = await page.locator("#character-want").inputValue();
+  if (wantSaved !== "To be believed") throw new Error("the psychology edit did not stick");
+  await axeScan("dossier-tabs");
+  await page.getByTestId("sl-dossier-appearances").click();
+  await page.waitForTimeout(700);
+  await page.getByTestId("sl-dossier-panel").waitFor({ timeout: 8000 });
+  console.log(
+    `  dossier: ${dossierTabs} tabs, the psychology edit round-tripped, appearances panel rendered`,
+  );
+
+  await page.getByRole("link", { name: "People" }).click();
+  await page.waitForTimeout(1200);
+  await page.locator('[data-testid="sl-merge-open"]').first().click();
+  await page.getByTestId("sl-merge-sheet").waitFor({ timeout: 10000 });
+  await page.locator('[data-testid="sl-merge-target"]').first().check();
+  await page.getByTestId("sl-merge-confirm").click();
+  await page.waitForTimeout(1600);
+  const peopleAfter = await page.locator('[data-testid="sl-merge-open"]').count();
+  if (peopleAfter >= peopleBefore) {
+    throw new Error(`the merge did not remove a character: ${peopleBefore} -> ${peopleAfter}`);
+  }
+  const undoVisible = await page.getByRole("button", { name: /undo/i }).count();
+  if (undoVisible === 0) throw new Error("the merge left no Undo offer");
+  console.log(
+    `  merge: ${peopleBefore} -> ${peopleAfter} characters, Undo offered (the inverse command)`,
+  );
+  await axeScan("people-merged");
   await page.getByRole("link", { name: "Plan" }).click();
   await page.waitForTimeout(1000);
 
