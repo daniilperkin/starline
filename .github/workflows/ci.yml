@@ -100,7 +100,6 @@ jobs:
       # touch apps/web/dist between these two steps.
       - run: pnpm --filter @starline/web build
       - run: pnpm check:bundle
-      - run: pnpm check:perf
       - run: node scripts/check-contrast.mjs
 
   e2e:
@@ -120,3 +119,4 @@ jobs:
       - run: node scripts/verify-web.mjs
       - run: node scripts/verify-pwa.mjs
       - run: node scripts/check-a11y.mjs
+      - run: pnpm check:perf
