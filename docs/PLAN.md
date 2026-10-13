@@ -862,3 +862,18 @@ slice-3 `reviewedCharacterIds` line in this file was stale and is struck from th
 German and the tour because the owner asked for them by name, then the tiers roughly in order of
 correctness value per hour. S27 is deliberately early: three of its items are data-safety or
 legal, and the perf budgets are the only spec requirement that has never been measured at all.
+
+### Slices 21–25 shipped (the four carry-overs and German)
+
+| Slice | Revision | CI | What shipped |
+| --- | --- | --- | --- |
+| S21 corkboard | `ad2c40e` | green | A third Scenes view: cards on a `rectSortingStrategy` board, reusing the list's drag machinery; cards match the list rows one for one and open the scene sheet. |
+| S22 World drag-nest | `df08b9a` | `38382626450` | The lore tree nests by dragging a category onto another, with a keyboard path beside it; `world.moveUnder` carries the cycle guard. |
+| S23 multi-book UI | `dd8bf4d` + `321c092` | `38384700256` | One library, many books: `project.rename`/`delete`/`restore`, `useActiveProject` (18 call sites across 13 files), the app-bar switcher. Two display bugs found by probing — `StepScreen` read the first book directly, and the step editors kept state across a switch; the database was proven intact first. |
+| S24 timeline clustering | `2ddd120` + `4d206ce` | `38388542877` | `clusterTimelineItems` groups events closer than a fraction of the visible window (anchored, so a long run splits), and the lane renders a chip that opens the list. Zoom-aware: nothing clusters at the narrow zooms. |
+| S25 German | `5d8a06c` | (run at push) | Full third locale, informal *du*: the catalogue (48 sections, ~890 leaves), the 9-step prompt library, the 4 templates (44 beats), the daily card for free. `availableLocales`/`catalogues`/`PromptLocale` widened; verify-pwa and check-a11y pinned to en-US, because German now really does open on a German machine. |
+
+**Verified on S25's gates:** 345 tests (12 new German parity clauses) · WEB-VERIFY OK including the
+German switch step · PWA-VERIFY OK · A11Y OK · chaos and web chaos · no-network over 228 files ·
+contrast · bundle app 268.3 KiB / 330, styles 9.3 / 10, install 3.64 MiB / 4.
+
