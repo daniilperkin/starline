@@ -1785,6 +1785,40 @@ try {
   await page.getByRole("link", { name: "Plan" }).click();
   await page.waitForTimeout(1000);
 
+  // 4ae. Slice 30: the settings depth. The Editor toggles flip and stick, the Statuses section
+  // renames a status, and the Keyboard and Privacy sections render their references.
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.waitForTimeout(800);
+  await page.getByTestId("sl-open-settings").click();
+  await page.getByTestId("sl-settings-editor").click();
+  await page.getByTestId("sl-editor-smartQuotes").waitFor({ timeout: 10000 });
+  const smartBefore = await page.getByTestId("sl-editor-smartQuotes").isChecked();
+  await page.getByTestId("sl-editor-smartQuotes").click();
+  await page.waitForTimeout(900);
+  const smartAfter = await page.getByTestId("sl-editor-smartQuotes").isChecked();
+  if (smartAfter === smartBefore) throw new Error("the editor toggle did not flip");
+  await axeScan("settings-editor");
+  await page.getByTestId("sl-settings-statuses").click();
+  await page.getByTestId("sl-status-label-idea").waitFor({ timeout: 8000 });
+  await page.getByTestId("sl-status-label-idea").fill("Spark");
+  await page.getByTestId("sl-status-label-idea").blur();
+  await page.waitForTimeout(900);
+  await page.getByTestId("sl-settings-keyboard").click();
+  await page.waitForTimeout(400);
+  const keyRows = await page.locator(".sl-kbd").count();
+  if (keyRows < 6) throw new Error(`only ${keyRows} keyboard rows`);
+  await page.getByTestId("sl-settings-privacy").click();
+  await page.getByTestId("sl-privacy-status").waitFor({ timeout: 8000 });
+  const privacyText = await page.getByTestId("sl-privacy-status").innerText();
+  if (!privacyText.toLowerCase().includes("offline"))
+    throw new Error("the privacy line is missing");
+  console.log(
+    `  settings: the editor toggle flipped (${smartBefore} -> ${smartAfter}), a status renamed to Spark, ${keyRows} keyboard rows, the privacy line rendered`,
+  );
+  await axeScan("settings-privacy");
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.waitForTimeout(1000);
+
   // 5. Reload: back to the start screen; reopening restores the last route (hash history),
   // so tab over to Plan and check the persisted progress.
   await page.reload();

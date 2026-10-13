@@ -32,11 +32,29 @@ const CloudPanel = lazy(() =>
   import("./cloud/CloudPanel").then((module) => ({ default: module.CloudPanel })),
 );
 
+import {
+  DEFAULT_STATUS_PALETTE,
+  defaultProjectSettings,
+  type ProjectSettings,
+  SCENE_STATUSES,
+  writeProjectSettings,
+} from "@starline/core";
 import { useActiveProject } from "./active-project";
+import { useProjectSettings } from "./data";
+import { useSessionStore } from "./session";
 import { useTourStore } from "./tour/tour-store";
 import { UndoToast } from "./UndoToast";
 
-type Section = "tags" | "fields" | "language" | "appearance" | "cloud";
+type Section =
+  | "tags"
+  | "fields"
+  | "language"
+  | "appearance"
+  | "editor"
+  | "statuses"
+  | "keyboard"
+  | "privacy"
+  | "cloud";
 
 /**
  * Settings (spec §4.6) — slice 9 ships its first two sections: the tag manager and the custom
@@ -53,6 +71,10 @@ export function SettingsScreen() {
     ["fields", messages.settings.fields],
     ["language", messages.settings.language],
     ["appearance", messages.settings.appearance],
+    ["editor", messages.settings.editor],
+    ["statuses", messages.settings.statuses],
+    ["keyboard", messages.settings.keyboard],
+    ["privacy", messages.settings.privacy],
     ["cloud", messages.settings.cloud],
   ] as const;
 
@@ -94,6 +116,22 @@ export function SettingsScreen() {
         <AppearancePanel />
       ) : section === "language" ? (
         <LanguagePanel />
+      ) : section === "editor" ? (
+        project === null ? (
+          <p className="text-sm text-muted">{messages.settings.noProject}</p>
+        ) : (
+          <EditorPanel projectId={project.id} />
+        )
+      ) : section === "statuses" ? (
+        project === null ? (
+          <p className="text-sm text-muted">{messages.settings.noProject}</p>
+        ) : (
+          <StatusesPanel projectId={project.id} />
+        )
+      ) : section === "keyboard" ? (
+        <KeyboardPanel />
+      ) : section === "privacy" ? (
+        <PrivacyPanel />
       ) : project === null ? (
         <p className="text-sm text-muted">{messages.settings.noProject}</p>
       ) : section === "tags" ? (
@@ -103,6 +141,151 @@ export function SettingsScreen() {
       )}
       <UndoToast />
     </div>
+  );
+}
+
+// ── Editor ──────────────────────────────────────────────────────────────────────────────────
+
+/** Slice 30: the Editor section (spec §4.6) — the three behaviour toggles. */
+function EditorPanel({ projectId }: { projectId: UUID }) {
+  const session = useSessionStore((state) => state.session);
+  const settings = useProjectSettings(projectId);
+  const value = settings.data ?? defaultProjectSettings();
+  const save = async (patch: Partial<ProjectSettings>) => {
+    if (!session) return;
+    await writeProjectSettings(session.driver, projectId, { ...value, ...patch });
+    await settings.refetch();
+  };
+  const toggle = (key: "smartQuotes" | "autoPair" | "spellcheck", next: boolean) => {
+    void save({ editor: { ...value.editor, [key]: next } });
+  };
+  return (
+    <section className="sl-card flex flex-col gap-3 p-5" data-testid="sl-settings-editor-panel">
+      {(
+        [
+          ["smartQuotes", messages.settings.smartQuotes, messages.settings.smartQuotesHint],
+          ["autoPair", messages.settings.autoPair, messages.settings.autoPairHint],
+          ["spellcheck", messages.settings.spellcheck, messages.settings.spellcheckHint],
+        ] as const
+      ).map(([key, label, hint]) => (
+        <label key={key} className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            data-testid={`sl-editor-${key}`}
+            checked={value.editor[key]}
+            onChange={(event) => toggle(key, event.target.checked)}
+          />
+          <span className="flex flex-col">
+            <span>{label}</span>
+            <span className="text-xs text-muted">{hint}</span>
+          </span>
+        </label>
+      ))}
+    </section>
+  );
+}
+
+// ── Statuses ────────────────────────────────────────────────────────────────────────────────
+
+/** Slice 30: rename and recolour the six scene statuses, per project. */
+function StatusesPanel({ projectId }: { projectId: UUID }) {
+  const session = useSessionStore((state) => state.session);
+  const settings = useProjectSettings(projectId);
+  const value = settings.data ?? defaultProjectSettings();
+  const [draft, setDraft] = useState<{
+    labels: Record<string, string>;
+    palette: Record<string, string>;
+  } | null>(null);
+  const current = draft ?? {
+    labels: { ...value.statusLabels },
+    palette: { ...value.statusPalette },
+  };
+  const commit = () => {
+    if (draft === null) return;
+    void (async () => {
+      if (!session) return;
+      await writeProjectSettings(session.driver, projectId, {
+        ...value,
+        statusLabels: draft.labels,
+        statusPalette: draft.palette as never,
+      });
+      await settings.refetch();
+    })();
+  };
+  return (
+    <section className="sl-card flex flex-col gap-3 p-5" data-testid="sl-settings-statuses-panel">
+      {SCENE_STATUSES.map((status) => (
+        <div key={status} className="flex flex-wrap items-center gap-3">
+          <input
+            className="sl-input flex-1"
+            data-testid={`sl-status-label-${status}`}
+            aria-label={`${messages.settings.statuses}: ${status}`}
+            value={current.labels[status] ?? messages.scenes.status[status]}
+            onChange={(event) =>
+              setDraft({
+                labels: { ...current.labels, [status]: event.target.value },
+                palette: current.palette,
+              })
+            }
+            onBlur={commit}
+          />
+          <input
+            type="color"
+            className="sl-colour"
+            data-testid={`sl-status-colour-${status}`}
+            aria-label={`${messages.settings.statuses}: ${status}`}
+            value={current.palette[status] ?? DEFAULT_STATUS_PALETTE[status]}
+            onChange={(event) =>
+              setDraft({
+                labels: current.labels,
+                palette: { ...current.palette, [status]: event.target.value },
+              })
+            }
+            onBlur={commit}
+          />
+        </div>
+      ))}
+    </section>
+  );
+}
+
+// ── Keyboard ────────────────────────────────────────────────────────────────────────────────
+
+/** Slice 30: the keyboard map (spec §4.7) as a readable reference. */
+function KeyboardPanel() {
+  const shortcuts = [
+    ["Ctrl/Cmd + K", messages.settings.keysPalette],
+    ["Ctrl/Cmd + F", messages.settings.keysSearch],
+    ["Ctrl/Cmd + S", messages.settings.keysSnapshot],
+    ["Space", messages.settings.keysDragPick],
+    ["Alt + Up/Down", messages.settings.keysReorder],
+    ["Tab / Shift+Tab", messages.settings.keysIndent],
+    ["Enter", messages.settings.keysEdit],
+    ["Escape", messages.settings.keysClose],
+  ] as const;
+  return (
+    <section className="sl-card flex flex-col gap-2 p-5" data-testid="sl-settings-keyboard-panel">
+      {shortcuts.map(([keys, label]) => (
+        <div key={keys} className="flex items-center justify-between gap-3 text-sm">
+          <span className="text-muted">{label}</span>
+          <kbd className="sl-kbd">{keys}</kbd>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+// ── Privacy ─────────────────────────────────────────────────────────────────────────────────
+
+/** Slice 30: the offline statement with its verifiable status line (spec §4.6). */
+function PrivacyPanel() {
+  return (
+    <section className="sl-card flex flex-col gap-2 p-5" data-testid="sl-settings-privacy-panel">
+      <p className="text-sm">{messages.settings.privacyStatement}</p>
+      <p className="text-xs text-muted" data-testid="sl-privacy-status">
+        {messages.settings.privacyStatus}
+      </p>
+    </section>
   );
 }
 

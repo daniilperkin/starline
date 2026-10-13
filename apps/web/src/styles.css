@@ -2281,3 +2281,21 @@ input[type="radio"] {
   color: var(--sl-fg);
   background: color-mix(in srgb, var(--sl-accent) 12%, transparent);
 }
+
+/* Slice 30: the statuses' colour input and the keyboard reference's key caps. */
+.sl-colour {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--sl-border);
+  border-radius: 0.5rem;
+  background: transparent;
+}
+
+.sl-kbd {
+  border: 1px solid var(--sl-border);
+  border-radius: 0.35rem;
+  padding: 0.1rem 0.4rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.7rem;
+  color: var(--sl-muted);
+}

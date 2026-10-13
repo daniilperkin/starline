@@ -38,6 +38,14 @@ export const projectSettingsSchema = z.object({
   enabledModules: z.array(
     z.enum(["snowflake", "characters", "graph", "outliner", "timeline", "wiki", "notes"]),
   ),
+  /** Slice 30: the editor's behaviour toggles (spec §4.6's Editor section). */
+  editor: z.object({
+    smartQuotes: z.boolean(),
+    autoPair: z.boolean(),
+    spellcheck: z.boolean(),
+  }),
+  /** Slice 30: per-project scene-status labels; missing keys fall back to the catalogue. */
+  statusLabels: z.record(z.string(), z.string().max(40)),
 });
 export type ProjectSettings = z.infer<typeof projectSettingsSchema>;
 
@@ -68,6 +76,8 @@ export function defaultProjectSettings(): ProjectSettings {
     statusPalette: { ...DEFAULT_STATUS_PALETTE },
     timelineCalendar: { ...DEFAULT_TIMELINE_CALENDAR },
     enabledModules: ["snowflake", "characters", "graph", "outliner", "timeline", "wiki", "notes"],
+    editor: { smartQuotes: true, autoPair: true, spellcheck: true },
+    statusLabels: {},
   };
 }
 
@@ -80,6 +90,21 @@ export function defaultProjectSettings(): ProjectSettings {
 /** The slice of the driver this read needs — structural, so core does not import the db package. */
 export interface SettingsQueryRunner {
   query<T = Record<string, unknown>>(sql: string, params?: readonly unknown[]): Promise<T[]>;
+}
+
+/** Writes the settings JSON back; the caller re-reads to confirm (slice 30's write path). */
+export async function writeProjectSettings(
+  driver: SettingsQueryRunner,
+  projectId: UUID,
+  settings: ProjectSettings,
+): Promise<ProjectSettings> {
+  const validated = projectSettingsSchema.parse(settings);
+  await driver.query("UPDATE project SET settings = ?, updated_at = ? WHERE id = ?", [
+    JSON.stringify(validated),
+    Date.now(),
+    projectId,
+  ]);
+  return validated;
 }
 
 export async function readProjectSettings(

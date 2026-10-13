@@ -5,7 +5,9 @@ import {
   type PMDoc,
   type RichText,
 } from "@starline/core";
+import { Extension, textInputRule } from "@tiptap/core";
 import Mention from "@tiptap/extension-mention";
+import Typography from "@tiptap/extension-typography";
 import { type Editor, EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef } from "react";
@@ -158,6 +160,27 @@ function mentionSuggestion() {
   };
 }
 
+const PAIRS: Array<[string, string]> = [
+  ['"', "”"],
+  ["'", "’"],
+  ["(", ")"],
+  ["[", "]"],
+  ["{", "}"],
+];
+
+/** The auto-pair input rules: an opening mark typed at a line's end closes itself. */
+const AutoPair = Extension.create({
+  name: "starlineAutoPair",
+  addInputRules() {
+    return PAIRS.map(([open, close]) =>
+      textInputRule({
+        find: new RegExp(`${open.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`),
+        replace: close,
+      }),
+    );
+  },
+});
+
 export function RichTextEditor({
   initial,
   ariaLabel,
@@ -165,6 +188,9 @@ export function RichTextEditor({
   mentionables,
   plain = false,
   onEditor,
+  smartQuotes = true,
+  autoPair = true,
+  spellcheck = true,
 }: {
   initial: RichText;
   ariaLabel: string;
@@ -175,6 +201,10 @@ export function RichTextEditor({
   plain?: boolean;
   /** Hands the TipTap instance to the host so it can restore and persist the caret. */
   onEditor?: (editor: Editor | null) => void;
+  /** Slice 30's Editor settings; all default on, matching the method's prose-first stance. */
+  smartQuotes?: boolean;
+  autoPair?: boolean;
+  spellcheck?: boolean;
 }) {
   // The suggestion reads items at call time; a ref keeps the editor instance stable while the
   // entity list refreshes underneath it.
@@ -186,6 +216,10 @@ export function RichTextEditor({
     {
       extensions: [
         StarterKit.configure({ heading: { levels: [2] } }),
+        // Slice 30's Editor settings: smart quotes come from TipTap's typography extension, the
+        // auto-pair rules are ours (TipTap ships none), spellcheck rides the DOM attribute below.
+        ...(smartQuotes ? [Typography] : []),
+        ...(autoPair ? [AutoPair] : []),
         ...(withMentions
           ? [
               EntityMention.configure({
@@ -224,7 +258,13 @@ export function RichTextEditor({
       ],
       content: initial.json ?? undefined,
       shouldRerenderOnTransaction: true,
-      editorProps: { attributes: { "aria-label": ariaLabel, class: "sl-prosemirror" } },
+      editorProps: {
+        attributes: {
+          "aria-label": ariaLabel,
+          class: "sl-prosemirror",
+          spellcheck: spellcheck ? "true" : "false",
+        },
+      },
       onUpdate: ({ editor: instance }) => {
         onChange(makeRichText(instance.getJSON() as PMDoc));
       },

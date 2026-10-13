@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   queryClient,
   useMentionables,
+  useProjectSettings,
   useProjects,
   useSceneBody,
   useSceneDetail,
@@ -48,6 +49,7 @@ export function WriteScreen() {
   const navigate = useNavigate();
   const projects = useProjects();
   const projectId = projects.data?.[0]?.id ?? null;
+  const editorSettings = useProjectSettings(projectId);
   const detail = useSceneDetail(projectId, sceneId);
   const bodyQuery = useSceneBody(projectId, sceneId);
   const tree = useSceneTree(projectId);
@@ -319,6 +321,9 @@ export function WriteScreen() {
             ariaLabel={messages.write.bodyLabel}
             mentionables={mentionables.data ?? []}
             onEditor={onEditor}
+            smartQuotes={editorSettings.data?.editor.smartQuotes ?? true}
+            autoPair={editorSettings.data?.editor.autoPair ?? true}
+            spellcheck={editorSettings.data?.editor.spellcheck ?? true}
             onChange={pushBody}
           />
         )}
