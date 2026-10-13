@@ -5,7 +5,7 @@ import { Outlet, useRouter, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useActiveProject } from "./active-project";
 import { BookSwitcher } from "./BookSwitcher";
-import { lastActivityTime, onActivity, queryClient, useProjects } from "./data";
+import { lastActivityTime, onActivity, queryClient } from "./data";
 import { useLocaleStore } from "./locale";
 import { useOpenEntity } from "./openEntity";
 import { SearchSheet } from "./SearchSheet";

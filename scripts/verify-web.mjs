@@ -1659,6 +1659,37 @@ try {
   console.log(
     `  i18n: Ukrainian switch works (html lang=uk, "${ukCount.trim()}", stored choice) and English restores`,
   );
+  // 4ab2. Slice 26: the guided tour. From Settings: the overlay opens, the first stop is a
+  // centred welcome, the second navigates to the plan and spotlights a real anchor, and skipping
+  // closes it while remembering that it was seen.
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.waitForTimeout(1200);
+  await page.getByTestId("sl-open-settings").click();
+  await page.getByTestId("sl-tour-settings-open").click();
+  await page.getByTestId("sl-tour").waitFor({ timeout: 10000 });
+  const firstStop = (await page.locator(".sl-tour-title").innerText()).trim();
+  await page.getByTestId("sl-tour-next").click();
+  await page.waitForTimeout(1400);
+  await page.getByTestId("sl-tour-next").click();
+  await page.waitForTimeout(1400);
+  const secondStop = (await page.locator(".sl-tour-title").innerText()).trim();
+  const tourSpotlight = await page.getByTestId("sl-tour-spotlight").count();
+  if (tourSpotlight === 0) {
+    throw new Error(`the tour's second stop ("${secondStop}") has no spotlight`);
+  }
+  await axeScan("tour");
+  await page.getByTestId("sl-tour-skip").click();
+  await page.waitForTimeout(800);
+  if ((await page.getByTestId("sl-tour").count()) !== 0) {
+    throw new Error("the tour did not close when skipped");
+  }
+  const tourFlag = await page.evaluate(() => localStorage.getItem("starline.tour"));
+  if (tourFlag === null) {
+    throw new Error("the tour did not remember being seen");
+  }
+  console.log(
+    `  tour: "${firstStop}" → "${secondStop}" with a spotlight; skipping closes it and remembers (${tourFlag})`,
+  );
   await page.screenshot({ path: join(shotDir, "26-uk.png"), fullPage: true });
 
   // 5. Reload: back to the start screen; reopening restores the last route (hash history),

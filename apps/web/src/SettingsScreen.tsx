@@ -33,6 +33,7 @@ const CloudPanel = lazy(() =>
 );
 
 import { useActiveProject } from "./active-project";
+import { useTourStore } from "./tour/tour-store";
 import { UndoToast } from "./UndoToast";
 
 type Section = "tags" | "fields" | "language" | "appearance" | "cloud";
@@ -43,6 +44,7 @@ type Section = "tags" | "fields" | "language" | "appearance" | "cloud";
  * screen that happens to show one entity.
  */
 export function SettingsScreen() {
+  const startTour = useTourStore((state) => state.start);
   const [section, setSection] = useState<Section>("tags");
   const { project } = useActiveProject();
   // Built per render so a locale switch relabels the segments (no module-level capture).
@@ -74,6 +76,15 @@ export function SettingsScreen() {
           ))}
         </fieldset>
       </header>
+
+      <button
+        type="button"
+        className="sl-btn self-start"
+        data-testid="sl-tour-settings-open"
+        onClick={startTour}
+      >
+        {messages.tour.open}
+      </button>
 
       {section === "cloud" ? (
         <Suspense fallback={<p className="text-sm text-muted">{messages.common.loading}</p>}>

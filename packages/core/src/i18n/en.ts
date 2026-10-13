@@ -1040,6 +1040,83 @@ export const en = {
     noticeSnapshotted: "Snapshot saved.",
     close: "Close",
   },
+  tour: {
+    heading: "Guided tour",
+    stepOf: "Step {n} of {total}",
+    next: "Next",
+    back: "Back",
+    skip: "Skip the tour",
+    done: "Start writing",
+    open: "Take the tour",
+    offer: {
+      title: "First time here?",
+      body: "Take a two-minute tour of where everything lives — every tab, the wizard and the key tools.",
+      start: "Take the tour",
+      dismiss: "Not now",
+    },
+    stops: {
+      welcome: {
+        title: "Welcome to StarLine",
+        body: "A short tour of where everything lives, about two minutes long. Leave at any point — the tour remembers nothing about your story.",
+      },
+      plan: {
+        title: "Your plan",
+        body: "The nine steps of the method live here. Each one is a sentence, a paragraph, a page — until the whole book is planned. Nothing is a commitment: jump between steps freely.",
+      },
+      search: {
+        title: "Search everything",
+        body: "Characters, lore, scenes, notes — one search. Typos are fine; names match loosely.",
+      },
+      books: {
+        title: "Books in one library",
+        body: "One library file can hold several books. This is where you switch between them, rename one, or start another.",
+      },
+      settings: {
+        title: "Settings",
+        body: "Tags, custom fields, the interface language, the starfield and cloud backup all live here.",
+      },
+      backups: {
+        title: "Snapshots",
+        body: "StarLine snapshots when you open a library and after long writing sessions — and you can take one any time. Restoring is always one tap away.",
+      },
+      export: {
+        title: "Export",
+        body: "Your work leaves whenever you want it to: Markdown, DOCX, HTML, JSON, CSV. Nothing is ever gated behind anything.",
+      },
+      daily: {
+        title: "A question a day",
+        body: "One reflective question from the method, drawn fresh each day. Hide it and it stays gone until tomorrow.",
+      },
+      write: {
+        title: "Writing mode",
+        body: "When the plan is ready, this is where the draft happens — one scene at a time, with the plan a tap away.",
+      },
+      scenes: {
+        title: "Scenes",
+        body: "Every scene of the book, in order. Add, reorder, and watch the chapters fill up.",
+      },
+      scenesViews: {
+        title: "Three ways to look",
+        body: "A list for the detail, a corkboard for the shape, a grid for the plotlines. The same scenes through three lenses.",
+      },
+      people: {
+        title: "People",
+        body: "Your cast. Every character has a dossier — motivation, goal, conflict, epiphany — and their relationships cross-link to everyone else.",
+      },
+      world: {
+        title: "World",
+        body: "Lore lives here: places, factions, magic, history. Nest it as deep as you like, and link it from anywhere with @.",
+      },
+      notes: {
+        title: "Notes",
+        body: "Capture a thought mid-scene and sort it later. The board moves ideas from inbox to incubating to used.",
+      },
+      end: {
+        title: "That's the tour",
+        body: "Everything else is the writing itself. Start with one sentence — the rest of the method follows from there.",
+      },
+    },
+  },
   issues: {
     STEP_EMPTY: "Add some content before completing this step.",
     S1_EMPTY: "Write your one-sentence summary.",

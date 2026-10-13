@@ -4,8 +4,12 @@ import { importIntoNewLibrary } from "./export/importLibrary";
 import type { LibrarySession } from "./session";
 import { cleanupTempFiles, listLibraries, openLibraryFully } from "./storage";
 import { ThemeButton } from "./ThemeButton";
+import { useTourStore } from "./tour/tour-store";
 
 export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => void }) {
+  const startTour = useTourStore((state) => state.start);
+  const dismissOffer = useTourStore((state) => state.dismissOffer);
+  const offered = useTourStore((state) => state.offered);
   const [libraries, setLibraries] = useState<string[]>([]);
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -87,6 +91,39 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
         <div>
           <h1 className="sl-wordmark text-4xl font-semibold tracking-tight">✦ StarLine</h1>
           <p className="mt-2 text-sm text-muted">{messages.app.tagline}</p>
+          {offered ? (
+            <div className="sl-card mt-4 flex flex-col gap-2 p-4" data-testid="sl-tour-offer">
+              <p className="text-sm font-medium">{messages.tour.offer.title}</p>
+              <p className="text-sm text-muted">{messages.tour.offer.body}</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="sl-btn sl-btn-primary"
+                  data-testid="sl-tour-offer-start"
+                  onClick={startTour}
+                >
+                  {messages.tour.offer.start}
+                </button>
+                <button
+                  type="button"
+                  className="sl-btn"
+                  data-testid="sl-tour-offer-dismiss"
+                  onClick={dismissOffer}
+                >
+                  {messages.tour.offer.dismiss}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="sl-btn mt-4"
+              data-testid="sl-tour-open"
+              onClick={startTour}
+            >
+              {messages.tour.open}
+            </button>
+          )}
           <div className="mt-3 flex flex-wrap gap-2">
             <span className="sl-chip">{messages.app.offlineChip}</span>
             <span className="sl-chip">{messages.app.onDeviceChip}</span>

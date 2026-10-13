@@ -1052,6 +1052,83 @@ export const de = {
     noticeSnapshotted: "Snapshot gespeichert.",
     close: "Schließen",
   },
+  tour: {
+    heading: "Rundgang",
+    stepOf: "Schritt {n} von {total}",
+    next: "Weiter",
+    back: "Zurück",
+    skip: "Rundgang überspringen",
+    done: "Anfangen zu schreiben",
+    open: "Rundgang starten",
+    offer: {
+      title: "Zum ersten Mal hier?",
+      body: "Ein zwei Minuten langer Rundgang durch alles, was wo liegt — jeder Tab, der Assistent und die wichtigsten Werkzeuge.",
+      start: "Rundgang starten",
+      dismiss: "Nicht jetzt",
+    },
+    stops: {
+      welcome: {
+        title: "Willkommen bei StarLine",
+        body: "Ein kurzer Rundgang, wo alles liegt — etwa zwei Minuten. Du kannst jederzeit aussteigen; der Rundgang merkt sich nichts über deine Geschichte.",
+      },
+      plan: {
+        title: "Dein Plan",
+        body: "Hier wohnen die neun Schritte der Methode. Jeder ist ein Satz, ein Absatz, eine Seite — bis der ganze Roman geplant ist. Nichts ist eine Verpflichtung: spring zwischen den Schritten, wie du willst.",
+      },
+      search: {
+        title: "Alles durchsuchen",
+        body: "Figuren, Lore, Szenen, Notizen — eine Suche. Tippfehler sind in Ordnung; Namen werden unscharf abgeglichen.",
+      },
+      books: {
+        title: "Bücher in einer Bibliothek",
+        body: "Eine Bibliotheksdatei kann mehrere Bücher halten. Hier wechselst du zwischen ihnen, benennst eines um oder beginnst ein neues.",
+      },
+      settings: {
+        title: "Einstellungen",
+        body: "Tags, eigene Felder, die Sprache der Oberfläche, der Sternenhimmel und das Cloud-Backup — alles hier.",
+      },
+      backups: {
+        title: "Snapshots",
+        body: "StarLine sichert beim Öffnen einer Bibliothek und nach langen Schreibsitzungen — und du kannst jederzeit selbst einen Snapshot nehmen. Wiederherstellen ist immer einen Tipp entfernt.",
+      },
+      export: {
+        title: "Export",
+        body: "Deine Arbeit geht raus, wann immer du willst: Markdown, DOCX, HTML, JSON, CSV. Nichts ist jemals hinter etwas verschlossen.",
+      },
+      daily: {
+        title: "Eine Frage pro Tag",
+        body: "Eine reflektierende Frage aus der Methode, jeden Tag neu gezogen. Blende sie aus, und sie bleibt bis morgen weg.",
+      },
+      write: {
+        title: "Schreibmodus",
+        body: "Wenn der Plan steht, entsteht hier der Entwurf — Szene für Szene, mit dem Plan in Reichweite.",
+      },
+      scenes: {
+        title: "Szenen",
+        body: "Jede Szene des Buchs, in Reihenfolge. Füge hinzu, sortiere um und sieh zu, wie die Kapitel sich füllen.",
+      },
+      scenesViews: {
+        title: "Drei Blicke",
+        body: "Eine Liste fürs Detail, eine Pinnwand für die Form, ein Raster für die Handlungsstränge. Dieselben Szenen durch drei Linsen.",
+      },
+      people: {
+        title: "Figuren",
+        body: "Deine Besetzung. Jede Figur hat ein Dossier — Motivation, Ziel, Konflikt, Erkenntnis — und ihre Beziehungen verknüpfen sie mit allen anderen.",
+      },
+      world: {
+        title: "Welt",
+        body: "Hier wohnt das Lore: Orte, Fraktionen, Magie, Geschichte. Schachtele es so tief du willst und verlinke es von überall mit @.",
+      },
+      notes: {
+        title: "Notizen",
+        body: "Fang einen Gedanken mitten in einer Szene und sortiere ihn später. Das Brett führt Ideen vom Eingang über den Brutkasten bis zur Verwendung.",
+      },
+      end: {
+        title: "Das war der Rundgang",
+        body: "Alles andere ist das Schreiben selbst. Fang mit einem Satz an — der Rest der Methode folgt von dort.",
+      },
+    },
+  },
   issues: {
     STEP_EMPTY: "Füge etwas Inhalt hinzu, bevor du diesen Schritt abschließt.",
     S1_EMPTY: "Schreib deine Zusammenfassung in einem Satz.",
