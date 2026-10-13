@@ -1068,7 +1068,9 @@ try {
   await page.getByTestId("sl-status-label-idea").waitFor({ timeout: 30000 });
   await page.getByTestId("sl-settings-privacy").click();
   await page.getByTestId("sl-privacy-status").waitFor({ timeout: 30000 });
-  console.log(`PASS  S30 settings: editor toggles (smart quotes ${smartQuotes}), statuses and privacy render`);
+  console.log(
+    `PASS  S30 settings: editor toggles (smart quotes ${smartQuotes}), statuses and privacy render`,
+  );
 
   await page.getByRole("link", { name: "World" }).click();
   await page.getByTestId("sl-world-views").waitFor({ timeout: 30000 });
@@ -1093,7 +1095,9 @@ try {
     await page.waitForTimeout(1500);
     console.log("PASS  S29 merge: merged on-device with the inverse offered");
   } else {
-    console.log("PASS  S29 merge: the trigger renders (one character in this world, nothing to merge)");
+    console.log(
+      "PASS  S29 merge: the trigger renders (one character in this world, nothing to merge)",
+    );
   }
 
   await page.getByRole("link", { name: "Plan" }).click();
