@@ -14,10 +14,8 @@
   --sl-primary: #5b46d6; /* nebula violet — interactive text/fills */
   --sl-on-primary: #ffffff;
   --sl-danger: #b3261e;
-  --sl-star: #a6aede;
   --sl-glow: rgba(91, 70, 214, 0.18);
   --sl-wordmark-a: #5b46d6; /* day sky: the gold cannot carry text, so the mark turns violet */
-  --sl-wordmark-b: #2f6fd6;
   /* Bundled faces first, OS stacks as the fallback for anything they do not cover. */
   --sl-font-sans: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
   --sl-font-serif: "Literata", Georgia, "Times New Roman", serif;
@@ -38,7 +36,6 @@
   --sl-primary: #7a4a1e;
   --sl-on-primary: #ffffff;
   --sl-danger: #a33a2a;
-  --sl-star: #c9b98f;
   --sl-glow: rgba(122, 74, 30, 0.18);
 }
 [data-theme="contrast"] {
@@ -52,7 +49,6 @@
   --sl-primary: #ffe066;
   --sl-on-primary: #000000;
   --sl-danger: #ff8080;
-  --sl-star: #ffffff;
   --sl-glow: transparent;
 }
 [data-theme="contrast"] .sl-btn,
@@ -164,6 +160,7 @@ body {
   background: var(--sl-primary);
   color: var(--sl-on-primary);
   border-color: transparent;
+  box-shadow: 0 0 22px -6px var(--sl-primary);
 }
 
 .sl-input {
@@ -186,6 +183,7 @@ body {
   border: 1px solid var(--sl-border);
   border-radius: 1.1rem;
   box-shadow: 0 12px 32px -20px var(--sl-glow);
+  transition: box-shadow 160ms ease;
 }
 
 .sl-chip {
@@ -200,10 +198,6 @@ body {
 }
 
 /* Cosmic glow accents (owner decision 11, "more cosmic"). */
-.sl-btn-primary {
-  box-shadow: 0 0 22px -6px var(--sl-primary);
-}
-
 .sl-card {
   transition: box-shadow 160ms ease;
 }
@@ -1884,11 +1878,6 @@ body {
   flex-wrap: wrap;
   gap: 1rem;
 }
-.sl-note-statuses {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
 .sl-note-body {
   display: flex;
   flex-direction: column;
@@ -2268,7 +2257,7 @@ input[type="radio"] {
   gap: 0.25rem;
 }
 
-.sl-tab {
+.sl-dossier-tab {
   border: 1px solid var(--sl-border);
   border-radius: 9999px;
   padding: 0.3rem 0.7rem;
@@ -2276,7 +2265,7 @@ input[type="radio"] {
   color: var(--sl-muted);
 }
 
-.sl-tab-active {
+.sl-dossier-tab-active {
   border-color: var(--sl-accent);
   color: var(--sl-fg);
   background: color-mix(in srgb, var(--sl-accent) 12%, transparent);

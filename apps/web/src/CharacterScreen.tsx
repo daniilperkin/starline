@@ -168,7 +168,7 @@ function DossierForm({ projectId, character }: { projectId: UUID; character: Cha
             aria-selected={tab === id}
             aria-controls={`sl-dossier-panel-${id}`}
             data-testid={`sl-dossier-${id}`}
-            className={tab === id ? "sl-tab sl-tab-active" : "sl-tab"}
+            className={tab === id ? "sl-dossier-tab sl-dossier-tab-active" : "sl-dossier-tab"}
             onClick={() => setTab(id)}
           >
             {messages.dossier.tabs[id]}
