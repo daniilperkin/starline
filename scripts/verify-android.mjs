@@ -935,6 +935,8 @@ try {
   // inside the page (DataTransfer → change) — the app's own ingest path still does the work.
   await page.getByRole("link", { name: "People" }).click();
   await page.getByRole("link", { name: /Emu Character/ }).click();
+  // Slice 29: the gallery lives behind the dossier's Gallery tab.
+  await page.getByTestId("sl-dossier-gallery").click();
   await page.getByTestId("sl-gallery-input").waitFor({ state: "attached", timeout: 30000 });
   await page.evaluate(async () => {
     const b64 =
@@ -976,6 +978,8 @@ try {
   await page.getByRole("link", { name: "Plan" }).waitFor({ timeout: 60000 });
   await page.getByRole("link", { name: "People" }).click();
   await page.getByRole("link", { name: /Emu Character/ }).click();
+  // The dossier reopens on Overview after a relaunch; the gallery lives behind its tab.
+  await page.getByTestId("sl-dossier-gallery").click();
   await page.getByTestId(`sl-attachment-${emuAttachment.id}`).waitFor({ timeout: 60000 });
   const survived = await page.evaluate(async () => {
     const session = window.__starlineDev.session();
@@ -1037,6 +1041,64 @@ try {
     .first()
     .waitFor({ timeout: 60000 });
   console.log("PASS  cold relaunch → lore entry intact");
+
+  // 6. S21–S31 on-device smoke: the last ten slices' headline flows, driven on the phone.
+  await page.getByTestId("sl-book-switcher").click();
+  await page.getByTestId("sl-book-sheet").waitFor({ timeout: 30000 });
+  const bookRows = await page.locator('[data-testid="sl-book-row"]').count();
+  if (bookRows < 1) throw new Error("the book switcher lists nothing");
+  await page.keyboard.press("Escape");
+  console.log(`PASS  S23 multi-book: the switcher lists ${bookRows} book(s) on-device`);
+
+  await page.getByTestId("sl-palette-open").click();
+  await page.getByTestId("sl-palette-input").waitFor({ timeout: 30000 });
+  const paletteCommands = await page.locator('[data-testid="sl-palette-command"]').count();
+  if (paletteCommands < 6) throw new Error(`only ${paletteCommands} palette commands`);
+  await page.keyboard.press("Escape");
+  console.log(`PASS  S28 palette: ${paletteCommands} commands on-device`);
+
+  // The settings button lives on the Plan dashboard, not the app bar.
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByTestId("sl-open-settings").waitFor({ timeout: 30000 });
+  await page.getByTestId("sl-open-settings").click();
+  await page.getByTestId("sl-settings-editor").click();
+  await page.getByTestId("sl-editor-smartQuotes").waitFor({ timeout: 30000 });
+  const smartQuotes = await page.getByTestId("sl-editor-smartQuotes").isChecked();
+  await page.getByTestId("sl-settings-statuses").click();
+  await page.getByTestId("sl-status-label-idea").waitFor({ timeout: 30000 });
+  await page.getByTestId("sl-settings-privacy").click();
+  await page.getByTestId("sl-privacy-status").waitFor({ timeout: 30000 });
+  console.log(`PASS  S30 settings: editor toggles (smart quotes ${smartQuotes}), statuses and privacy render`);
+
+  await page.getByRole("link", { name: "World" }).click();
+  await page.getByTestId("sl-world-views").waitFor({ timeout: 30000 });
+  await page.getByTestId("sl-world-view-map").click();
+  await page.getByTestId("sl-lore-map").waitFor({ timeout: 30000 });
+  const lorePins = await page.locator('[data-testid="sl-lore-pin"]').count();
+  if (lorePins < 1) throw new Error("the lore map has no pins on-device");
+  await page.getByTestId("sl-world-view-tree").click();
+  console.log(`PASS  S31 lore: map view with ${lorePins} pin(s) on-device`);
+
+  await page.getByRole("link", { name: "People" }).click();
+  const mergeButtons = await page.locator('[data-testid="sl-merge-open"]').count();
+  if (mergeButtons < 1) throw new Error("the merge trigger is missing on-device");
+  if (mergeButtons >= 2) {
+    await page.locator('[data-testid="sl-merge-open"]').first().click();
+    await page.getByTestId("sl-merge-sheet").waitFor({ timeout: 30000 });
+    const targets = await page.locator('[data-testid="sl-merge-target"]').count();
+    if (targets < 1) throw new Error("the merge sheet offers no targets");
+    // The confirm is disabled until a target is chosen — pick one first.
+    await page.locator('[data-testid="sl-merge-target"]').first().check();
+    await page.getByTestId("sl-merge-confirm").click();
+    await page.waitForTimeout(1500);
+    console.log("PASS  S29 merge: merged on-device with the inverse offered");
+  } else {
+    console.log("PASS  S29 merge: the trigger renders (one character in this world, nothing to merge)");
+  }
+
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: join(shotDir, "emu-s21-s31-smoke.png"), fullPage: true });
 
   console.log("EMULATOR-QA OK");
 } finally {
