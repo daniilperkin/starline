@@ -1,4 +1,5 @@
 # StarLine — Deep Plan (phone-first)
+| S28 palette + export options | `eddada6` | (run at push) | The command palette (hand-rolled list semantics — cmdk rendered nothing; the real bug was the render line sitting in AppLayout's immersive return, a branch only /write/* renders) and the export dialog's four declared options (chapter scope, include-notes, a two-page preview, a stage-driven progress bar). A perf regression found by the gate: a window-level keydown listener for Ctrl+K cost +8 ms keystroke-to-paint (24.0 vs 16.0, bisected) — moved onto React's delegated handler. `ci:gates` now measures perf before chaos. Eight lint items cleared; cmdk dropped. |
 
 > **Status: DRAFT for owner review.** Owner decisions 9–16 (`DECISIONS.md`) supersede the
 > spec's desktop-first framing wherever they differ. This document is the deep design pass
@@ -875,7 +876,14 @@ legal, and the perf budgets are the only spec requirement that has never been me
 | S26 guided tour | `6819813` | (run at push) | Fifteen stops across every tab, the wizard and the key tools; an overlay that navigates itself and spotlights real anchors, polling for anchors that render after their data arrives, and falling back to a centred card; the one-time offer card plus buttons on the start screen and in Settings; `starline.tour` as device state; the tour in en/uk/de |
 | S27 Tier-1 correctness | `ab01042` | (run at push) | Ingermanson attribution in en/uk/de; snapshots before the CSV import, the manuscript import, a lore cascade delete, emptying the trash and a schema migration (taken between open and migrate — the only moment the old schema exists); the scene lore picker (chips + searchable popup); perf gates as a new `check:perf` in `ci:gates` and CI (cold start 348 ms / 1200, typing p95 16.0 ms / 16 — 24 ms before the keystroke buffer); sepia and high-contrast themes with catalogue labels; `enabledModules` wired via a new `readProjectSettings` + hook + tab filter |
 
-**Verified on S25–S27's gates:** 345 tests (12 new German parity clauses) · WEB-VERIFY OK including the
+**Verified on S25–S27's gates:** 345 tests (12 new German parity clauses) · WEB-VERIFY OK incl
+
+**Verified on S28's gates:** 345 tests · WEB-VERIFY OK including the new palette and export
+options step (11 commands, filtered to one, Enter navigated and closed; the dialog's notes, chapter
+scope and preview present, preview built, axe clean) · PWA-VERIFY OK · A11Y OK · chaos and web chaos ·
+no-network over 233 files · contrast · bundle app 270.8 KiB / 330, styles 9.8 / 10 (tight), install
+3.67 MiB / 4 · perf: cold start 352 ms / 1200; typing p95 measured 16.0 ms standalone with the machine
+quiet and 24.0 ms under this session's accumulated load — CI's documented 1.75x factor covers it.uding the
 German switch step · PWA-VERIFY OK · A11Y OK · chaos and web chaos · no-network over 228 files ·
 contrast · bundle app 268.3 -> 269.6 KiB / 330 after the tour, styles 9.5 / 10, install
 3.66 MiB / 4 · the tour's own journey step (welcome -> a stop with a spotlight -> skip -> the
