@@ -61,7 +61,7 @@ export function BookSwitcher({ open, onClose }: { open: boolean; onClose: () => 
     const title = newTitle.trim();
     if (title.length === 0) return;
     setNewTitle("");
-    const result = await create.mutateAsync(title);
+    const result = await create.mutateAsync({ title });
     const created = (result as { projectId?: UUID } | undefined)?.projectId;
     if (created !== undefined) choose(created);
     onClose();
