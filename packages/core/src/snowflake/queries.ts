@@ -18,12 +18,16 @@ export interface ProjectSummary {
   logline: string;
   /** The writer's target length; the step-8 estimate reads it ("62,400 / 80,000 est."). */
   targetWordCount: number | null;
+  /** The dashboard's chips (S36, spec 4.2 step 3). */
+  genres: string[];
+  /** ISO date; the dashboard shows the countdown (S36). */
+  deadline: string | null;
   archived: boolean;
   createdAt: EpochMs;
   updatedAt: EpochMs;
 }
 
-const PROJECT_COLUMNS = `id, title, form, method, logline, target_word_count, archived, created_at, updated_at`;
+const PROJECT_COLUMNS = `id, title, form, method, logline, target_word_count, genres, deadline, archived, created_at, updated_at`;
 
 interface ProjectRawRow {
   id: string;
@@ -32,6 +36,8 @@ interface ProjectRawRow {
   method: string;
   logline: string;
   target_word_count: number | null;
+  genres: string;
+  deadline: string | null;
   archived: number;
   created_at: number;
   updated_at: number;
@@ -45,6 +51,17 @@ function toProjectSummary(row: ProjectRawRow): ProjectSummary {
     method: row.method,
     logline: row.logline,
     targetWordCount: row.target_word_count,
+    genres: (() => {
+      try {
+        const parsed: unknown = JSON.parse(row.genres);
+        return Array.isArray(parsed)
+          ? parsed.filter((value): value is string => typeof value === "string")
+          : [];
+      } catch {
+        return [];
+      }
+    })(),
+    deadline: row.deadline,
     archived: row.archived === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

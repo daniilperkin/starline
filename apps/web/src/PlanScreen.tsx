@@ -11,6 +11,7 @@ import {
   type SnowflakeStepNumber,
   type SnowflakeStepRow,
   STEP_NUMBERS,
+  type StoryForm,
   validateStep,
 } from "@starline/core";
 import { useNavigate } from "@tanstack/react-router";
@@ -21,6 +22,7 @@ import {
   useContinueTarget,
   useCreateProject,
   useDashboardStats,
+  useSceneStats,
   useSceneTree,
   useSnapshots,
   useStaleIdeas,
@@ -34,17 +36,83 @@ import { closeLibrary } from "./storage";
 import { ThemeButton } from "./ThemeButton";
 import { relativeTime } from "./time";
 
+/** The creation flow's vocabulary (S36, spec 4.2 step 3): genre chips (max 8), forms, presets. */
+const GENRE_SUGGESTIONS = [
+  "Fantasy",
+  "Science fiction",
+  "Romance",
+  "Mystery",
+  "Thriller",
+  "Horror",
+  "Historical",
+  "Literary",
+  "Adventure",
+  "Young adult",
+  "Middle grade",
+  "New adult",
+  "Dystopian",
+  "Urban fantasy",
+  "Paranormal",
+  "Crime",
+  "Suspense",
+  "Western",
+  "Satire",
+  "Humor",
+  "Drama",
+  "Poetry",
+  "Memoir",
+  "Biography",
+  "Non-fiction",
+  "Fairy tale",
+  "Mythic",
+  "Steampunk",
+  "Cyberpunk",
+  "Space opera",
+] as const;
+
+const STORY_FORMS = [
+  "novel",
+  "novella",
+  "short_story",
+  "fairy_tale",
+  "fanfiction",
+  "screenplay_treatment",
+] as const;
+
+const WORD_PRESETS = [20000, 50000, 80000, 120000] as const;
+
+/** "112 days left" / "due today" / "9 days over" - the dashboard's countdown (S36). */
+function deadlineCountdown(deadline: string): string {
+  const target = new Date(`${deadline}T23:59:59`);
+  const now = new Date();
+  const days = Math.ceil((target.getTime() - now.getTime()) / 86_400_000);
+  if (days > 1) return format(messages.plan.deadlineDays, { days });
+  if (days === 1) return messages.plan.deadlineTomorrow;
+  if (days === 0) return messages.plan.deadlineToday;
+  return format(messages.plan.deadlineOver, { days: Math.abs(days) });
+}
+
 export function PlanScreen() {
   const session = useSessionStore((state) => state.session);
   const setSession = useSessionStore((state) => state.setSession);
   const navigate = useNavigate();
   const createProject = useCreateProject();
+  // The creation flow's extras (S36, spec 4.2 step 3): kept beside the title so the whole
+  // brief is written in one command.
+  const [genres, setGenres] = useState<string[]>([]);
+  const [form, setForm] = useState("novel");
+  const [targetWords, setTargetWords] = useState<number | null>(50000);
+  const [deadline, setDeadline] = useState("");
+  const [ideaSeed, setIdeaSeed] = useState("");
+  const [customWords, setCustomWords] = useState("");
   const { project: activeProject } = useActiveProject();
   const activeProjectId = activeProject?.id ?? null;
   const steps = useSteps(activeProjectId);
   const tree = useSceneTree(activeProjectId);
   const stats = useDashboardStats(activeProjectId);
+  const sceneStatsQuery = useSceneStats(activeProjectId);
   const continueTarget = useContinueTarget(activeProjectId);
+  const dashboardWords = sceneStatsQuery.data?.wordsWritten ?? 0;
   const staleIdeas = useStaleIdeas(activeProjectId);
   const snapshots = useSnapshots();
   const takeSnapshot = useTakeSnapshot();
@@ -125,7 +193,14 @@ export function PlanScreen() {
               onChange={(event) => setTitle(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && title.trim() && !createProject.isPending) {
-                  createProject.mutate(title.trim());
+                  createProject.mutate({
+                    title: title.trim(),
+                    genres,
+                    form: form as StoryForm,
+                    targetWordCount: targetWords,
+                    deadline: deadline.length > 0 ? deadline : null,
+                    ideaSeed,
+                  });
                 }
               }}
             />
@@ -133,11 +208,134 @@ export function PlanScreen() {
               type="button"
               className="sl-btn sl-btn-primary"
               disabled={createProject.isPending || title.trim().length === 0}
-              onClick={() => createProject.mutate(title.trim())}
+              onClick={() =>
+                createProject.mutate({
+                  title: title.trim(),
+                  genres,
+                  form: form as StoryForm,
+                  targetWordCount: targetWords,
+                  deadline: deadline.length > 0 ? deadline : null,
+                  ideaSeed,
+                })
+              }
             >
               {messages.plan.createButton}
             </button>
           </div>
+          <div className="mt-4 flex flex-col gap-3" data-testid="sl-create-extras">
+            <div className="flex flex-wrap gap-2" data-testid="sl-create-genres">
+              {GENRE_SUGGESTIONS.map((genre) => (
+                <button
+                  key={genre}
+                  type="button"
+                  className="sl-chip"
+                  data-active={genres.includes(genre)}
+                  onClick={() =>
+                    setGenres((current) =>
+                      current.includes(genre)
+                        ? current.filter((entry) => entry !== genre)
+                        : current.length < 8
+                          ? [...current, genre]
+                          : current,
+                    )
+                  }
+                >
+                  {genre}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <div className="sl-field">
+                <label className="sl-label" htmlFor="sl-create-form">
+                  {messages.plan.formLabel}
+                </label>
+                <select
+                  id="sl-create-form"
+                  className="sl-select"
+                  data-testid="sl-create-form"
+                  value={form}
+                  onChange={(event) => setForm(event.target.value)}
+                >
+                  {STORY_FORMS.map((option) => (
+                    <option key={option} value={option}>
+                      {messages.plan.forms[option]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="sl-field">
+                <label className="sl-label" htmlFor="sl-create-words">
+                  {messages.plan.wordsLabel}
+                </label>
+                <select
+                  id="sl-create-words"
+                  className="sl-select"
+                  data-testid="sl-create-words"
+                  value={targetWords === null ? "custom" : String(targetWords)}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setTargetWords(value === "custom" ? null : Number(value));
+                  }}
+                >
+                  {WORD_PRESETS.map((preset) => (
+                    <option key={preset} value={preset}>
+                      {formatNumber(preset)}
+                    </option>
+                  ))}
+                  <option value="custom">{messages.plan.wordsCustom}</option>
+                </select>
+              </div>
+              {targetWords === null ? (
+                <div className="sl-field">
+                  <label className="sl-label" htmlFor="sl-create-custom">
+                    {messages.plan.wordsLabel}
+                  </label>
+                  <input
+                    id="sl-create-custom"
+                    type="number"
+                    min={1000}
+                    step={1000}
+                    className="sl-input"
+                    data-testid="sl-create-custom"
+                    value={customWords}
+                    onChange={(event) => {
+                      setCustomWords(event.target.value);
+                      const parsed = Number(event.target.value);
+                      if (Number.isFinite(parsed) && parsed > 0) setTargetWords(parsed);
+                    }}
+                  />
+                </div>
+              ) : null}
+              <div className="sl-field">
+                <label className="sl-label" htmlFor="sl-create-deadline">
+                  {messages.plan.deadlineLabel}
+                </label>
+                <input
+                  id="sl-create-deadline"
+                  type="date"
+                  className="sl-input"
+                  data-testid="sl-create-deadline"
+                  value={deadline}
+                  onChange={(event) => setDeadline(event.target.value)}
+                />
+              </div>
+            </div>
+            <div className="sl-field">
+              <label className="sl-label" htmlFor="sl-create-seed">
+                {messages.plan.seedLabel}
+              </label>
+              <textarea
+                id="sl-create-seed"
+                rows={2}
+                className="sl-textarea"
+                data-testid="sl-create-seed"
+                placeholder={messages.plan.seedPlaceholder}
+                value={ideaSeed}
+                onChange={(event) => setIdeaSeed(event.target.value)}
+              />
+            </div>
+          </div>
+
           {/* Settings must be reachable before a story exists: the cloud switch, the language and
               the appearance toggle all work without a project, and hunting for them behind a story
               that has not been created yet is exactly the kind of dead end this avoids. */}
@@ -163,6 +361,29 @@ export function PlanScreen() {
                   total: progress.total,
                 })}
               </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2" data-testid="sl-dash-meta">
+                <span className="sl-chip">
+                  {messages.plan.forms[project.form as StoryForm] ?? project.form}
+                </span>
+                {project.genres.slice(0, 4).map((genre) => (
+                  <span key={genre} className="sl-chip">
+                    {genre}
+                  </span>
+                ))}
+                {project.deadline !== null && project.deadline.length > 0 ? (
+                  <span className="text-xs text-muted" data-testid="sl-dash-deadline">
+                    {deadlineCountdown(project.deadline)}
+                  </span>
+                ) : null}
+              </div>
+              {project.targetWordCount !== null ? (
+                <p className="mt-2 text-xs text-muted" data-testid="sl-dash-words">
+                  {format(messages.plan.wordsProgress, {
+                    written: formatNumber(dashboardWords),
+                    target: formatNumber(project.targetWordCount),
+                  })}
+                </p>
+              ) : null}
             </div>
             <ProgressRing done={progress.done} total={progress.total} />
           </section>

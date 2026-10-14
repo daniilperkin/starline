@@ -17,13 +17,17 @@ import {
   useCharacters,
   useCreatePlotline,
   useDeleteScene,
+  useLoreEntries,
+  useMentionables,
   usePlotlines,
   useRestoreEntity,
   useSceneDetail,
   useSetSceneCharacters,
+  useSetSceneLore,
   useSetScenePlotline,
   useUpdateScene,
 } from "./data";
+import { RichTextEditor } from "./RichTextEditor";
 import { SceneLorePicker } from "./SceneLorePicker";
 import { TagPicker } from "./TagPicker";
 import { useUndoStore } from "./undo";
@@ -116,6 +120,9 @@ function SceneSheetBody({
   const sceneId = detail.id;
   const navigate = useNavigate();
   const characters = useCharacters(projectId);
+  const lore = useLoreEntries(projectId);
+  const mentionables = useMentionables(projectId);
+  const sceneLore = useSetSceneLore();
   const plotlines = usePlotlines(projectId);
   const updateScene = useUpdateScene();
   const deleteScene = useDeleteScene();
@@ -247,12 +254,43 @@ function SceneSheetBody({
       </div>
 
       <div className="flex flex-col gap-1">
-        <span className="sl-label">{messages.sceneSheet.location}</span>
-        {detail.locationName !== null ? (
-          <span className="sl-chip w-fit">{detail.locationName}</span>
-        ) : (
-          <p className="text-xs text-muted">{messages.sceneSheet.locationEmpty}</p>
-        )}
+        <label className="sl-label" htmlFor="sl-scene-location">
+          {messages.sceneSheet.location}
+        </label>
+        <select
+          id="sl-scene-location"
+          className="sl-input sl-select"
+          data-testid="sl-scene-location"
+          value={detail.locationId ?? ""}
+          onChange={(event) => {
+            const value = event.target.value;
+            if (projectId === null) return;
+            void updateScene.mutateAsync({
+              projectId,
+              sceneId,
+              patch: { locationId: value.length > 0 ? (value as UUID) : null },
+            });
+          }}
+        >
+          <option value="">{messages.sceneSheet.locationEmpty}</option>
+          {(lore.data ?? [])
+            .filter((entry) => entry.kind === "location")
+            .map((entry) => (
+              <option key={entry.id} value={entry.id}>
+                {entry.name}
+              </option>
+            ))}
+        </select>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <span className="sl-label">{messages.sceneSheet.synopsis}</span>
+        <RichTextEditor
+          initial={draft.synopsis}
+          ariaLabel={messages.sceneSheet.synopsis}
+          mentionables={mentionables.data ?? []}
+          onChange={(value) => setDraft((current) => ({ ...current, synopsis: value }))}
+        />
       </div>
 
       <div className="flex flex-col gap-1">

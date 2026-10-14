@@ -117,6 +117,13 @@ try {
   await page.getByPlaceholder("Name your story").fill("The Cartographer's Sea");
   await page.getByRole("button", { name: "Create story" }).click();
   await page.getByText("0 of 9 steps complete").waitFor();
+  // A previous run's hard kill leaves a "Recovered from an unexpected shutdown" banner that
+  // shifts the layout whenever it appears - dismiss it so later drags measure a stable page.
+  const healthBanner = page.getByRole("button", { name: "Dismiss" });
+  if ((await healthBanner.count()) > 0) {
+    await healthBanner.first().click();
+    await page.waitForTimeout(300);
+  }
   await page.screenshot({ path: join(shotDir, "2-plan.png"), fullPage: true });
 
   // 3. Step 1: write the sentence (autosave), then complete it.
@@ -302,7 +309,7 @@ try {
   }
   if (!merged) throw new Error("the re-import never reported updates");
   await page.getByRole("button", { name: "Close" }).last().click();
-  await page.getByText("48,200 est. words").waitFor();
+  await page.getByText("48,200 / 50,000 est. words").waitFor();
   await page.getByRole("button", { name: "Mark step complete" }).click();
   await page.getByText("7 of 9 steps complete").waitFor();
 
@@ -471,7 +478,14 @@ try {
     `  corkboard: ${boardCards} cards match ${boardRows} list rows; a card opens the scene sheet`,
   );
 
-  // 4p. Long-press drag: reorder the first row below the second with a mouse drag.
+  // 4p. Long-press drag: reorder the first row below the second with a mouse drag. The health
+  // banner renders asynchronously after open; if it is up now it would shift the rows mid-drag,
+  // so dismiss it right before measuring.
+  const banner4p = page.getByRole("button", { name: "Dismiss" });
+  if ((await banner4p.count()) > 0) {
+    await banner4p.first().click();
+    await page.waitForTimeout(400);
+  }
   const rows = page.locator(".sl-scene-line-main");
   const beforeDrag = await rows.nth(0).innerText();
   const firstBox = await rows.nth(0).boundingBox();
@@ -517,17 +531,30 @@ try {
     await page.mouse.down();
     await page.mouse.move(a.x + a.width / 2 + 15, a.y + a.height / 2 + 15, { steps: 8 });
     await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 12 });
+    // Let dnd-kit's over-detection settle before the drop: on a slow machine the pointerup
+    // can land before the target row registers as the active drop zone.
+    await page.waitForTimeout(600);
     await page.mouse.up();
-    await page.waitForTimeout(1800);
+  };
+  /** Poll the row's depth up to ~6 s: the post-drop re-render is not instant on a slow machine. */
+  const depthWithin = async (name, timeoutMs) => {
+    const deadline = Date.now() + timeoutMs;
+    let depth = await depthOf(name);
+    const start = depth;
+    while (Date.now() < deadline && depth === start) {
+      await page.waitForTimeout(200);
+      depth = await depthOf(name);
+    }
+    return depth;
   };
   const depthBefore = await depthOf("Species");
   await dragRow("Species", "Items");
-  const depthNested = await depthOf("Species");
+  const depthNested = await depthWithin("Species", 6000);
   if (depthNested === depthBefore) {
     throw new Error(`dragging Species onto Items did not nest it (depth stayed ${depthBefore})`);
   }
   await dragRow("Species", "World");
-  const depthRestored = await depthOf("Species");
+  const depthRestored = await depthWithin("Species", 6000);
   if (depthRestored !== depthBefore) {
     throw new Error(`un-nesting did not restore the depth (${depthRestored} vs ${depthBefore})`);
   }

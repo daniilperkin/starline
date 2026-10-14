@@ -44,6 +44,39 @@ type Mode = "list" | "matrix" | "graph";
  * relationship data — the editable table (list), the matrix (the fastest way to fill a cast in)
  * and the web (the visual one). Every mode reads one matrix query, so they never disagree.
  */
+/** Pinned character ids, per project, in localStorage - a view preference, not story data. */
+function pinKey(projectId: UUID | null): string {
+  return `starline.characters.pins.${projectId ?? "none"}`;
+}
+
+function readPins(projectId: UUID | null): Set<UUID> {
+  try {
+    const raw = localStorage.getItem(pinKey(projectId));
+    if (raw === null) return new Set();
+    const parsed: unknown = JSON.parse(raw);
+    return new Set(Array.isArray(parsed) ? (parsed as UUID[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writePins(projectId: UUID | null, pins: Set<UUID>) {
+  try {
+    localStorage.setItem(pinKey(projectId), JSON.stringify([...pins]));
+  } catch {
+    // Private mode: pins simply do not persist.
+  }
+}
+
+const ROLE_ORDER: Record<string, number> = {
+  protagonist: 0,
+  antagonist: 1,
+  major: 2,
+  supporting: 3,
+  minor: 4,
+  mentioned: 5,
+};
+
 export function PeopleScreen() {
   const { project } = useActiveProject();
   const projectId = project?.id ?? null;
@@ -58,6 +91,10 @@ export function PeopleScreen() {
   const [query, setQuery] = useState("");
   const [unconnectedOnly, setUnconnectedOnly] = useState(false);
   const [newName, setNewName] = useState("");
+  // The list's depth (S36, spec 4.3.1): sorts, a role filter and pinned characters.
+  const [sortBy, setSortBy] = useState<"manual" | "name" | "role" | "scenes">("manual");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [pins, setPins] = useState<Set<UUID>>(() => readPins(projectId));
   const [sheet, setSheet] = useState<{
     edge: RelationshipEdge | null;
     pair?: { sourceId: UUID; targetId: UUID };
@@ -73,7 +110,8 @@ export function PeopleScreen() {
   const list = useMemo(() => {
     const all = characters.data ?? [];
     const needle = query.trim().toLowerCase();
-    return all.filter((character) => {
+    const filtered = all.filter((character) => {
+      if (roleFilter !== "all" && character.role !== roleFilter) return false;
       if (unconnectedOnly && (counts.data?.get(character.id) ?? 0) > 0) return false;
       if (needle.length === 0) return true;
       return (
@@ -81,7 +119,19 @@ export function PeopleScreen() {
         character.aliases.some((alias) => alias.toLowerCase().includes(needle))
       );
     });
-  }, [characters.data, counts.data, query, unconnectedOnly]);
+    // Pinned first, then the chosen order (manual = the writer's own order_key).
+    return [...filtered].sort((a, b) => {
+      const pinDiff = (pins.has(b.id) ? 1 : 0) - (pins.has(a.id) ? 1 : 0);
+      if (pinDiff !== 0) return pinDiff;
+      if (sortBy === "name") return a.name.localeCompare(b.name);
+      if (sortBy === "role")
+        return (
+          (ROLE_ORDER[a.role] ?? 9) - (ROLE_ORDER[b.role] ?? 9) || a.name.localeCompare(b.name)
+        );
+      if (sortBy === "scenes") return b.sceneCount - a.sceneCount || a.name.localeCompare(b.name);
+      return 0;
+    });
+  }, [characters.data, counts.data, query, unconnectedOnly, roleFilter, sortBy, pins]);
 
   const onAdd = async (event: FormEvent) => {
     event.preventDefault();
@@ -171,6 +221,37 @@ export function PeopleScreen() {
             aria-label={messages.people.searchPlaceholder}
           />
 
+          <div className="flex flex-wrap items-center gap-2" data-testid="sl-people-toolbar">
+            <select
+              className="sl-input sl-select"
+              value={sortBy}
+              aria-label={messages.people.sortLabel}
+              data-testid="sl-people-sort"
+              onChange={(event) => setSortBy(event.target.value as typeof sortBy)}
+            >
+              <option value="manual">{messages.people.sortManual}</option>
+              <option value="name">{messages.people.sortName}</option>
+              <option value="role">{messages.people.sortRole}</option>
+              <option value="scenes">{messages.people.sortScenes}</option>
+            </select>
+            <select
+              className="sl-input sl-select"
+              value={roleFilter}
+              aria-label={messages.people.filterLabel}
+              data-testid="sl-people-role"
+              onChange={(event) => setRoleFilter(event.target.value)}
+            >
+              <option value="all">{messages.people.filterAll}</option>
+              {(
+                ["protagonist", "antagonist", "major", "supporting", "minor", "mentioned"] as const
+              ).map((role) => (
+                <option key={role} value={role}>
+                  {messages.roles[role]}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <form className="flex gap-2" onSubmit={(event) => void onAdd(event)}>
             <input
               className="sl-input flex-1"
@@ -226,8 +307,27 @@ export function PeopleScreen() {
                     <span className="sl-chip" data-testid="sl-rel-count">
                       {counts.data?.get(character.id) ?? 0}
                     </span>
+                    <span className="sl-chip" data-testid="sl-scene-count">
+                      {character.sceneCount}
+                    </span>
                     <span className="sl-chip">{messages.roles[character.role]}</span>
                   </Link>
+                  <button
+                    type="button"
+                    className="sl-btn-small"
+                    data-testid={`sl-pin-${character.id}`}
+                    data-active={pins.has(character.id)}
+                    aria-label={`${pins.has(character.id) ? messages.people.unpin : messages.people.pin}: ${character.name}`}
+                    onClick={() => {
+                      const next = new Set(pins);
+                      if (next.has(character.id)) next.delete(character.id);
+                      else next.add(character.id);
+                      setPins(next);
+                      writePins(projectId, next);
+                    }}
+                  >
+                    {pins.has(character.id) ? "★" : "☆"}
+                  </button>
                   <button
                     type="button"
                     className="sl-btn-small"

@@ -452,6 +452,19 @@ body {
   box-shadow: 0 12px 32px -20px var(--sl-glow);
 }
 
+/* The Scenes statistics strip's stacked bar (S36). */
+.sl-stat-bar {
+  display: flex;
+  height: 0.55rem;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: var(--sl-surface-2);
+}
+
+.sl-stat-bar > span {
+  flex-basis: 0;
+}
+
 .sl-scene-line {
   display: flex;
   align-items: center;

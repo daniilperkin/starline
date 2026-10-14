@@ -5,6 +5,7 @@ import {
   type CharacterDraft,
   type CharacterSummary,
   messages,
+  TRAIT_LISTS,
   type UUID,
 } from "@starline/core";
 import { useQuery } from "@tanstack/react-query";
@@ -326,6 +327,7 @@ function DossierForm({ projectId, character }: { projectId: UUID; character: Cha
             <input
               id="character-flaws"
               className="sl-input mt-1"
+              list="sl-traits-flaw"
               value={draft.flaws}
               onChange={(event) => set("flaws", event.target.value)}
             />
@@ -337,6 +339,7 @@ function DossierForm({ projectId, character }: { projectId: UUID; character: Cha
             <input
               id="character-strengths"
               className="sl-input mt-1"
+              list="sl-traits-strength"
               value={draft.strengths}
               onChange={(event) => set("strengths", event.target.value)}
             />
@@ -348,6 +351,7 @@ function DossierForm({ projectId, character }: { projectId: UUID; character: Cha
             <input
               id="character-fears"
               className="sl-input mt-1"
+              list="sl-traits-fear"
               value={draft.fears}
               onChange={(event) => set("fears", event.target.value)}
             />
@@ -359,10 +363,19 @@ function DossierForm({ projectId, character }: { projectId: UUID; character: Cha
             <input
               id="character-values"
               className="sl-input mt-1"
+              list="sl-traits-value"
               value={draft.values}
               onChange={(event) => set("values", event.target.value)}
             />
           </div>
+          {/* The bundled trait vocabulary (S36): native datalist autocompletion, offline. */}
+          {(["flaw", "strength", "fear", "value"] as const).map((family) => (
+            <datalist key={family} id={`sl-traits-${family}`}>
+              {TRAIT_LISTS[family].map((trait) => (
+                <option key={trait} value={trait} />
+              ))}
+            </datalist>
+          ))}
           {area("internalConflictText", messages.dossier.internalConflict)}
           {area("externalConflictText", messages.dossier.externalConflict)}
         </section>

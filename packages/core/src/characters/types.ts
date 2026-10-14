@@ -75,6 +75,10 @@ export interface CharacterSummary extends CharacterDraft {
   storyline: RichText;
   orderKey: string;
   updatedAt: EpochMs;
+  /** The dossier's avatar (S36); null until one is set. */
+  avatarAttachmentId: string | null;
+  /** Scenes the character appears in (S36, the list's sort/filter input). */
+  sceneCount: number;
 }
 
 /** The slice of a character the S3_* and S5_* validators read. */

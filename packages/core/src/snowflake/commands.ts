@@ -32,6 +32,12 @@ export interface CreateProjectArgs {
   title: string;
   form?: StoryForm;
   method?: PlanningMethod;
+  /** The creation flow's extras (S36, spec 4.2 step 3). */
+  genres?: string[];
+  targetWordCount?: number | null;
+  deadline?: string | null;
+  /** The one-sentence idea; lands in snowflake step 1's content when given. */
+  ideaSeed?: string;
 }
 
 /** Creates a project plus its nine snowflake_step rows (all exist from day one, spec §3.4). */
@@ -43,23 +49,32 @@ export const createProject: Command<CreateProjectArgs, { projectId: UUID }> = {
     const projectId = newUuid();
     const now = epochNow();
     await ctx.tx.query(
-      `INSERT INTO project (id, title, form, method, settings, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO project (id, title, form, method, genres, target_word_count, deadline,
+                            settings, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         projectId,
         title,
         args.form ?? "novel",
         args.method ?? "snowflake",
+        JSON.stringify(args.genres ?? []),
+        args.targetWordCount ?? null,
+        args.deadline ?? null,
         JSON.stringify(defaultProjectSettings()),
         now,
         now,
       ],
     );
     for (const step of STEP_NUMBERS) {
+      // The idea seed seeds step 1 (S36): the creation flow asks for the sentence up front.
+      const content = emptyStepContent(step);
+      if (step === 1 && args.ideaSeed !== undefined && args.ideaSeed.trim().length > 0) {
+        (content as { sentence?: string }).sentence = args.ideaSeed.trim();
+      }
       await ctx.tx.query(
         `INSERT INTO snowflake_step (id, project_id, step, status, content, overrides, created_at, updated_at)
          VALUES (?, ?, ?, 'not_started', ?, '[]', ?, ?)`,
-        [newUuid(), projectId, step, JSON.stringify(emptyStepContent(step)), now, now],
+        [newUuid(), projectId, step, JSON.stringify(content), now, now],
       );
     }
     const changes: ChangeEvent[] = [

@@ -49,6 +49,8 @@ export async function listCharacters(
     storyline_text: string;
     order_key: string;
     updated_at: number;
+    avatar_attachment_id: string | null;
+    scene_count: number;
   }>(
     `SELECT id, project_id, name, aliases, role, color, arc_type, one_line,
             one_paragraph_text, motivation, goal, conflict, epiphany,
@@ -56,7 +58,10 @@ export async function listCharacters(
             flaws, strengths, fears, "values",
             internal_conflict_text, external_conflict_text,
             ghost_text, voice_notes_text, appearance_text, backstory_text,
-            storyline_json, storyline_text, order_key, updated_at
+            storyline_json, storyline_text, order_key, updated_at,
+            avatar_attachment_id,
+            (SELECT COUNT(*) FROM scene_character sc WHERE sc.character_id = character.id)
+              AS scene_count
        FROM character
       WHERE project_id = ? AND deleted_at IS NULL
       ORDER BY order_key`,
@@ -101,6 +106,8 @@ export async function listCharacters(
     },
     orderKey: row.order_key,
     updatedAt: row.updated_at,
+    avatarAttachmentId: row.avatar_attachment_id,
+    sceneCount: row.scene_count,
   }));
 }
 

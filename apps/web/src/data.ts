@@ -9,6 +9,7 @@ import {
   type CharacterRole,
   type Command,
   type ConsistencyCheck,
+  type CreateProjectArgs,
   type CustomFieldTarget,
   copyLineToSceneSynopsis,
   countFieldValuesByDef,
@@ -115,6 +116,7 @@ import {
   type SnowflakeStepContent,
   type SnowflakeStepNumber,
   saveStepContent,
+  sceneStats,
   searchProject,
   seedLoreTaxonomy,
   setEditorLastScene,
@@ -241,12 +243,25 @@ export function useSteps(projectId: UUID | null) {
   });
 }
 
+export function useSceneStats(projectId: UUID | null) {
+  const session = useSessionStore((state) => state.session);
+  return useQuery({
+    queryKey: ["sceneStats", session?.name ?? null, projectId],
+    enabled: session !== null && projectId !== null,
+    staleTime: 5_000,
+    queryFn: async () => {
+      if (!session || projectId === null) throw new Error("no project");
+      return sceneStats(session.driver, projectId);
+    },
+  });
+}
+
 export function useCreateProject() {
   const session = useSessionStore((state) => state.session);
   return useMutation({
-    mutationFn: async (title: string) => {
+    mutationFn: async (args: { title: string } & Partial<CreateProjectArgs>) => {
       if (!session) throw new Error("no library open");
-      return runCommand(session.driver, createProject, { title });
+      return runCommand(session.driver, createProject, args);
     },
   });
 }

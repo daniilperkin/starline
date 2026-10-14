@@ -17,6 +17,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   type ChapterSummary,
+  format,
   messages,
   orderScenesBookWise,
   plural,
@@ -39,6 +40,7 @@ import {
   useMoveChapter,
   useMoveScene,
   useRestoreEntity,
+  useSceneStats,
   useSceneTree,
   useSetScenePlacement,
   useUpdateChapter,
@@ -91,6 +93,7 @@ export function ScenesScreen() {
   const { project } = useActiveProject();
   const projectId = project?.id ?? null;
   const tree = useSceneTree(projectId);
+  const stats = useSceneStats(projectId);
   const navigate = useNavigate();
   const createScene = useCreateScene();
   const createChapter = useCreateChapter();
@@ -442,6 +445,45 @@ export function ScenesScreen() {
           ))}
         </fieldset>
       </header>
+
+      {mode === "list" && stats.data !== undefined && stats.data.total > 0 ? (
+        <section className="sl-card flex flex-col gap-2 p-3" data-testid="sl-scenes-stats">
+          <div className="sl-stat-bar" role="img" aria-label={messages.scenes.statsHeading}>
+            {SCENE_STATUSES.map((status) => (
+              <span
+                key={status}
+                style={{
+                  flexGrow: stats.data?.byStatus[status] ?? 0,
+                  background: SCENE_STATUS_COLORS[status],
+                }}
+              />
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
+            {SCENE_STATUSES.map((status) => (
+              <span key={status} className="flex items-center gap-1">
+                <span
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{ background: SCENE_STATUS_COLORS[status] }}
+                  aria-hidden="true"
+                />
+                {messages.scenes.status[status]} {stats.data?.byStatus[status] ?? 0}
+              </span>
+            ))}
+          </div>
+          <p className="text-xs text-muted" data-testid="sl-scenes-stats-words">
+            {format(messages.scenes.statsWords, {
+              written: formatNumber(stats.data.wordsWritten),
+              target: formatNumber(stats.data.wordsTarget),
+            })}{" "}
+            ·{" "}
+            {format(messages.scenes.statsSpread, {
+              chapters: stats.data.chapters,
+              unassigned: stats.data.unassigned,
+            })}
+          </p>
+        </section>
+      ) : null}
       {mode === "list" ? (
         <div className="flex flex-wrap items-center gap-2" data-testid="sl-outliner-toolbar">
           <select
