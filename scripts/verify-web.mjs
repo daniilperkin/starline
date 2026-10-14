@@ -2072,6 +2072,34 @@ ${text.slice(0, 400)}`);
     `  templates: three-act previewed 9 beats, reported "${reportText.slice(0, 40)}", and added 9 titled scenes (${beforeTemplate.total} → ${afterTemplate.total})`,
   );
 
+  // S32: the outliner's filters, dimming and bulk actions. The templates step above
+  // leaves its preview dialog open, so close it before navigating.
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+  await page.getByRole("link", { name: "Scenes" }).click();
+  await page.getByTestId("sl-scenes-list").click();
+  await page.getByTestId("sl-outliner-toolbar").waitFor({ timeout: 8000 });
+  await page.getByTestId("sl-filter-status").selectOption("drafting");
+  await page.getByTestId("sl-dim-others").check();
+  await page.waitForTimeout(400);
+  const dimmed = await page.locator('[data-dimmed="true"]').count();
+  console.log(`  outliner: the status filter dims ${dimmed} row(s) instead of hiding them`);
+  await page.getByTestId("sl-filter-status").selectOption("all");
+  await page.getByTestId("sl-dim-others").uncheck();
+  const checks = page.locator('[data-testid^="sl-select-"]');
+  const checkCount = await checks.count();
+  if (checkCount < 2) throw new Error(`the outliner shows ${checkCount} checkboxes, need 2`);
+  await checks.nth(0).check();
+  await checks.nth(1).check();
+  await page.getByTestId("sl-bulk-bar").waitFor({ timeout: 8000 });
+  console.log(`  outliner: ${checkCount} row checkboxes, the bulk bar appears after 2 picks`);
+  await page.getByTestId("sl-bulk-status").selectOption("outlined");
+  await page.waitForTimeout(600);
+  const barGone = (await page.getByTestId("sl-bulk-bar").count()) === 0;
+  if (!barGone) throw new Error("the bulk bar stayed after the bulk apply");
+  console.log("  outliner: the bulk status applied and the selection cleared");
+  await page.screenshot({ path: join(shotDir, "25-outliner.png"), fullPage: true });
+
   console.log("WEB-VERIFY OK");
   console.log(`screenshots: ${shotDir}`);
 } catch (cause) {

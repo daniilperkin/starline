@@ -21,6 +21,8 @@ import {
   orderScenesBookWise,
   plural,
   SCENE_STATUS_COLORS,
+  SCENE_STATUSES,
+  type SceneStatus,
   type SceneSummary,
   type UUID,
 } from "@starline/core";
@@ -28,6 +30,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useActiveProject } from "./active-project";
 import {
+  useBulkDeleteScenes,
+  useBulkUpdateScenes,
   useCreateChapter,
   useCreateScene,
   useDeleteChapter,
@@ -44,6 +48,34 @@ import { useNavigationStore } from "./navigation";
 import { PlotlineGrid } from "./PlotlineGrid";
 import { SceneSheet } from "./SceneSheet";
 import { useUndoStore } from "./undo";
+
+/** A saved outliner filter (spec 4.3.2: "All of Tor's scenes"). */
+interface SavedFilter {
+  name: string;
+  status: SceneStatus | "all";
+  pov: UUID | "all";
+}
+
+const SAVED_FILTERS_KEY = "starline.outliner.filters";
+
+function readSavedFilters(): SavedFilter[] {
+  try {
+    const raw = localStorage.getItem(SAVED_FILTERS_KEY);
+    if (raw === null) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as SavedFilter[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeSavedFilters(filters: SavedFilter[]) {
+  try {
+    localStorage.setItem(SAVED_FILTERS_KEY, JSON.stringify(filters));
+  } catch {
+    // Private mode or a full quota: the filters simply do not persist.
+  }
+}
 
 interface SceneGroup {
   chapter: ChapterSummary | null;
@@ -67,6 +99,8 @@ export function ScenesScreen() {
   const deleteChapter = useDeleteChapter();
   const moveScene = useMoveScene();
   const deleteScene = useDeleteScene();
+  const bulkUpdate = useBulkUpdateScenes();
+  const bulkDelete = useBulkDeleteScenes();
   const restore = useRestoreEntity();
   const setPlacement = useSetScenePlacement();
   const pushUndo = useUndoStore((state) => state.push);
@@ -82,6 +116,20 @@ export function ScenesScreen() {
   const [renamingChapter, setRenamingChapter] = useState<UUID | null>(null);
   const [renameText, setRenameText] = useState("");
   const [newChapterTitle, setNewChapterTitle] = useState("");
+
+  // Outliner depth (S32, spec 4.3.2): multi-select + bulk actions, filters with dimming,
+  // saved filters, a column chooser and a read-only group-by.
+  const [selected, setSelected] = useState<Set<UUID>>(new Set());
+  const [lastClicked, setLastClicked] = useState<UUID | null>(null);
+  const [filterStatus, setFilterStatus] = useState<SceneStatus | "all">("all");
+  const [filterPov, setFilterPov] = useState<UUID | "all">("all");
+  const [dimOthers, setDimOthers] = useState(false);
+  const [groupBy, setGroupBy] = useState<"none" | "status" | "pov">("none");
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [showPovColumn, setShowPovColumn] = useState(true);
+  const [showWordsColumn, setShowWordsColumn] = useState(true);
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>(() => readSavedFilters());
 
   // A search hit, backlink row or check item can ask for one specific scene (slice 7).
   const pendingTarget = useNavigationStore((state) => state.target);
@@ -112,7 +160,25 @@ export function ScenesScreen() {
     });
     return map;
   }, [scenes]);
+  /** Group-by (S32): the read-only regrouping of the chapter sections. */
   const groups: SceneGroup[] = useMemo(() => {
+    if (groupBy !== "none") {
+      const keyOf = (scene: SceneSummary) =>
+        groupBy === "status"
+          ? messages.scenes.status[scene.status]
+          : (scene.povName ?? messages.scenes.noPov);
+      const byKey = new Map<string, SceneSummary[]>();
+      for (const scene of scenes) {
+        const key = keyOf(scene);
+        const list = byKey.get(key);
+        if (list === undefined) byKey.set(key, [scene]);
+        else list.push(scene);
+      }
+      return [...byKey.entries()].map(([key, list]) => ({
+        chapter: { id: key, title: key } as ChapterSummary,
+        scenes: list,
+      }));
+    }
     const known = new Set(chapters.map((chapter) => chapter.id));
     return [
       ...chapters.map((chapter) => ({
@@ -124,13 +190,126 @@ export function ScenesScreen() {
         scenes: scenes.filter((scene) => scene.chapterId === null || !known.has(scene.chapterId)),
       },
     ];
-  }, [chapters, scenes]);
+  }, [chapters, scenes, groupBy]);
 
   const estimate = scenes.reduce((sum, scene) => sum + (scene.targetWordCount ?? 0), 0);
+
+  const povOptions = useMemo(() => {
+    const seen = new Map<UUID, string>();
+    for (const scene of scenes) {
+      if (scene.povCharacterId !== null && scene.povName !== null) {
+        seen.set(scene.povCharacterId, scene.povName);
+      }
+    }
+    return [...seen.entries()];
+  }, [scenes]);
+
+  const matchesFilter = (scene: SceneSummary) =>
+    (filterStatus === "all" || scene.status === filterStatus) &&
+    (filterPov === "all" || scene.povCharacterId === filterPov);
+
+  const anyFilter = filterStatus !== "all" || filterPov !== "all";
+
+  /** Shift-click selects a contiguous range in display order (spec 4.3.2 multi-select). */
+  const toggleSelected = (sceneId: UUID, range: boolean) => {
+    setSelected((previous) => {
+      const next = new Set(previous);
+      if (range && lastClicked !== null) {
+        const from = scenes.findIndex((scene) => scene.id === lastClicked);
+        const to = scenes.findIndex((scene) => scene.id === sceneId);
+        if (from !== -1 && to !== -1) {
+          const [lo, hi] = from < to ? [from, to] : [to, from];
+          for (let index = lo; index <= hi; index += 1) {
+            const id = scenes[index]?.id;
+            if (id !== undefined) next.add(id);
+          }
+          setLastClicked(sceneId);
+          return next;
+        }
+      }
+      if (next.has(sceneId)) next.delete(sceneId);
+      else next.add(sceneId);
+      setLastClicked(sceneId);
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelected(new Set());
+    setLastClicked(null);
+  };
 
   if (projectId === null) {
     return <p className="text-sm text-muted">{messages.common.loading}</p>;
   }
+
+  const applyBulk = async (patch: {
+    status?: SceneStatus;
+    povCharacterId?: UUID | null;
+    chapterId?: UUID | null;
+  }) => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    const previous = scenes
+      .filter((scene) => selected.has(scene.id))
+      .map((scene) => ({
+        id: scene.id,
+        status: scene.status,
+        povCharacterId: scene.povCharacterId,
+        chapterId: scene.chapterId,
+      }));
+    try {
+      await bulkUpdate.mutateAsync({ projectId, sceneIds: ids, patch });
+      clearSelection();
+      pushUndo(messages.undo.scenesUpdated, async () => {
+        for (const row of previous) {
+          await bulkUpdate.mutateAsync({
+            projectId,
+            sceneIds: [row.id],
+            patch: {
+              status: row.status,
+              povCharacterId: row.povCharacterId,
+              chapterId: row.chapterId,
+            },
+          });
+        }
+      });
+    } catch {
+      // The query refresh surfaces the failure.
+    }
+  };
+
+  const applyBulkDelete = async () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    try {
+      await bulkDelete.mutateAsync({ projectId, sceneIds: ids });
+      clearSelection();
+      pushUndo(plural(messages.undo.scenesDeleted, ids.length), async () => {
+        for (const id of ids)
+          await restore.mutateAsync({ projectId, entityType: "scene", entityId: id });
+      });
+    } catch {
+      // The query refresh surfaces the failure.
+    }
+  };
+
+  const saveCurrentFilter = () => {
+    const povName =
+      filterPov === "all" ? null : (povOptions.find(([id]) => id === filterPov)?.[1] ?? null);
+    const name =
+      filterStatus !== "all" && povName !== null
+        ? `${messages.scenes.status[filterStatus]} - ${povName}`
+        : filterStatus !== "all"
+          ? messages.scenes.status[filterStatus]
+          : (povName ?? messages.scenes.filterAll);
+    const next = [
+      ...savedFilters.filter((entry) => entry.name !== name),
+      { name, status: filterStatus, pov: filterPov },
+    ];
+    setSavedFilters(next);
+    writeSavedFilters(next);
+  };
 
   const closeMenus = () => {
     setSceneMenuFor(null);
@@ -263,6 +442,123 @@ export function ScenesScreen() {
           ))}
         </fieldset>
       </header>
+      {mode === "list" ? (
+        <div className="flex flex-wrap items-center gap-2" data-testid="sl-outliner-toolbar">
+          <select
+            className="sl-input sl-select"
+            value={filterStatus}
+            aria-label={messages.scenes.filterStatus}
+            data-testid="sl-filter-status"
+            onChange={(event) => setFilterStatus(event.target.value as SceneStatus | "all")}
+          >
+            <option value="all">{messages.scenes.filterAll}</option>
+            {SCENE_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {messages.scenes.status[status]}
+              </option>
+            ))}
+          </select>
+          <select
+            className="sl-input sl-select"
+            value={filterPov}
+            aria-label={messages.scenes.filterPov}
+            data-testid="sl-filter-pov"
+            onChange={(event) => setFilterPov(event.target.value as UUID | "all")}
+          >
+            <option value="all">{messages.scenes.filterAll}</option>
+            {povOptions.map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <label className="flex items-center gap-1.5 text-xs">
+            <input
+              type="checkbox"
+              checked={dimOthers}
+              data-testid="sl-dim-others"
+              onChange={(event) => setDimOthers(event.target.checked)}
+            />
+            {messages.scenes.dimOthers}
+          </label>
+          {anyFilter ? (
+            <button
+              type="button"
+              className="sl-btn sl-btn-small"
+              data-testid="sl-save-filter"
+              onClick={saveCurrentFilter}
+            >
+              {"\u2606"} {messages.scenes.saveFilter}
+            </button>
+          ) : null}
+          {savedFilters.map((entry) => (
+            <span key={entry.name} className="sl-chip flex items-center gap-1">
+              <button
+                type="button"
+                data-testid={`sl-saved-filter-${entry.name}`}
+                onClick={() => {
+                  setFilterStatus(entry.status);
+                  setFilterPov(entry.pov);
+                }}
+              >
+                {entry.name}
+              </button>
+              <button
+                type="button"
+                aria-label={`${messages.scenes.clearSelection} ${entry.name}`}
+                onClick={() => {
+                  const next = savedFilters.filter((candidate) => candidate.name !== entry.name);
+                  setSavedFilters(next);
+                  writeSavedFilters(next);
+                }}
+              >
+                {"\u00d7"}
+              </button>
+            </span>
+          ))}
+          <span className="flex-1" />
+          <select
+            className="sl-input sl-select"
+            value={groupBy}
+            aria-label={messages.scenes.groupBy}
+            data-testid="sl-group-by"
+            onChange={(event) => setGroupBy(event.target.value as "none" | "status" | "pov")}
+          >
+            <option value="none">{messages.scenes.groupNone}</option>
+            <option value="status">{messages.scenes.filterStatus}</option>
+            <option value="pov">{messages.scenes.filterPov}</option>
+          </select>
+          <button
+            type="button"
+            className="sl-btn sl-btn-small"
+            aria-expanded={columnsOpen}
+            data-testid="sl-columns"
+            onClick={() => setColumnsOpen(!columnsOpen)}
+          >
+            {"\u25a6"} {messages.scenes.columns}
+          </button>
+          {columnsOpen ? (
+            <div className="sl-row-menu" data-testid="sl-columns-sheet">
+              <label className="flex items-center gap-1.5 text-xs">
+                <input
+                  type="checkbox"
+                  checked={showPovColumn}
+                  onChange={(event) => setShowPovColumn(event.target.checked)}
+                />
+                {messages.scenes.showPovColumn}
+              </label>
+              <label className="flex items-center gap-1.5 text-xs">
+                <input
+                  type="checkbox"
+                  checked={showWordsColumn}
+                  onChange={(event) => setShowWordsColumn(event.target.checked)}
+                />
+                {messages.scenes.showWordsColumn}
+              </label>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {mode === "grid" ? (
         <PlotlineGrid projectId={projectId} />
@@ -468,7 +764,24 @@ export function ScenesScreen() {
                         <SortableSceneRow key={scene.id} id={scene.id}>
                           {({ listeners, isDragging }) => (
                             <>
-                              <div className="sl-scene-line" data-dragging={isDragging}>
+                              <div
+                                className="sl-scene-line"
+                                data-dragging={isDragging}
+                                data-dimmed={anyFilter && !matchesFilter(scene)}
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="sl-row-check"
+                                  checked={selected.has(scene.id)}
+                                  aria-label={`${scene.title || scene.synopsis.text || messages.sceneSheet.titlePlaceholder}`}
+                                  data-testid={`sl-select-${scene.id}`}
+                                  onChange={(event) =>
+                                    toggleSelected(
+                                      scene.id,
+                                      (event.nativeEvent as MouseEvent).shiftKey,
+                                    )
+                                  }
+                                />
                                 <button
                                   type="button"
                                   className="sl-scene-line-main"
@@ -485,22 +798,26 @@ export function ScenesScreen() {
                                         ? scene.synopsis.text
                                         : messages.sceneSheet.titlePlaceholder}
                                   </span>
-                                  <span className="shrink-0 text-xs text-muted">
-                                    {scene.povName ?? messages.scenes.noPov}
-                                  </span>
+                                  {showPovColumn ? (
+                                    <span className="shrink-0 text-xs text-muted">
+                                      {scene.povName ?? messages.scenes.noPov}
+                                    </span>
+                                  ) : null}
                                   <span
                                     className="sl-chip shrink-0"
                                     style={{ color: SCENE_STATUS_COLORS[scene.status] }}
                                   >
                                     {messages.scenes.status[scene.status]}
                                   </span>
-                                  <span className="w-16 shrink-0 text-right text-xs text-muted tabular-nums">
-                                    {scene.bodyWordCount > 0
-                                      ? formatNumber(scene.bodyWordCount)
-                                      : scene.targetWordCount !== null
-                                        ? `≈${formatNumber(scene.targetWordCount)}`
-                                        : ""}
-                                  </span>
+                                  {showWordsColumn ? (
+                                    <span className="w-16 shrink-0 text-right text-xs text-muted tabular-nums">
+                                      {scene.bodyWordCount > 0
+                                        ? formatNumber(scene.bodyWordCount)
+                                        : scene.targetWordCount !== null
+                                          ? `≈${formatNumber(scene.targetWordCount)}`
+                                          : ""}
+                                    </span>
+                                  ) : null}
                                 </button>
                                 <button
                                   type="button"
@@ -634,6 +951,77 @@ export function ScenesScreen() {
               ) : null}
             </DragOverlay>
           </DndContext>
+          {selected.size > 0 ? (
+            <div className="sl-bulk-bar" data-testid="sl-bulk-bar">
+              <span className="text-xs font-semibold">
+                {plural(messages.scenes.selectedCount, selected.size, {
+                  count: String(selected.size),
+                })}
+              </span>
+              <select
+                className="sl-input sl-select"
+                value=""
+                aria-label={messages.scenes.bulkStatus}
+                data-testid="sl-bulk-status"
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value.length > 0) void applyBulk({ status: value as SceneStatus });
+                }}
+              >
+                <option value="">{messages.scenes.bulkStatus}</option>
+                {SCENE_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {messages.scenes.status[status]}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="sl-input sl-select"
+                value=""
+                aria-label={messages.scenes.bulkChapter}
+                data-testid="sl-bulk-chapter"
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value.length > 0) {
+                    void applyBulk({ chapterId: value === "none" ? null : (value as UUID) });
+                  }
+                }}
+              >
+                <option value="">{messages.scenes.bulkChapter}</option>
+                <option value="none">{messages.scenes.unassigned}</option>
+                {chapters.map((chapter) => (
+                  <option key={chapter.id} value={chapter.id}>
+                    {chapter.title}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="sl-btn sl-btn-small"
+                data-danger={bulkDeleteConfirm}
+                data-testid="sl-bulk-delete"
+                onClick={() => {
+                  if (!bulkDeleteConfirm) {
+                    setBulkDeleteConfirm(true);
+                    return;
+                  }
+                  setBulkDeleteConfirm(false);
+                  void applyBulkDelete();
+                }}
+              >
+                ✕{" "}
+                {bulkDeleteConfirm ? messages.scenes.bulkDeleteConfirm : messages.scenes.bulkDelete}
+              </button>
+              <button
+                type="button"
+                className="sl-btn sl-btn-small"
+                data-testid="sl-bulk-clear"
+                onClick={clearSelection}
+              >
+                {messages.scenes.clearSelection}
+              </button>
+            </div>
+          ) : null}
         </>
       )}
 

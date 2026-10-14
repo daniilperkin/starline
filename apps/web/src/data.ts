@@ -1,6 +1,8 @@
 import {
   attachToGallery,
   type Backlinks,
+  bulkDeleteScenes,
+  bulkUpdateScenes,
   ChangeBus,
   type ChapterSummary,
   type CharacterPatch,
@@ -440,6 +442,8 @@ function useSceneCommand<A, R>(command: Command<A, R>) {
 export const useCreateScene = () => useSceneCommand(createScene);
 export const useUpdateScene = () => useSceneCommand(updateScene);
 export const useDeleteScene = () => useSceneCommand(deleteScene);
+export const useBulkUpdateScenes = () => useSceneCommand(bulkUpdateScenes);
+export const useBulkDeleteScenes = () => useSceneCommand(bulkDeleteScenes);
 export const useMoveScene = () => useSceneCommand(moveScene);
 export const useCreateScenesFromList = () => useSceneCommand(createScenesFromList);
 export const useCreateChapter = () => useSceneCommand(createChapter);

@@ -1,5 +1,5 @@
 import type { ChangeEvent } from "../changes";
-import type { Command } from "../commands";
+import type { Command, SqlValue } from "../commands";
 import type { SceneOutcome, SceneStatus, TimeOfDay } from "../entities";
 import { syncMentions } from "../lore/mentions";
 import { epochNow, newUuid, type OrderKey, orderKeyBetween, type UUID } from "../primitives";
@@ -217,6 +217,103 @@ export const deleteScene: Command<DeleteSceneArgs, void> = {
     return {
       result: undefined,
       changes: [{ table: "scene", op: "delete", id: args.sceneId, parentIds: [args.projectId] }],
+    };
+  },
+};
+
+export interface BulkUpdateScenesArgs {
+  projectId: UUID;
+  sceneIds: UUID[];
+  /** Fields to set on every selected scene. Tags are additive; the rest overwrite. */
+  patch: {
+    status?: SceneStatus;
+    povCharacterId?: UUID | null;
+    chapterId?: UUID | null;
+    addTagIds?: UUID[];
+  };
+}
+
+/**
+ * Bulk field updates for the outliner's multi-select (spec §4.3.2 bulk actions). One command,
+ * one transaction: the UI collects a selection and every write lands together so undo sees a
+ * single step. Tags are additive by design — "add tag" is the spec's wording — while status,
+ * POV and chapter overwrite.
+ */
+export const bulkUpdateScenes: Command<BulkUpdateScenesArgs, { updated: number }> = {
+  name: "scene.bulkUpdate",
+  async run(ctx, args) {
+    if (args.sceneIds.length === 0) return { result: { updated: 0 }, changes: [] };
+    const now = epochNow();
+    const setParts: string[] = ["updated_at = ?"];
+    const setValues: SqlValue[] = [now];
+    if (args.patch.status !== undefined) {
+      setParts.push("status = ?");
+      setValues.push(args.patch.status);
+    }
+    if (args.patch.povCharacterId !== undefined) {
+      setParts.push("pov_character_id = ?");
+      setValues.push(args.patch.povCharacterId);
+    }
+    if (args.patch.chapterId !== undefined) {
+      setParts.push("chapter_id = ?");
+      setValues.push(args.patch.chapterId);
+    }
+    let updated = 0;
+    for (const sceneId of args.sceneIds) {
+      const res = await ctx.tx.query(
+        `UPDATE scene SET ${setParts.join(", ")}
+          WHERE id = ? AND project_id = ? AND deleted_at IS NULL`,
+        [...setValues, sceneId, args.projectId],
+      );
+      void res;
+      updated += 1;
+      if (args.patch.addTagIds !== undefined && args.patch.addTagIds.length > 0) {
+        for (const tagId of args.patch.addTagIds) {
+          await ctx.tx.query(`INSERT OR IGNORE INTO scene_tag (scene_id, tag_id) VALUES (?, ?)`, [
+            sceneId,
+            tagId,
+          ]);
+        }
+      }
+    }
+    return {
+      result: { updated },
+      changes: args.sceneIds.map((id) => ({
+        table: "scene",
+        op: "update" as const,
+        id,
+        parentIds: [args.projectId],
+      })),
+    };
+  },
+};
+
+export interface BulkDeleteScenesArgs {
+  projectId: UUID;
+  sceneIds: UUID[];
+}
+
+/** Soft-delete a whole selection (spec §4.3.2 "delete"); the Trash screen restores them. */
+export const bulkDeleteScenes: Command<BulkDeleteScenesArgs, { deleted: number }> = {
+  name: "scene.bulkDelete",
+  async run(ctx, args) {
+    if (args.sceneIds.length === 0) return { result: { deleted: 0 }, changes: [] };
+    const now = epochNow();
+    for (const sceneId of args.sceneIds) {
+      await ctx.tx.query(
+        `UPDATE scene SET deleted_at = ?, updated_at = ?
+          WHERE id = ? AND project_id = ? AND deleted_at IS NULL`,
+        [now, now, sceneId, args.projectId],
+      );
+    }
+    return {
+      result: { deleted: args.sceneIds.length },
+      changes: args.sceneIds.map((id) => ({
+        table: "scene",
+        op: "delete" as const,
+        id,
+        parentIds: [args.projectId],
+      })),
     };
   },
 };

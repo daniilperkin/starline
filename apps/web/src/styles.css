@@ -425,6 +425,33 @@ body {
   color: var(--sl-danger);
 }
 
+/* The outliner's multi-select, dimming and bulk bar (S32). */
+.sl-scene-line[data-dimmed="true"] {
+  opacity: 0.35;
+}
+
+.sl-row-check {
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--sl-primary);
+}
+
+.sl-bulk-bar {
+  position: sticky;
+  bottom: 0.5rem;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--sl-border);
+  border-radius: 1rem;
+  background: var(--sl-surface);
+  padding: 0.5rem 0.75rem;
+  box-shadow: 0 12px 32px -20px var(--sl-glow);
+}
+
 .sl-scene-line {
   display: flex;
   align-items: center;
