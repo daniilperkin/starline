@@ -47,6 +47,12 @@ try {
   await page.getByPlaceholder("My Novel").fill("PerfProbe");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.waitForTimeout(4000);
+  // The first-run wizard (S37) overlays the create form.
+  const wizard = page.getByTestId("sl-onboarding");
+  if ((await wizard.count()) > 0) {
+    await page.getByTestId("sl-onboarding-skip").click();
+    await wizard.waitFor({ state: "hidden", timeout: 8000 });
+  }
   await page.getByRole("textbox").first().fill("Perf Story");
   await page.getByRole("button", { name: "Create story" }).click();
   await page.waitForTimeout(5000);

@@ -31,6 +31,7 @@ import {
   useTrash,
 } from "./data";
 import { formatNumber, useLocaleStore } from "./locale";
+import { ONBOARDING_KEY, Onboarding } from "./Onboarding";
 import { useSessionStore } from "./session";
 import { closeLibrary } from "./storage";
 import { ThemeButton } from "./ThemeButton";
@@ -96,6 +97,16 @@ export function PlanScreen() {
   const session = useSessionStore((state) => state.session);
   const setSession = useSessionStore((state) => state.setSession);
   const navigate = useNavigate();
+  // The first-run wizard (S37): shown once per device, before a story exists. The picked
+  // module set seeds the first story's settings.
+  const [onboarding, setOnboarding] = useState(() => {
+    try {
+      return localStorage.getItem(ONBOARDING_KEY) === null;
+    } catch {
+      return false;
+    }
+  });
+  const [onboardModules, setOnboardModules] = useState<string[] | null>(null);
   const createProject = useCreateProject();
   // The creation flow's extras (S36, spec 4.2 step 3): kept beside the title so the whole
   // brief is written in one command.
@@ -181,6 +192,20 @@ export function PlanScreen() {
         </div>
       </header>
 
+      {project === null && onboarding ? (
+        <Onboarding
+          onDone={(modules) => {
+            try {
+              localStorage.setItem(ONBOARDING_KEY, "1");
+            } catch {
+              // Private mode: the wizard reappears next time, which is the safe default.
+            }
+            setOnboardModules(modules);
+            setOnboarding(false);
+          }}
+        />
+      ) : null}
+
       {project === null ? (
         <section className="sl-card p-5">
           <h2 className="text-sm font-medium text-muted">{messages.plan.createHeading}</h2>
@@ -200,6 +225,7 @@ export function PlanScreen() {
                     targetWordCount: targetWords,
                     deadline: deadline.length > 0 ? deadline : null,
                     ideaSeed,
+                    ...(onboardModules !== null ? { enabledModules: onboardModules } : {}),
                   });
                 }
               }}
@@ -216,6 +242,7 @@ export function PlanScreen() {
                   targetWordCount: targetWords,
                   deadline: deadline.length > 0 ? deadline : null,
                   ideaSeed,
+                  ...(onboardModules !== null ? { enabledModules: onboardModules } : {}),
                 })
               }
             >

@@ -158,6 +158,12 @@ try {
   await page.getByPlaceholder("My Novel").fill("Chaos Web");
   await page.getByRole("button", { name: "Create" }).click();
   await page.getByPlaceholder("Name your story").waitFor({ timeout: 60_000 });
+  // The first-run wizard (S37) overlays the create form.
+  const wizard = page.getByTestId("sl-onboarding");
+  if ((await wizard.count()) > 0) {
+    await page.getByTestId("sl-onboarding-skip").click();
+    await wizard.waitFor({ state: "hidden", timeout: 8000 });
+  }
   await page.getByPlaceholder("Name your story").fill("Chaos Story");
   await page.getByRole("button", { name: "Create story" }).click();
   await page.getByText("0 of 9 steps complete").waitFor();

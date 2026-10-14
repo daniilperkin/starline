@@ -38,6 +38,8 @@ export interface CreateProjectArgs {
   deadline?: string | null;
   /** The one-sentence idea; lands in snowflake step 1's content when given. */
   ideaSeed?: string;
+  /** The onboarding's module choice (S37); reflect the picked set into the project settings. */
+  enabledModules?: string[];
 }
 
 /** Creates a project plus its nine snowflake_step rows (all exist from day one, spec §3.4). */
@@ -48,6 +50,14 @@ export const createProject: Command<CreateProjectArgs, { projectId: UUID }> = {
     if (title.length === 0) throw new Error("project title is required");
     const projectId = newUuid();
     const now = epochNow();
+    const settings = defaultProjectSettings();
+    if (args.enabledModules !== undefined) {
+      const picked = args.enabledModules.filter(
+        (module): module is string => typeof module === "string",
+      );
+      // The schema's enum is the contract; anything unknown is dropped rather than failing the create.
+      settings.enabledModules = picked as typeof settings.enabledModules;
+    }
     await ctx.tx.query(
       `INSERT INTO project (id, title, form, method, genres, target_word_count, deadline,
                             settings, created_at, updated_at)
@@ -60,7 +70,7 @@ export const createProject: Command<CreateProjectArgs, { projectId: UUID }> = {
         JSON.stringify(args.genres ?? []),
         args.targetWordCount ?? null,
         args.deadline ?? null,
-        JSON.stringify(defaultProjectSettings()),
+        JSON.stringify(settings),
         now,
         now,
       ],

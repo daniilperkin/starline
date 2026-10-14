@@ -873,6 +873,24 @@ export const en = {
     empty: "Add a relationship to see the web",
     edgeSummary: "{kind}: {a} → {b}",
   },
+  onboarding: {
+    welcomeTitle: "Welcome to StarLine",
+    welcomeBody:
+      "Plan and write your novel in one place: from a single sentence to a scene-by-scene outline, with your characters, world and notes cross-linked as you go. Everything lives on your device, offline.",
+    methodTitle: "The Snowflake Method, guided",
+    methodBody:
+      "Nine steps take you from the one-sentence idea to a full scene list. You can jump between steps freely - only real errors block a step, never order.",
+    modulesTitle: "Choose your tabs",
+    modulesBody:
+      "StarLine adapts to how you write. Turn any tab off now or later in Settings - your data stays either way.",
+    readyTitle: "You are ready",
+    readyBody:
+      "Name your story and the wizard\u2019s choices apply. The tour button on the start screen shows you around any time.",
+    back: "Back",
+    next: "Next",
+    skip: "Skip",
+    start: "Start writing",
+  },
   settings: {
     heading: "Settings",
     tags: "Tags",
@@ -885,6 +903,25 @@ export const en = {
     statuses: "Statuses",
     keyboard: "Keyboard",
     privacy: "Privacy",
+    modules: "Modules",
+    moduleNames: {
+      snowflake: "Snowflake",
+      characters: "Characters",
+      graph: "Relationships",
+      outliner: "Outliner",
+      timeline: "Timeline",
+      wiki: "World",
+      notes: "Notes",
+    },
+    moduleHints: {
+      snowflake: "The nine-step planning wizard",
+      characters: "Dossiers, gallery and the relationship matrix",
+      graph: "The relationship graph view",
+      outliner: "Chapters and scenes as a list or corkboard",
+      timeline: "Story events on a calendar",
+      wiki: "Lore, places and worldbuilding",
+      notes: "The idea incubator",
+    },
     smartQuotes: "Smart quotes",
     smartQuotesHint: "Curly quotes while you type.",
     autoPair: "Auto-pair",

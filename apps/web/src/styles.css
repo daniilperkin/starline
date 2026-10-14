@@ -453,6 +453,23 @@ body {
 }
 
 /* The Scenes statistics strip's stacked bar (S36). */
+/* The first-run wizard's backdrop (S37). */
+.sl-onboarding {
+  background: color-mix(in srgb, var(--sl-bg) 82%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.sl-onboarding-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--sl-border);
+}
+
+.sl-onboarding-dot[data-active="true"] {
+  background: var(--sl-primary);
+}
+
 .sl-stat-bar {
   display: flex;
   height: 0.55rem;

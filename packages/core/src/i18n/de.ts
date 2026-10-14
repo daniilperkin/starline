@@ -879,6 +879,24 @@ export const de = {
     empty: "Füge eine Beziehung hinzu, um das Netz zu sehen",
     edgeSummary: "{kind}: {a} → {b}",
   },
+  onboarding: {
+    welcomeTitle: "Willkommen bei StarLine",
+    welcomeBody:
+      "Plane und schreibe deinen Roman an einem Ort: vom einen Satz bis zum Szenenplan, mit Figuren, Welt und Notizen verknüpft. Alles bleibt auf deinem Gerät, offline.",
+    methodTitle: "Die Snowflake-Methode, geführt",
+    methodBody:
+      "Neun Schritte führen vom Ein-Satz-Einfall zur Szenenliste. Du springst frei zwischen den Schritten - nur echte Fehler blockieren, nie die Reihenfolge.",
+    modulesTitle: "Wähle deine Tabs",
+    modulesBody:
+      "StarLine passt sich an, wie du schreibst. Schalte jeden Tab jetzt oder später in den Einstellungen aus - deine Daten bleiben.",
+    readyTitle: "Bereit",
+    readyBody:
+      "Benenne deine Geschichte, dann greifen die Auswahl des Assistenten. Die Tour auf dem Startbildschirm zeigt dir jederzeit alles.",
+    back: "Zurück",
+    next: "Weiter",
+    skip: "Überspringen",
+    start: "Los schreiben",
+  },
   settings: {
     heading: "Einstellungen",
     tags: "Tags",
@@ -891,6 +909,25 @@ export const de = {
     statuses: "Status",
     keyboard: "Tastatur",
     privacy: "Privatsphäre",
+    modules: "Module",
+    moduleNames: {
+      snowflake: "Snowflake",
+      characters: "Figuren",
+      graph: "Beziehungen",
+      outliner: "Gliederung",
+      timeline: "Zeitleiste",
+      wiki: "Welt",
+      notes: "Notizen",
+    },
+    moduleHints: {
+      snowflake: "Der neunstufige Planungsassistent",
+      characters: "Dossiers, Galerie und Beziehungsmatrix",
+      graph: "Der Beziehungsgraph",
+      outliner: "Kapitel und Szenen als Liste oder Pinnwand",
+      timeline: "Ereignisse im Kalender",
+      wiki: "Weltwissen, Orte und Weltbau",
+      notes: "Die Ideenkiste",
+    },
     smartQuotes: "Kluge Anführungszeichen",
     smartQuotesHint: "Geschwungene Zeichen beim Tippen.",
     autoPair: "Automatisch schließen",

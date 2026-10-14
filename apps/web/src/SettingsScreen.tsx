@@ -54,6 +54,7 @@ type Section =
   | "statuses"
   | "keyboard"
   | "privacy"
+  | "modules"
   | "cloud";
 
 /**
@@ -75,6 +76,7 @@ export function SettingsScreen() {
     ["statuses", messages.settings.statuses],
     ["keyboard", messages.settings.keyboard],
     ["privacy", messages.settings.privacy],
+    ["modules", messages.settings.modules],
     ["cloud", messages.settings.cloud],
   ] as const;
 
@@ -128,6 +130,12 @@ export function SettingsScreen() {
         ) : (
           <StatusesPanel projectId={project.id} />
         )
+      ) : section === "modules" ? (
+        project === null ? (
+          <p className="text-sm text-muted">{messages.settings.noProject}</p>
+        ) : (
+          <ModulesPanel projectId={project.id} />
+        )
       ) : section === "keyboard" ? (
         <KeyboardPanel />
       ) : section === "privacy" ? (
@@ -178,6 +186,54 @@ function EditorPanel({ projectId }: { projectId: UUID }) {
           <span className="flex flex-col">
             <span>{label}</span>
             <span className="text-xs text-muted">{hint}</span>
+          </span>
+        </label>
+      ))}
+    </section>
+  );
+}
+
+// ── Modules ─────────────────────────────────────────────────────────────────────────────────
+
+/** S37: which tabs this project shows; the TabBar filters on this list (spec 4.2's rail). */
+const MODULE_IDS = [
+  "snowflake",
+  "characters",
+  "graph",
+  "outliner",
+  "timeline",
+  "wiki",
+  "notes",
+] as const;
+
+function ModulesPanel({ projectId }: { projectId: UUID }) {
+  const session = useSessionStore((state) => state.session);
+  const settings = useProjectSettings(projectId);
+  const value = settings.data ?? defaultProjectSettings();
+  const toggle = async (module: string, next: boolean) => {
+    if (!session) return;
+    const enabled = next
+      ? [...value.enabledModules, module]
+      : value.enabledModules.filter((entry) => entry !== module);
+    await writeProjectSettings(session.driver, projectId, {
+      ...value,
+      enabledModules: enabled as ProjectSettings["enabledModules"],
+    });
+    await settings.refetch();
+  };
+  return (
+    <section className="sl-card flex flex-col gap-3 p-5" data-testid="sl-settings-modules-panel">
+      {MODULE_IDS.map((module) => (
+        <label key={module} className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            data-testid={`sl-module-${module}`}
+            checked={value.enabledModules.includes(module)}
+            onChange={(event) => void toggle(module, event.target.checked)}
+          />
+          <span className="flex flex-col">
+            <span>{messages.settings.moduleNames[module]}</span>
+            <span className="text-xs text-muted">{messages.settings.moduleHints[module]}</span>
           </span>
         </label>
       ))}

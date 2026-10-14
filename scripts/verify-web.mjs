@@ -105,6 +105,15 @@ try {
   await page.screenshot({ path: join(shotDir, "1-start.png"), fullPage: true });
   await page.getByRole("button", { name: "Create" }).click();
 
+  // 2a. The first-run wizard (S37) overlays the plan screen; walk it and pick the modules.
+  await page.getByTestId("sl-onboarding").waitFor({ timeout: 20000 });
+  await page.getByTestId("sl-onboarding-next").click();
+  await page.getByTestId("sl-onboarding-next").click();
+  await page.getByTestId("sl-onboarding-next").click();
+  await page.getByTestId("sl-onboarding-next").click();
+  await page.getByTestId("sl-onboarding").waitFor({ state: "hidden", timeout: 8000 });
+  console.log("  onboarding: four slides walked (all modules kept - later steps need every tab)");
+
   // 2. Plan tab: create the story (first-run migrations + wasm init can take a moment).
   try {
     await page.getByPlaceholder("Name your story").waitFor({ timeout: 60_000 });
@@ -1693,6 +1702,17 @@ try {
   console.log(
     `  i18n: Ukrainian switch works (html lang=uk, "${ukCount.trim()}", stored choice) and English restores`,
   );
+  // 4ab1b. Slice 37: the Modules section toggles a tab off and back on (spec 4.2's rail).
+  await page.getByRole("button", { name: "Modules" }).click();
+  await page.getByTestId("sl-settings-modules-panel").waitFor({ timeout: 8000 });
+  const wikiBox = page.getByTestId("sl-module-wiki");
+  await wikiBox.click();
+  await page.waitForTimeout(1200);
+  if (await wikiBox.isChecked()) throw new Error("the World module did not switch off");
+  await wikiBox.click();
+  await page.waitForTimeout(1200);
+  if (!(await wikiBox.isChecked())) throw new Error("the World module did not switch back on");
+  console.log("  modules: the World tab toggled off and back on from Settings");
   // 4ab2. Slice 26: the guided tour. From Settings: the overlay opens, the first stop is a
   // centred welcome, the second navigates to the plan and spotlights a real anchor, and skipping
   // closes it while remembering that it was seen.
