@@ -23,6 +23,10 @@ import { useEffect, useRef } from "react";
  */
 
 /** The mention node, extended with the entity type so backlinks know what they point at. */
+// The live mentionable list, readable from the node view's closure (module scope because the
+// node view renders outside the component). The component writes it on every render.
+const mentionablesRef: { current: Mentionable[] } = { current: [] };
+
 const EntityMention = Mention.extend({
   addAttributes() {
     return {
@@ -49,7 +53,51 @@ const EntityMention = Mention.extend({
   renderText({ node }: { node: { attrs: Record<string, unknown> } }) {
     return `@${String(node.attrs.label ?? "")}`;
   },
+  /**
+   * The chip re-resolves its label from the live mentionables on every render (S33), so a
+   * rename updates every chip that points at the entity — ids never lie, stored labels go
+   * stale. The hover title shows the entity's glyph + detail as the preview.
+   */
+  addNodeView() {
+    return (({ node }: { node: { attrs: Record<string, unknown> } }) => {
+      const dom = document.createElement("span");
+      dom.className = "sl-mention-chip";
+      dom.dataset.entityId = String(node.attrs.entityId ?? "");
+      dom.dataset.entityType = String(node.attrs.entityType ?? "");
+      const resolve = () => {
+        const live = mentionablesRef.current.find(
+          (item) => item.id === String(node.attrs.entityId ?? ""),
+        );
+        const label = live?.label ?? String(node.attrs.label ?? "");
+        dom.textContent = `@${label}`;
+        dom.title = live ? `${live.glyph} ${live.detail}` : messages.world.mentionMissing;
+      };
+      resolve();
+      return { dom, update: resolve };
+    }) as never;
+  },
 });
+
+/**
+ * Fuzzy + recency scoring for the @-picker (S33, spec 4.4). Prefix beats substring beats a
+ * scattered subsequence; ties go to the most recently touched entity, then the alphabet.
+ * A query that matches nothing returns -1 and is filtered out.
+ */
+function scoreMentionable(item: Mentionable, query: string): number {
+  const q = query.trim().toLowerCase();
+  if (q.length === 0) return 0;
+  const label = item.label.toLowerCase();
+  if (label.startsWith(q)) return 1000 - label.length;
+  const index = label.indexOf(q);
+  if (index !== -1) return 500 - index * 10 - label.length;
+  let pos = 0;
+  for (const ch of q) {
+    pos = label.indexOf(ch, pos);
+    if (pos === -1) return -1;
+    pos += 1;
+  }
+  return 100 - label.length;
+}
 
 /** Minimal suggestion popup: a list under the caret, keyboard-driven (no tippy dependency). */
 function mentionSuggestion() {
@@ -208,7 +256,6 @@ export function RichTextEditor({
 }) {
   // The suggestion reads items at call time; a ref keeps the editor instance stable while the
   // entity list refreshes underneath it.
-  const mentionablesRef = useRef<Mentionable[]>(mentionables ?? []);
   mentionablesRef.current = mentionables ?? [];
   const withMentions = mentionables !== undefined;
 
@@ -228,10 +275,20 @@ export function RichTextEditor({
                   char: "@",
                   // The suggestion callbacks are typed against TipTap's MentionNodeAttrs; the
                   // runtime objects are our richer Mentionables (id/label/type/glyph/detail).
-                  items: ({ query }) =>
-                    mentionablesRef.current
-                      .filter((item) => item.label.toLowerCase().includes(query.toLowerCase()))
-                      .slice(0, 8) as never,
+                  items: ({ query }) => {
+                    const scored = mentionablesRef.current
+                      .map((item) => ({ item, score: scoreMentionable(item, query) }))
+                      .filter((row) => row.score >= 0)
+                      .sort(
+                        (a, b) =>
+                          b.score - a.score ||
+                          (b.item.updatedAt ?? 0) - (a.item.updatedAt ?? 0) ||
+                          a.item.label.localeCompare(b.item.label),
+                      )
+                      .slice(0, 8)
+                      .map((row) => row.item);
+                    return scored as never;
+                  },
                   command: ({ editor: instance, range, props }) => {
                     const item = props as unknown as Mentionable;
                     instance

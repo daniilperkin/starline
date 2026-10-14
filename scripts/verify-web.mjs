@@ -2100,6 +2100,29 @@ ${text.slice(0, 400)}`);
   console.log("  outliner: the bulk status applied and the selection cleared");
   await page.screenshot({ path: join(shotDir, "25-outliner.png"), fullPage: true });
 
+  // S33: the @-picker's scoring and the chip insert (notes carry mentionables already).
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300);
+  await page.getByRole("link", { name: "Notes" }).click();
+  await page
+    .locator(".sl-note-card, [data-testid^='sl-note-']")
+    .first()
+    .click()
+    .catch(() => {});
+  await page.waitForTimeout(500);
+  const editors = page.locator(".ProseMirror");
+  const editorCount = await editors.count();
+  if (editorCount === 0) throw new Error("no note editor on screen for the mention step");
+  await editors.first().click();
+  await page.keyboard.type(" @To");
+  await page.locator(".sl-mention-row").first().waitFor({ timeout: 8000 });
+  const mentionRows = await page.locator(".sl-mention-row").count();
+  await page.locator(".sl-mention-row").first().click();
+  await page.locator(".sl-mention-chip").last().waitFor({ timeout: 8000 });
+  const chips = await page.locator(".sl-mention-chip").count();
+  console.log(`  mentions: the picker offered ${mentionRows} row(s), ${chips} chip(s) render`);
+  await page.screenshot({ path: join(shotDir, "26-mentions.png"), fullPage: true });
+
   console.log("WEB-VERIFY OK");
   console.log(`screenshots: ${shotDir}`);
 } catch (cause) {

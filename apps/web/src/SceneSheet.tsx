@@ -11,6 +11,7 @@ import {
 } from "@starline/core";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { BacklinksPanel } from "./BacklinksPanel";
 import { CustomFieldsSection } from "./CustomFields";
 import {
   useCharacters,
@@ -536,6 +537,13 @@ function SceneSheetBody({
           }}
         />
       </div>
+
+      <BacklinksPanel
+        projectId={projectId}
+        targetType="scene"
+        targetId={sceneId}
+        onNavigate={() => onClose()}
+      />
 
       <div className="mt-2 flex justify-between gap-2 border-t border-line pt-4">
         <button

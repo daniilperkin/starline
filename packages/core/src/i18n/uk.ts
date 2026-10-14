@@ -694,6 +694,7 @@ export const uk: Messages = {
     noResults: "Нічого не збігається з «{query}»",
     mentionsTitle: "Пов'язати об'єкт",
     mentionEmpty: "Збігів немає",
+    mentionMissing: "Цю сутність видалено",
     breadcrumbRoot: "Світ",
   },
   kinds: {

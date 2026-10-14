@@ -239,4 +239,6 @@ export interface Mentionable {
   glyph: string;
   /** Kind label or character role, for the picker's second line. */
   detail: string;
+  /** Last update, for the picker's recency ranking (S33). */
+  updatedAt?: number;
 }

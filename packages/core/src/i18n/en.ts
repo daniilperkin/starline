@@ -635,6 +635,7 @@ export const en = {
     noResults: "Nothing matches “{query}”",
     mentionsTitle: "Link an entity",
     mentionEmpty: "No matches",
+    mentionMissing: "This entity was deleted",
     breadcrumbRoot: "World",
   },
   kinds: {

@@ -235,8 +235,13 @@ export async function listMentionables(
   runner: LoreQueryRunner,
   projectId: UUID,
 ): Promise<Mentionable[]> {
-  const characters = await runner.query<{ id: string; name: string; role: string }>(
-    `SELECT id, name, role FROM character
+  const characters = await runner.query<{
+    id: string;
+    name: string;
+    role: string;
+    updated_at: number;
+  }>(
+    `SELECT id, name, role, updated_at FROM character
       WHERE project_id = ? AND deleted_at IS NULL ORDER BY name COLLATE NOCASE`,
     [projectId],
   );
@@ -245,20 +250,31 @@ export async function listMentionables(
     name: string;
     kind: string;
     custom_kind_label: string;
+    updated_at: number;
   }>(
-    `SELECT id, name, kind, custom_kind_label FROM lore_entry
+    `SELECT id, name, kind, custom_kind_label, updated_at FROM lore_entry
       WHERE project_id = ? AND deleted_at IS NULL ORDER BY name COLLATE NOCASE`,
     [projectId],
   );
   // Spec §4.4.2: `@` offers characters, lore, scenes and notes — a note can be referenced from
   // prose and vice versa, which is exactly what the backlink panel shows.
-  const scenes = await runner.query<{ id: string; title: string; synopsis_text: string }>(
-    `SELECT id, title, synopsis_text FROM scene
+  const scenes = await runner.query<{
+    id: string;
+    title: string;
+    synopsis_text: string;
+    updated_at: number;
+  }>(
+    `SELECT id, title, synopsis_text, updated_at FROM scene
       WHERE project_id = ? AND deleted_at IS NULL ORDER BY order_key`,
     [projectId],
   );
-  const notes = await runner.query<{ id: string; title: string; body_text: string }>(
-    `SELECT id, title, body_text FROM idea_note
+  const notes = await runner.query<{
+    id: string;
+    title: string;
+    body_text: string;
+    updated_at: number;
+  }>(
+    `SELECT id, title, body_text, updated_at FROM idea_note
       WHERE project_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT 100`,
     [projectId],
   );
@@ -269,6 +285,7 @@ export async function listMentionables(
       label: row.name,
       glyph: "◍",
       detail: row.role,
+      updatedAt: row.updated_at as number,
     })),
     ...lore.map((row) => ({
       id: row.id as UUID,
@@ -276,6 +293,7 @@ export async function listMentionables(
       label: row.name,
       glyph: LORE_KIND_GLYPHS[row.kind as LoreKind] ?? "✧",
       detail: row.kind === "custom" ? row.custom_kind_label : row.kind.replace(/_/g, " "),
+      updatedAt: row.updated_at as number,
     })),
     ...scenes.map((row) => ({
       id: row.id as UUID,
@@ -283,6 +301,7 @@ export async function listMentionables(
       label: row.title.trim() || firstLineOf(row.synopsis_text) || "(untitled scene)",
       glyph: "▤",
       detail: "scene",
+      updatedAt: row.updated_at as number,
     })),
     ...notes.map((row) => ({
       id: row.id as UUID,
@@ -290,6 +309,7 @@ export async function listMentionables(
       label: row.title.trim() || firstLineOf(row.body_text) || "(untitled note)",
       glyph: "✦",
       detail: "note",
+      updatedAt: row.updated_at as number,
     })),
   ];
 }

@@ -19,6 +19,7 @@ import {
   type UUID,
 } from "@starline/core";
 import { useEffect, useRef, useState } from "react";
+import { BacklinksPanel } from "./BacklinksPanel";
 import {
   useDeleteCharacter,
   useDeleteLoreEntry,
@@ -382,6 +383,13 @@ export function NoteSheet({
         </section>
 
         {error !== null ? <p className="sl-error">{error}</p> : null}
+
+        <BacklinksPanel
+          projectId={projectId}
+          targetType="note"
+          targetId={noteId}
+          onNavigate={() => onClose()}
+        />
 
         <footer className="sl-sheet-foot">
           <button

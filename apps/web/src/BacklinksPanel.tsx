@@ -29,7 +29,7 @@ const SOURCE_GLYPHS: Record<string, string> = {
 
 export interface BacklinksPanelProps {
   projectId: UUID | null;
-  targetType: "lore" | "character";
+  targetType: "lore" | "character" | "scene" | "note";
   targetId: UUID | null;
   /** Opens the source entity (scene sheet, lore sheet, character screen). */
   onNavigate: (source: BacklinkSource | PossibleMention) => void;

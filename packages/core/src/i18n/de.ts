@@ -640,6 +640,7 @@ export const de = {
     noResults: "Nichts passt zu „{query}“",
     mentionsTitle: "Eintrag verlinken",
     mentionEmpty: "Keine Treffer",
+    mentionMissing: "Diese Entität wurde gelöscht",
     breadcrumbRoot: "Welt",
   },
   kinds: {

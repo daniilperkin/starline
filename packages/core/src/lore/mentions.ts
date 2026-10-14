@@ -8,7 +8,7 @@ import type { PMDoc, PMNode } from "../richtext";
  * `{ entityType, entityId, label }` attrs; the mirror is what backlinks and search read.
  */
 
-export type MentionTargetType = "character" | "lore";
+export type MentionTargetType = "character" | "lore" | "scene" | "note";
 
 export interface ExtractedMention {
   targetType: MentionTargetType;
@@ -28,7 +28,12 @@ export function extractMentions(doc: PMDoc | null | undefined): ExtractedMention
     for (const node of nodes) {
       if (isMentionNode(node)) {
         const targetType = String(node.attrs?.entityType);
-        if (targetType === "character" || targetType === "lore") {
+        if (
+          targetType === "character" ||
+          targetType === "lore" ||
+          targetType === "scene" ||
+          targetType === "note"
+        ) {
           const targetId = String(node.attrs?.entityId) as UUID;
           const key = `${targetType}:${targetId}`;
           const existing = counts.get(key);
