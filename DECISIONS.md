@@ -268,3 +268,25 @@ everything not listed here; entries are folded back into the spec on owner reque
   (a dependency dumping CSS), which it still does at 11.
 - **Recorded:** `scripts/check-bundle.mjs`, `AGENTS.md`, and this entry; the trim's findings live
   in the commit history and the S31 plan note.
+
+## 28. M5 accessibility acceptance (owner, 2026-10-14)
+
+The owner accepted the M5 accessibility audit on 2026-10-14. `scripts/check-a11y.mjs`
+proves 61 scripted checks beyond axe - keyboard-only walks with a visible focus
+indicator on nine screens, 24 px targets, 320 px reflow, WCAG 1.4.12 text spacing,
+reduced motion, the starfield stop control, page titles, `html lang`, Escape closing a
+sheet, and a live region for status messages - all green at the M5 close, alongside the
+axe scans on every screen in both locales in the web journey. This is the S38 slice's
+owner sign-off.
+
+## 29. The PWA sign-in repaired (owner + fix, 2026-10-14)
+
+The owner added the authorized JavaScript origins (`https://daniilperkin.github.io` and
+`http://localhost:5187`) on the web OAuth client, which cleared `origin_mismatch`. A
+Playwright probe driving the deployed PWA end to end then found the second, real
+blocker: `deploy-pages.yml` passed `STARLINE_GOOGLE_WEB_CLIENT_ID` with a stray
+trailing double quote, so the deployed bundle sent `...googleusercontent.com%22` and
+Google answered 401 `invalid_client` ("The OAuth client was not found"). The quote is
+removed (`e24c4ae`); the redeployed PWA opens the real account chooser with the correct
+client id and `origin=https://daniilperkin.github.io` accepted. The APKs were never
+affected - their properties file is written locally without the quote.

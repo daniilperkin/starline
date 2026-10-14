@@ -141,4 +141,4 @@ The harness (`scripts/check-a11y.mjs`) runs 61 scripted checks beyond axe: keybo
 visible focus indicator at every stop on 9 screens, 24 px targets, 320 px reflow, WCAG 1.4.12 text
 spacing, reduced motion, the starfield stop control, page titles, `html lang`, Escape closing a sheet,
 and a live region for status messages. All green at the M5 close; the owner's sign-off is recorded in
-`DECISIONS.md`.
+`DECISIONS.md` (decision 28, 2026-10-14).
