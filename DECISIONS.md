@@ -290,3 +290,14 @@ Google answered 401 `invalid_client` ("The OAuth client was not found"). The quo
 removed (`e24c4ae`); the redeployed PWA opens the real account chooser with the correct
 client id and `origin=https://daniilperkin.github.io` accepted. The APKs were never
 affected - their properties file is written locally without the quote.
+
+## 30. The backdrop draws real northern constellations (owner, 2026-10-14)
+
+The owner asked for the starfield to carry the real constellations of the northern sky,
+with the colors untouched. The twelve iconic patterns (Ursa Major, Ursa Minor, Cassiopeia,
+Orion, Cygnus, Lyra, Aquila, Taurus, Gemini, Leo, Bootes, Corona Borealis) now draw from
+real J2000 star positions (orthographic projection, true shapes and proportions) and real
+relative magnitudes; three to five appear per screen depending on width, joined by the
+same faint violet lines the decorative clusters used. Placement is artistic - a phone
+backdrop, not a sky simulator. The sky stays seeded, the reduced-motion and battery
+behavior and the Settings toggle are unchanged, and no color token moved.

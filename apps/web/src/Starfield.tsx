@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { CONSTELLATIONS, type Constellation } from "./constellations";
 import { STARFIELD_EVENT, starfieldAnimated } from "./effects";
 
 const SEED = 0x53544152; // "STAR"
@@ -25,11 +26,20 @@ interface Star {
   gold: boolean;
 }
 
+/** A real constellation placed on the canvas: anchor point plus px-per-degree scale. */
+interface PlacedConstellation {
+  constellation: Constellation;
+  x: number;
+  y: number;
+  scale: number;
+}
+
 /**
  * The signature backdrop (docs/DESIGN.md, owner decision 11 / "more cosmic"): a seeded
- * starfield with constellation clusters and brighter nebulas, gently twinkling and drifting.
- * Battery-aware — ~25 fps cap, paused while the tab is hidden, and fully static for
- * prefers-reduced-motion users. The seed keeps the same sky on every launch.
+ * starfield with real northern-hemisphere constellations and brighter nebulas, gently
+ * twinkling and drifting. Battery-aware — ~25 fps cap, paused while the tab is hidden,
+ * and fully static for prefers-reduced-motion users. The seed keeps the same sky on
+ * every launch.
  */
 export function Starfield() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -43,7 +53,7 @@ export function Starfield() {
     let width = 0;
     let height = 0;
     let stars: Star[] = [];
-    let clusters: Array<Array<[number, number]>> = [];
+    let placed: PlacedConstellation[] = [];
     let raf = 0;
     let lastPaint = 0;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -71,16 +81,34 @@ export function Starfield() {
         });
       }
 
-      clusters = [];
-      for (let cluster = 0; cluster < 3; cluster++) {
-        const cx = (0.15 + rand() * 0.7) * width;
-        const cy = (0.12 + rand() * 0.6) * height;
-        const nodes: Array<[number, number]> = [];
-        const nodeCount = 4 + Math.floor(rand() * 3);
-        for (let k = 0; k < nodeCount; k++) {
-          nodes.push([cx + (rand() - 0.5) * 220, cy + (rand() - 0.5) * 180]);
+      // Real northern constellations, placed from their own seeded stream so the random
+      // star field above keeps its exact layout. Three on a phone, five on a wide screen.
+      placed = [];
+      const rand2 = mulberry32(SEED ^ 0x2e5ca7);
+      const shuffled = [...CONSTELLATIONS];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(rand2() * (i + 1));
+        const a = shuffled[i];
+        const b = shuffled[j];
+        if (a && b) {
+          shuffled[i] = b;
+          shuffled[j] = a;
         }
-        clusters.push(nodes);
+      }
+      const wanted = width < 640 ? 3 : width < 1100 ? 4 : 5;
+      const minDist = Math.min(width, height) * 0.3;
+      for (const constellation of shuffled.slice(0, wanted)) {
+        // Bigger patterns stay bigger (the Dipper dwarfs Lyra), compressed so that the
+        // small ones stay readable at phone sizes.
+        const targetPx = Math.min(58 + constellation.span * 2.6, 140) * (width >= 640 ? 1.1 : 1);
+        let bx = 0.5 * width;
+        let by = 0.4 * height;
+        for (let attempt = 0; attempt < 24; attempt++) {
+          bx = (0.12 + rand2() * 0.76) * width;
+          by = (0.1 + rand2() * 0.62) * height;
+          if (placed.every((p) => Math.hypot(p.x - bx, p.y - by) > minDist)) break;
+        }
+        placed.push({ constellation, x: bx, y: by, scale: targetPx / constellation.span });
       }
     };
 
@@ -127,22 +155,33 @@ export function Starfield() {
       }
       ctx.globalAlpha = 1;
 
-      // Three constellation clusters, joined by faint lines.
+      // The real constellations: true shapes, asterism joins in the same faint violet as
+      // before, star sizes and brightness from real relative magnitudes. Drawn last so
+      // the pattern stars sit above the filler field.
       ctx.strokeStyle = dark ? "rgba(139,124,246,0.22)" : "rgba(91,70,214,0.14)";
       ctx.lineWidth = 0.7;
-      for (const nodes of clusters) {
+      for (const { constellation, x, y, scale } of placed) {
         ctx.beginPath();
-        nodes.forEach(([x, y], index) => {
-          const nx = shift(x);
-          if (index === 0) ctx.moveTo(nx, y);
-          else ctx.lineTo(nx, y);
-        });
+        for (const [a, b] of constellation.lines) {
+          const from = constellation.stars[a];
+          const to = constellation.stars[b];
+          if (!from || !to) continue; // guarded by the data test; skip rather than draw NaN
+          ctx.moveTo(shift(x + from.x * scale), y + from.y * scale);
+          ctx.lineTo(shift(x + to.x * scale), y + to.y * scale);
+        }
         ctx.stroke();
-        for (const [x, y] of nodes) {
-          ctx.globalAlpha = dark ? 0.9 : 0.55;
+        for (const star of constellation.stars) {
+          const brightness = Math.max(0, Math.min(1, (2.9 - star.mag) / 3.4));
+          ctx.globalAlpha = (0.5 + brightness * 0.45) * (dark ? 1 : 0.5);
           ctx.fillStyle = starColor;
           ctx.beginPath();
-          ctx.arc(shift(x), y, 1.4, 0, Math.PI * 2);
+          ctx.arc(
+            shift(x + star.x * scale),
+            y + star.y * scale,
+            0.85 + brightness * 1.35,
+            0,
+            Math.PI * 2,
+          );
           ctx.fill();
         }
         ctx.globalAlpha = 1;

@@ -33,9 +33,12 @@ Rules (the CatBookTracker “accent is decoration” rule, adapted):
 
 - **Seeded** (mulberry32, fixed `STAR` seed) and **static**: drawn once per resize or theme
   change, no animation, no battery cost — the same sky on every launch.
-- Density ≈ one star per 4200 px²; radius 0.4–1.3 px; alpha 0.22–0.82; ~14 % of stars are gold.
-- Two nebula washes (violet upper-left ~10 %, blue lower-right ~7 % in dark; halved in light).
-- Three constellation clusters: 4–6 nodes joined by faint lines (≤ 0.7 px) — decorative only.
+- Density ≈ one star per 3600 px²; radius 0.4–1.7 px; alpha 0.22–0.82; ~14 % of stars are gold.
+- Three nebula washes (violet upper-left, blue lower-right, a faint gold haze; halved in light).
+- Real northern constellations: the twelve iconic patterns (Big Dipper, Little Dipper,
+  Cassiopeia, Orion, Cygnus, Lyra, Aquila, Taurus, Gemini, Leo, Bootes, Corona Borealis)
+  with true shapes and relative magnitudes; 3–5 per screen, joined by faint lines
+  (≤ 0.7 px) — decorative only.
 - DPR capped at 2; the light theme draws at half alpha.
 
 ## Components

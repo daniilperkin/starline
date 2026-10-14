@@ -8,7 +8,11 @@ export default defineConfig({
         extends: true,
         test: {
           name: "node",
-          include: ["packages/*/src/**/*.test.ts", "packages/*/tests/**/*.test.ts"],
+          include: [
+            "packages/*/src/**/*.test.ts",
+            "packages/*/tests/**/*.test.ts",
+            "apps/web/src/**/*.test.ts",
+          ],
           exclude: ["packages/driver-wasm/tests/**"],
           environment: "node",
           testTimeout: 30_000,
