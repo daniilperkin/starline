@@ -6,6 +6,9 @@ was searched. Owner decisions that override the spec are listed separately, not 
 
 **92 items** where the spec asks for something the code does not do, plus **15 judgement calls**.
 
+> **Status: closed (2026-10-14, M5).** Every item below was triaged into slices 21-38 and
+> shipped; superseded items are struck where the evidence moved. This file stays as the input record.
+
 ## How to read this
 
 - **Tier 1 - forgotten:** never in a plan, decision or carry-over list, and worth building.

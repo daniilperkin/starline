@@ -825,7 +825,7 @@ with decision 24; the `reviewedCharacterIds` line was stale (it is implemented i
 - **The audit's findings are all in scope** (`docs/SPEC-GAP-AUDIT.md`, 92 items triaged into
   three tiers), together with the four carry-overs. Roughly 6-8 weeks of focused work, sequenced
   below so each slice is independently shippable.
-- **The Google console origins wait** — the APK signs in without them; the deployed PWA does not.
+- **The Google console origins** — added by the owner on 2026-10-14; the deployed PWA's sign-in is repaired end to end (decision 29).
 - **M5 status: COMPLETE** (slices 21-38 shipped).
 
 **Sequence** (each slice lands on `main` with its gates green, per the standing convention):

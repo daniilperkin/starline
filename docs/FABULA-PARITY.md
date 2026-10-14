@@ -4,6 +4,9 @@
 > (`com.fabula.app`): contain every feature its paid members get, and can have more and better.
 > This document is the working checklist. Verified against the Play/App Store listings,
 > UpdateStar's feature FAQ and user reviews on 2026-10-09.
+>
+> **Status: the checklist below stands as implemented through the M5 close** (slices 21-38);
+> re-verify against the stores before any future parity push.
 
 ## 1. Fabula's model (what "paid members get")
 
