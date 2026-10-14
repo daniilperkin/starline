@@ -59,7 +59,7 @@ jobs:
           STARLINE_FIREBASE_API_KEY: ${{ vars.STARLINE_FIREBASE_API_KEY }}
           STARLINE_FIREBASE_APP_ID: ${{ vars.STARLINE_FIREBASE_APP_ID }}
           STARLINE_FIREBASE_PROJECT_ID: ${{ vars.STARLINE_FIREBASE_PROJECT_ID }}
-          STARLINE_GOOGLE_WEB_CLIENT_ID: ${{ vars.STARLINE_GOOGLE_WEB_CLIENT_ID }}"
+          STARLINE_GOOGLE_WEB_CLIENT_ID: ${{ vars.STARLINE_GOOGLE_WEB_CLIENT_ID }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
