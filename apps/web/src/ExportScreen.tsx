@@ -99,6 +99,9 @@ export function ExportScreen() {
     headingLevel: 1,
     sceneBreak: "asterisks",
   });
+  // The manuscript's scene separator (S34, spec 4.5.1) — every market prints differently.
+  const [sceneSeparator, setSceneSeparator] = useState("#");
+  const splitFileInput = useRef<HTMLInputElement | null>(null);
   const [split, setSplit] = useState<SplitResult | null>(null);
   const [splitDone, setSplitDone] = useState<string | null>(null);
 
@@ -113,6 +116,7 @@ export function ExportScreen() {
     includeSynopsis,
     includeBody,
     includeNotes,
+    sceneSeparator,
     chapters: chapterScope,
     statuses:
       statusFilter === "all"
@@ -120,6 +124,25 @@ export function ExportScreen() {
         : statusFilter === "done"
           ? ["done"]
           : ["drafted", "revising", "done"],
+  };
+
+  /** A picked manuscript file: plain text reads directly, DOCX goes through mammoth (lazy). */
+  const onSplitFile = async (file: File) => {
+    setError(null);
+    try {
+      if (file.name.toLowerCase().endsWith(".docx")) {
+        const mammoth = await import("mammoth");
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        setManuscriptText(result.value);
+      } else {
+        setManuscriptText(await file.text());
+      }
+      setSplit(null);
+      setSplitDone(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
   };
 
   // The preview is the first ~two pages of the manuscript the settings describe — built on the
@@ -403,6 +426,23 @@ export function ExportScreen() {
             {messages.export.includeNotes}
           </label>
 
+          <div className="sl-field">
+            <label className="sl-label" htmlFor="sl-export-separator">
+              {messages.export.separatorLabel}
+            </label>
+            <select
+              id="sl-export-separator"
+              className="sl-select"
+              data-testid="sl-export-separator"
+              value={sceneSeparator}
+              onChange={(event) => setSceneSeparator(event.target.value)}
+            >
+              <option value="#">#</option>
+              <option value="***">***</option>
+              <option value="✦">✦</option>
+            </select>
+          </div>
+
           {stage !== null ? (
             <progress
               className="sl-export-progress"
@@ -590,6 +630,30 @@ export function ExportScreen() {
               setSplit(null);
             }}
           />
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="sl-btn"
+              data-testid="sl-split-file"
+              onClick={() => splitFileInput.current?.click()}
+            >
+              {messages.export.splitFile}
+            </button>
+            <span className="text-xs text-muted">{messages.export.splitFileHint}</span>
+            <input
+              ref={splitFileInput}
+              type="file"
+              className="hidden"
+              accept=".txt,.md,.markdown,.docx,text/plain,text/markdown"
+              data-testid="sl-split-file-input"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) void onSplitFile(file);
+              }}
+            />
+          </div>
 
           <div className="flex flex-wrap gap-3">
             <div className="sl-field">

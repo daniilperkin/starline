@@ -18,6 +18,12 @@ export const de = {
     importHeading: "Projekt importieren",
     chooseFile: "Datei wählen…",
     importHint: ".starline.json oder .starline.zip",
+    readOnlyBanner:
+      "Diese Bibliothek stammt aus einer neueren StarLine-Version — schreibgeschützt geöffnet. Aktualisiere die App zum Bearbeiten.",
+    readingFile: "Datei wird gelesen…",
+    creatingLibrary: "Bibliothek wird erstellt…",
+    writingProject: "Projekt wird geschrieben…",
+    openedDirectly: "direkt geöffnet",
     librariesHeading: "Deine Bibliotheken",
     noLibraries: "Noch keine Bibliothek — lege oben eine an.",
     open: "Öffnen",
@@ -1037,6 +1043,9 @@ export const de = {
     tabExport: "Export",
     tabCsv: "CSV-Import",
     tabManuscript: "Manuskript",
+    separatorLabel: "Szenen-Trenner",
+    splitFile: "Datei wählen…",
+    splitFileHint: ".txt, .md oder .docx",
     presets: {
       json: "JSON",
       markdownFolder: "Markdown-Ordner",

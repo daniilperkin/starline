@@ -10,8 +10,7 @@
 
 import { attachmentExtension } from "../attachments/types";
 import { extractMentions } from "../lore/mentions";
-import type { PMDoc } from "../richtext";
-import { pmDocToPlainText } from "../richtext";
+import { BLOCK_TYPES, type PMDoc, type PMNode, pmDocToPlainText } from "../richtext";
 import { cell, parseCsv, toCsv } from "./csv";
 import { numberPrefix, slugify, uniqueSlugs } from "./slug";
 import { EXPORT_TABLES, type ExportRow, type ProjectExport } from "./types";
@@ -147,12 +146,37 @@ function textOf(value: unknown): string {
   return pmDocToPlainText(value as PMDoc);
 }
 
+/**
+ * A rich-text column as Markdown with mention chips as `[[label]]` wiki-links (S34, spec
+ * 4.5.1) — the file stays readable in an Obsidian vault, and the frontmatter's `mentions`
+ * array carries the ids the re-import resolves against.
+ */
+function markdownOf(doc: unknown): string {
+  if (doc === null || doc === undefined || typeof doc !== "object") return "";
+  const parts: string[] = [];
+  const walk = (nodes: PMNode[] | undefined): void => {
+    if (!nodes) return;
+    for (const node of nodes) {
+      if (node.type === "text" && node.text) {
+        parts.push(node.text);
+      } else if (node.type === "mention" && node.attrs?.label != null) {
+        parts.push(`[[${String(node.attrs.label)}]]`);
+      } else if (node.content) {
+        walk(node.content);
+        if (BLOCK_TYPES.has(node.type)) parts.push("\n");
+      }
+    }
+  };
+  walk((doc as PMDoc).content);
+  return parts.join("");
+}
+
 function bodyFor(table: string, row: ExportRow): string {
   const sections = BODY_SECTIONS[table] ?? [];
   if (sections.length === 0) return "";
   const parts: string[] = [];
   for (const [column, label] of sections) {
-    const text = textOf(row[column]);
+    const text = markdownOf(row[column]);
     if (text.trim().length === 0) continue;
     parts.push(`## ${label}\n\n${text.trim()}`);
   }

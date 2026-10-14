@@ -20,6 +20,7 @@ import { UndoToast } from "./UndoToast";
 export function AppLayout() {
   const router = useRouter();
   const session = useSessionStore((state) => state.session);
+  const readOnly = session?.readOnly === true;
   const { project: activeProject } = useActiveProject();
   const openEntity = useOpenEntity();
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -98,30 +99,33 @@ export function AppLayout() {
   const health = session?.health ?? null;
   const showHealth = health !== null && !healthDismissed && (health.crashed || !health.integrityOk);
 
-  const banner =
-    showHealth && health !== null ? (
-      <div className="sl-banner" role="alert">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium">
-            {health.crashed
-              ? format(messages.health.recovered, { when: relativeTime(health.lastChangeAt) })
-              : format(messages.health.integrityFailed, {
-                  messages: health.integrityMessages.join("; "),
-                })}
-          </p>
-          <p className="mt-1 text-xs text-muted">
-            {health.crashed ? messages.health.recoveredHint : messages.health.integrityHint}
-          </p>
-        </div>
-        <button
-          type="button"
-          className="sl-btn-small shrink-0"
-          onClick={() => setHealthDismissed(true)}
-        >
-          {messages.health.dismiss}
-        </button>
+  const banner = readOnly ? (
+    <div className="sl-banner" role="status" data-testid="sl-readonly-banner">
+      <p className="text-sm">{messages.app.readOnlyBanner}</p>
+    </div>
+  ) : showHealth && health !== null ? (
+    <div className="sl-banner" role="alert">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium">
+          {health.crashed
+            ? format(messages.health.recovered, { when: relativeTime(health.lastChangeAt) })
+            : format(messages.health.integrityFailed, {
+                messages: health.integrityMessages.join("; "),
+              })}
+        </p>
+        <p className="mt-1 text-xs text-muted">
+          {health.crashed ? messages.health.recoveredHint : messages.health.integrityHint}
+        </p>
       </div>
-    ) : null;
+      <button
+        type="button"
+        className="sl-btn-small shrink-0"
+        onClick={() => setHealthDismissed(true)}
+      >
+        {messages.health.dismiss}
+      </button>
+    </div>
+  ) : null;
 
   // A language switch remounts the route subtree, which is what re-reads every message.
   const locale = useLocaleStore((state) => state.locale);

@@ -30,7 +30,7 @@ export interface RichText {
 export const EMPTY_RICH_TEXT: RichText = { json: null, text: "", wordCount: 0 };
 
 /** Node types whose children form a block — a newline is appended after them in the text projection. */
-const BLOCK_TYPES = new Set([
+export const BLOCK_TYPES = new Set([
   "paragraph",
   "heading",
   "blockquote",

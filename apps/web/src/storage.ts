@@ -137,6 +137,7 @@ const POOL_BUSY_RE = /NoModificationAllowedError|Access Handles cannot be create
 export async function openLibrary(
   name: string,
   create: boolean,
+  readOnly = false,
 ): Promise<{ driver: TauriStorageDriver; transport: WorkerTransport; info: OpenResult }> {
   await releaseStartTransport();
   let lastError: unknown = null;
@@ -146,7 +147,7 @@ export async function openLibrary(
     if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 400));
     const { driver, transport } = createLibrarySession();
     try {
-      const info = await driver.open({ path: `${name}.starline`, create, readOnly: false });
+      const info = await driver.open({ path: `${name}.starline`, create, readOnly });
       return { driver, transport, info };
     } catch (cause) {
       lastError = cause;
@@ -167,6 +168,11 @@ export interface OpenedLibrary {
   info: OpenResult;
   report: MigrationReport;
   health: SessionHealth;
+  /**
+   * A file written by a newer StarLine opens read-only (spec §4.5.4 downgrade policy) — the
+   * app can read it, shows the update banner, and refuses every write.
+   */
+  readOnly: boolean;
 }
 
 /**
@@ -183,6 +189,24 @@ export async function openLibraryFully(name: string, create: boolean): Promise<O
     // not block the open — the migration itself is transactional, and the snapshot is insurance.
     const pending = await driver.query<{ user_version: number }>("PRAGMA user_version");
     const pendingVersion = pending[0]?.user_version ?? 0;
+    // Downgrade policy (spec §4.5.4): a newer file is read-only, never migrated backwards.
+    if (pendingVersion > LATEST_SCHEMA_VERSION) {
+      const health = await assessSessionHealth(driver).catch(() => null);
+      const report: MigrationReport = {
+        from: pendingVersion,
+        to: pendingVersion,
+        applied: [],
+      };
+      return {
+        driver,
+        transport,
+        name,
+        info,
+        report,
+        health: health ?? ({} as SessionHealth),
+        readOnly: true,
+      };
+    }
     if (pendingVersion > 0 && pendingVersion < LATEST_SCHEMA_VERSION) {
       await takeSnapshot(
         { driver, transport, name } as unknown as LibrarySession,
@@ -198,7 +222,7 @@ export async function openLibraryFully(name: string, create: boolean): Promise<O
       // Spec §5.4.1: ask the browser to make this origin's storage persistent on first creation.
       void navigator.storage?.persist?.();
     }
-    return { driver, transport, name, info, report, health };
+    return { driver, transport, name, info, report, health, readOnly: false };
   } catch (cause) {
     await driver.close().catch(() => undefined);
     await transport.dispose().catch(() => undefined);

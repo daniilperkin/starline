@@ -3,6 +3,8 @@
  * "import a file" path on the start screen (spec §4.5.2). The whole project is written in one
  * transaction, so a failure half-way leaves an empty library rather than a half-imported one.
  */
+
+import type { UUID } from "@starline/core";
 import {
   type ImportReport,
   type ProjectExport,
@@ -12,9 +14,19 @@ import {
 } from "@starline/core/interchange";
 import { stripRootFolder, unzipFiles } from "@starline/core/zip";
 import type { LibrarySession } from "../session";
-import { listLibraries, openLibraryFully } from "../storage";
+import { listLibraries, openLibraryFully, replacePoolFile } from "../storage";
 
 const decoder = new TextDecoder();
+
+/** SQLite databases start with "SQLite format 3\0" — the `.starline` file's magic. */
+export function looksLikeStarline(bytes: Uint8Array): boolean {
+  if (bytes.length < 16) return false;
+  const magic = "SQLite format 3";
+  for (let index = 0; index < magic.length; index += 1) {
+    if (bytes[index] !== magic.charCodeAt(index)) return false;
+  }
+  return true;
+}
 
 function looksLikeZip(bytes: Uint8Array): boolean {
   return bytes.length > 2 && bytes[0] === 0x50 && bytes[1] === 0x4b;
@@ -63,6 +75,31 @@ export interface LibraryImportResult {
   session: LibrarySession;
   libraryName: string;
   report: ImportReport;
+}
+
+/**
+ * Opens a `.starline` database file directly as a library (spec 4.5.2 "Open directly"). The
+ * bytes go into the pool under a fresh name via `replacePoolFile`, then the ordinary open path
+ * runs — migrations, health, crash marker — exactly as a native file open would.
+ */
+export async function openStarlineLibrary(
+  bytes: Uint8Array,
+  fileName: string,
+): Promise<LibraryImportResult> {
+  const libraryName = await libraryNameFor(fileName.replace(/\.starline$/i, ""));
+  await replacePoolFile(`${libraryName}.starline`, bytes);
+  const session = await openLibraryFully(libraryName, false);
+  return {
+    session,
+    libraryName,
+    report: {
+      projectId: "direct" as UUID,
+      title: libraryName,
+      counts: {},
+      remapped: 0,
+      issues: [],
+    },
+  };
 }
 
 /**

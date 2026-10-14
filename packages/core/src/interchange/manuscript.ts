@@ -44,6 +44,8 @@ export interface ManuscriptDocument {
   characters: ExportRow[];
   /** World bible for the planning preset. */
   lore: ExportRow[];
+  /** Attachments rendered into the HTML export as data URIs (S34, spec 4.5.1). */
+  images: Array<{ name: string; dataUri: string }>;
 }
 
 function text(value: unknown): string {
@@ -153,6 +155,22 @@ export function buildManuscript(
     });
   }
 
+  // Attachment bytes arrive only with the folder/zip flows; the HTML export embeds them as
+  // data URIs so one file is genuinely self-contained (S34, spec 4.5.1).
+  const attachmentRows = tables.attachments ?? [];
+  const attachmentBytes = data.attachmentData ?? {};
+  const images: Array<{ name: string; dataUri: string }> = [];
+  for (const row of attachmentRows) {
+    const id = String(row.id ?? "");
+    const bytes = attachmentBytes[id];
+    if (bytes === undefined || bytes.length === 0) continue;
+    const mime = String(row.mime_type ?? "application/octet-stream");
+    images.push({
+      name: String(row.file_name ?? id),
+      dataUri: `data:${mime};base64,${bytesToBase64(bytes)}`,
+    });
+  }
+
   return {
     title: String(project.title ?? "Untitled"),
     subtitle: String(project.subtitle ?? ""),
@@ -162,7 +180,28 @@ export function buildManuscript(
     scenes: kept,
     characters,
     lore,
+    images,
   };
+}
+
+/**
+ * Base64 for the data URIs. Hand-rolled because `packages/core` runs in Node (tests, the native
+ * driver) and the browser (the app) alike, and `btoa` exists only in the second.
+ */
+const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let out = "";
+  for (let index = 0; index < bytes.length; index += 3) {
+    const b0 = bytes[index] ?? 0;
+    const b1 = bytes[index + 1];
+    const b2 = bytes[index + 2];
+    out += BASE64_ALPHABET[b0 >> 2] ?? "";
+    out += BASE64_ALPHABET[((b0 & 3) << 4) | ((b1 ?? 0) >> 4)] ?? "";
+    out += b1 === undefined ? "=" : (BASE64_ALPHABET[((b1 & 15) << 2) | ((b2 ?? 0) >> 6)] ?? "=");
+    out += b2 === undefined ? "=" : (BASE64_ALPHABET[b2 & 63] ?? "=");
+  }
+  return out;
 }
 
 /** `#` / `***` style scene separator, configurable because every market prints differently. */
@@ -315,6 +354,13 @@ export function buildHtml(document: ManuscriptDocument, options: ManuscriptOptio
   ]
     .filter((part) => part.length > 0)
     .join("\n");
+  // Embedded attachments (S34): self-contained, so the file renders anywhere with no requests.
+  const figures = document.images
+    .map(
+      (image) =>
+        `<figure><img src="${image.dataUri}" alt="${escapeHtml(image.name)}"><figcaption>${escapeHtml(image.name)}</figcaption></figure>`,
+    )
+    .join("\n");
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -336,6 +382,9 @@ export function buildHtml(document: ManuscriptDocument, options: ManuscriptOptio
   p.break { text-align: center; color: var(--muted); margin: 1.5rem 0; }
   p.synopsis { font-style: italic; color: var(--muted); }
   p.author, p.logline { color: var(--muted); }
+  figure { margin: 2rem 0; text-align: center; }
+  figure img { max-width: 100%; height: auto; border-radius: 0.4rem; }
+  figcaption { color: var(--muted); font-size: 0.85rem; margin-top: 0.4rem; }
   @media print { body { padding: 0; max-width: none; } h3.chapter { page-break-before: always; } }
 </style>
 </head>
@@ -343,6 +392,7 @@ export function buildHtml(document: ManuscriptDocument, options: ManuscriptOptio
 <h1>${escapeHtml(document.title)}</h1>
 ${document.subtitle.length > 0 ? `<p class="subtitle">${escapeHtml(document.subtitle)}</p>` : ""}
 ${meta}
+${figures}
 ${body.join("\n")}
 </body>
 </html>

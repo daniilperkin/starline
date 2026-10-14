@@ -12,6 +12,8 @@ export interface LibrarySession {
   report: MigrationReport;
   /** Crash/integrity findings from the open sequence (spec §2.3.3). */
   health: SessionHealth;
+  /** A file written by a newer StarLine opens read-only (spec §4.5.4 downgrade policy). */
+  readOnly?: boolean;
 }
 
 interface SessionState {

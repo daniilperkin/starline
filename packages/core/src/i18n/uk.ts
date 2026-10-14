@@ -18,6 +18,12 @@ export const uk: Messages = {
     importHeading: "Імпортувати проєкт",
     chooseFile: "Вибрати файл…",
     importHint: ".starline.json або .starline.zip",
+    readOnlyBanner:
+      "Ця бібліотека створена новішою StarLine — відкрито лише для читання. Оновіть застосунок, щоб редагувати.",
+    readingFile: "Читаю файл…",
+    creatingLibrary: "Створюю бібліотеку…",
+    writingProject: "Записую проєкт…",
+    openedDirectly: "відкрито напряму",
     librariesHeading: "Ваші бібліотеки",
     noLibraries: "Бібліотек ще немає — створіть першу вище.",
     open: "Відкрити",
@@ -1151,6 +1157,9 @@ export const uk: Messages = {
     tabExport: "Експорт",
     tabCsv: "Імпорт CSV",
     tabManuscript: "Рукопис",
+    separatorLabel: "Розділювач сцен",
+    splitFile: "Вибрати файл…",
+    splitFileHint: ".txt, .md або .docx",
     presets: {
       json: "JSON",
       markdownFolder: "Тека Markdown",

@@ -1,6 +1,10 @@
-import { messages } from "@starline/core";
+import { type ImportIssue, messages } from "@starline/core";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { importIntoNewLibrary } from "./export/importLibrary";
+import {
+  importIntoNewLibrary,
+  looksLikeStarline,
+  openStarlineLibrary,
+} from "./export/importLibrary";
 import type { LibrarySession } from "./session";
 import { cleanupTempFiles, listLibraries, openLibraryFully } from "./storage";
 import { ThemeButton } from "./ThemeButton";
@@ -15,6 +19,7 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [importing, setImporting] = useState<string | null>(null);
+  const [issues, setIssues] = useState<ImportIssue[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
@@ -61,19 +66,32 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
       setError(null);
       setNotice(null);
       try {
-        setImporting("Reading the file…");
+        setImporting(messages.app.readingFile);
         const bytes = new Uint8Array(await file.arrayBuffer());
+        // A `.starline` file is a database, not an interchange document: open it directly
+        // (spec 4.5.2). Everything else goes through the interchange importer.
+        if (/\\.starline$/i.test(file.name) || looksLikeStarline(bytes)) {
+          const result = await openStarlineLibrary(bytes, file.name);
+          setNotice(`${result.libraryName}: ${messages.app.openedDirectly}`);
+          onOpen({ ...result.session, readOnly: result.session.readOnly ?? false });
+          return;
+        }
         const result = await importIntoNewLibrary(bytes, file.name, (stage) => {
           setImporting(
             stage === "reading"
-              ? "Reading the file…"
+              ? messages.app.readingFile
               : stage === "creating"
-                ? "Creating the library…"
-                : "Writing the project…",
+                ? messages.app.creatingLibrary
+                : messages.app.writingProject,
           );
         });
         const rows = Object.values(result.report.counts).reduce((sum, count) => sum + count, 0);
-        setNotice(`${result.libraryName}: ${rows} rows imported`);
+        setNotice(
+          result.report.issues.length > 0
+            ? `${result.libraryName}: ${rows} rows imported, ${result.report.issues.length} issue(s)`
+            : `${result.libraryName}: ${rows} rows imported`,
+        );
+        setIssues(result.report.issues);
         onOpen(result.session);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause));
@@ -176,7 +194,7 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
           type="file"
           className="hidden"
           data-testid="sl-import-input"
-          accept=".json,.zip,application/json,application/zip"
+          accept=".json,.zip,.starline,application/json,application/zip,application/octet-stream"
           onChange={(event) => {
             const file = event.target.files?.[0];
             event.target.value = "";
@@ -187,6 +205,20 @@ export function StartScreen({ onOpen }: { onOpen: (session: LibrarySession) => v
           <p className="sl-notice mt-3" data-testid="sl-import-notice" role="status">
             {notice}
           </p>
+        ) : null}
+        {issues.length > 0 ? (
+          <ul className="mt-3 flex flex-col gap-1" data-testid="sl-import-issues">
+            {issues.map((issue) => (
+              <li
+                key={`${issue.where ?? "issue"}-${issue.message}`}
+                className="text-xs text-muted"
+                data-severity={issue.severity}
+              >
+                {issue.severity === "error" ? "✕" : "!"} {issue.message}
+                {issue.where ? ` (${issue.where})` : ""}
+              </li>
+            ))}
+          </ul>
         ) : null}
       </section>
 

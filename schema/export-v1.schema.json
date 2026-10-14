@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://starline.app/schema/export-v1.schema.json",
+  "title": "StarLine export document (schemaVersion 1)",
+  "description": "Canonical JSON interchange for one project (spec 4.5.1). Rich text fields hold ProseMirror JSON. The importer accepts any schemaVersion <= the app's and refuses newer ones.",
+  "type": "object",
+  "required": ["format", "schemaVersion", "exportedAt", "app", "project"],
+  "properties": {
+    "format": { "const": "starline-export" },
+    "schemaVersion": { "const": 1 },
+    "exportedAt": { "type": "integer", "minimum": 0 },
+    "app": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" }
+      }
+    },
+    "project": {
+      "type": "object",
+      "required": ["id", "title"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" }
+      }
+    },
+    "series": { "type": ["object", "null"] },
+    "graphPositions": { "type": ["object", "null"] },
+    "snowflakeSteps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "project_id", "step"],
+        "properties": {
+          "id": { "type": "string" },
+          "project_id": { "type": "string" },
+          "step": { "type": "integer", "minimum": 1, "maximum": 9 },
+          "status": { "type": "string" },
+          "content": {},
+          "completed_at": { "type": ["integer", "null"] },
+          "overrides": {},
+          "created_at": { "type": ["integer", "null"] },
+          "updated_at": { "type": ["integer", "null"] }
+        }
+      }
+    },
+    "characters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "aliases": {},
+          "role": { "type": "string" },
+          "one_paragraph_json": {},
+          "internal_conflict_json": {},
+          "external_conflict_json": {},
+          "ghost_json": {},
+          "voice_notes_json": {},
+          "appearance_json": {},
+          "backstory_json": {},
+          "storyline_json": {},
+          "bible_json": {}
+        }
+      }
+    },
+    "chapters": { "type": "array", "items": { "type": "object", "required": ["id"] } },
+    "scenes": { "type": "array", "items": { "type": "object", "required": ["id"] } },
+    "loreEntries": { "type": "array", "items": { "type": "object", "required": ["id", "name"] } },
+    "loreCategories": { "type": "array", "items": { "type": "object", "required": ["id"] } },
+    "notes": { "type": "array", "items": { "type": "object", "required": ["id"] } },
+    "tags": { "type": "array", "items": { "type": "object", "required": ["id", "name"] } },
+    "entityTags": { "type": "array", "items": { "type": "object" } },
+    "relationships": { "type": "array", "items": { "type": "object", "required": ["id"] } },
+    "relationshipGroups": { "type": "array", "items": { "type": "object", "required": ["id"] } },
+    "plotlines": { "type": "array", "items": { "type": "object", "required": ["id"] } },
+    "timelineEvents": { "type": "array", "items": { "type": "object", "required": ["id"] } },
+    "fieldDefs": { "type": "array", "items": { "type": "object", "required": ["id"] } },
+    "fieldValues": { "type": "array", "items": { "type": "object" } },
+    "mentions": { "type": "array", "items": { "type": "object" } },
+    "attachments": { "type": "array", "items": { "type": "object", "required": ["id"] } },
+    "checks": { "type": "array", "items": { "type": "object" } }
+  },
+  "additionalProperties": true
+}
