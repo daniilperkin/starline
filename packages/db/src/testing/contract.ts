@@ -249,3 +249,5 @@ export function runStorageDriverContract(
     }
   });
 }
+
+export { runMigrationPropertyTests } from "./property";

@@ -1,5 +1,5 @@
 import type { ContractHarness } from "@starline/db/testing";
-import { runStorageDriverContract } from "@starline/db/testing";
+import { runMigrationPropertyTests, runStorageDriverContract } from "@starline/db/testing";
 import { TauriStorageDriver } from "@starline/driver-tauri/driver";
 
 import { WorkerTransport } from "../src/transport";
@@ -45,3 +45,5 @@ runStorageDriverContract(
   { locking: false, externalChange: false, multiInstance: false },
   makeHarness,
 );
+
+runMigrationPropertyTests("web (sqlite-wasm over OPFS)", makeHarness);
