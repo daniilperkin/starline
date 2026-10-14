@@ -229,7 +229,7 @@ the interface is fully usable without motion.
 - Honour `prefers-reduced-motion` in any new animation.
 - Route every user-facing string through the catalogue (English + Ukrainian).
 - Check the CSS budget (`pnpm check:bundle`) after touching `styles.css` — it is
-  a gate at 10 KiB gzip, not a suggestion.
+  a gate at 11 KiB gzip (decision 27), not a suggestion.
 
 **Don't**
 

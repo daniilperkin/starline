@@ -1,5 +1,10 @@
 # StarLine — Deep Plan (phone-first)
-| S38 M5 close | `802182f` | 38561096927 | The docs trued up: the README counts (351 tests, CSS 11 KiB, 61 a11y checks, 48 emulator passes), the verify-web list covering slices 21-37, a Milestones section; PLAN's S38 row and an M5-status line; the ACCESSIBILITY re-audit note. The release APK rebuilt from the M5 code (9,902,062 bytes, cloud flavour, signed). The owner's a11y sign-off is recorded (decision 28); the deployed PWA's sign-in repaired (decision 29). |
+
+**The M5 shipped revisions (slices 21-38)** — one row per slice; the M0-M4 record lives in section 10.
+
+| Slice | Revision | CI | What shipped |
+| --- | --- | --- | --- |
+| S38 M5 close | `802182f` | 38561096927 | The docs trued up: the README counts (351 tests, CSS 11 KiB, 61 a11y checks, 53 emulator passes), the verify-web list covering slices 21-37, a Milestones section; PLAN's S38 row and an M5-status line; the ACCESSIBILITY re-audit note. The release APK rebuilt from the M5 code (9,902,062 bytes, cloud flavour, signed). The owner's a11y sign-off is recorded (decision 28); the deployed PWA's sign-in repaired (decision 29). |
 | S37 onboarding + module visibility | `9ed0208` | 38559887592 | The four-slide first-run wizard (skippable, once per device) whose module picks seed the new project via `createProject`'s `enabledModules`; the Settings Modules section writes `enabledModules` (the TabBar already filters on it). Every E2E script learns the wizard - the journey walks it and toggles the World module off/on, perf/a11y/PWA/chaos skip it. |
 | S36 Tier-3 polish | `2eea0e3` | 38556264970 | The dashboard gains form/genre chips, the deadline countdown and the words progress; the creation flow takes the whole brief (30 genre chips, six forms, word presets, deadline, idea seed into step 1); the character list gains scene counts, pins, sorts and a role filter; the 200-entry trait list autocompletes the Psychology tab; the Scenes tab gains the stacked statistics strip; the scene sheet gains the location picker and the rich-text synopsis. Follow-up `a1a96d7` staged the BookSwitcher's missed call site. |
 | S35 migration property tests | `c441b25` | 38550258248 | fast-check finally imports: a runner generates random valid row sets and asserts, per case, that a fresh file migrates to the latest version, `PRAGMA foreign_key_check` stays empty, the inserted rows survive, and a re-run applies nothing. The harness is injected like the contract suite's, so the properties run against every driver. 351 tests (was 350). |
@@ -807,26 +812,6 @@ with decision 24; the `reviewedCharacterIds` line was stale (it is implemented i
 9. **Wizard layout**: each step a separate full page (recommendation — one small unit of
    work at a time) or one continuous scroll?
 
-## 10. Appendix — screen → data map (abridged)
-
-| Screen | Primary reads | Writes (commands) |
-|---|---|---|
-| Plan dashboard | `snowflake_step`, counts, `meta.revision` | — |
-| Step 1–2 | `snowflake_step` | `saveStepContent`, `markStepComplete` |
-| Step 3 / People list | `character`, `snowflake_step` | character commands, extraction |
-| Dossier | `character`, `scene_character`, `character_relationship` | character/relationship commands |
-| Scenes list | `scene`, `chapter`, `part`, join tables | scene commands, moves (one-row) |
-| Scene editor | `scene` + joins | field updates (autosave) |
-| World tree / entry | `lore_category`, `lore_entry`, `custom_field_value`, `entity_link` | lore commands |
-| Backlinks / search | `mention`, FTS5 tables | mention mirroring on rich-text save |
-| Matrix / graph | `character_relationship`, `relationship_group` | relationship commands |
-| Timeline | `timeline_event`, `scene.story_time` | timeline commands |
-| Notes | `idea_note` | note commands, promote transactions |
-| Backups | `snapshot_record` + snapshot files | snapshot/restore operations |
-| Export / import | all tables | new-project creation only |
-
-*End of plan — review comments welcome as numbered notes against §8 (or anywhere).*
-
 ## 10. M5 — spec completion (slices 21-38)
 
 **Owner decisions (2026-10-13), all binding:**
@@ -887,37 +872,27 @@ legal, and the perf budgets are the only spec requirement that has never been me
 | S26 guided tour | `6819813` | (run at push) | Fifteen stops across every tab, the wizard and the key tools; an overlay that navigates itself and spotlights real anchors, polling for anchors that render after their data arrives, and falling back to a centred card; the one-time offer card plus buttons on the start screen and in Settings; `starline.tour` as device state; the tour in en/uk/de |
 | S27 Tier-1 correctness | `ab01042` | (run at push) | Ingermanson attribution in en/uk/de; snapshots before the CSV import, the manuscript import, a lore cascade delete, emptying the trash and a schema migration (taken between open and migrate — the only moment the old schema exists); the scene lore picker (chips + searchable popup); perf gates as a new `check:perf` in `ci:gates` and CI (cold start 348 ms / 1200, typing p95 16.0 ms / 16 — 24 ms before the keystroke buffer); sepia and high-contrast themes with catalogue labels; `enabledModules` wired via a new `readProjectSettings` + hook + tab filter |
 
-**Verified on S25–S27's gates:** 345 tests (12 new German parity clauses) · WEB-VERIFY OK incl
+**Verified at the S38 close:** 351 tests (33 files) · WEB-VERIFY OK · PWA-VERIFY OK · A11Y OK
+(61 checks) · chaos and web chaos · no-network over 240 files · contrast · bundle app 274.2 KiB / 330,
+styles 10.2 / 11 (decision 27), install 4.05 MiB / 4 (tight) · perf: cold start ≤ 352 ms / 1200, typing
+p95 16.0 ms / 16 standalone — 24.0 ms reads are the loaded machine, per the S34 bisect; CI applies its
+documented 1.75x factor. Per-slice readings from the M5 runs are in the revision table above; the
+M0-M4 readings stay in sections 2-5.
 
-**Verified on S28's gates:** 345 tests · WEB-VERIFY OK including the new palette and export
-options step (11 commands, filtered to one, Enter navigated and closed; the dialog's notes, chapter
-scope and preview present, preview built, axe clean) · PWA-VERIFY OK · A11Y OK · chaos and web chaos ·
-no-network over 233 files · contrast · bundle app 270.8 KiB / 330, styles 9.8 / 10 (tight), install
-3.67 MiB / 4 · perf: cold start 352 
+## 11. Appendix — screen → data map (abridged)
 
-**Verified on S29's gates:** 350 tests (5 new merge cases against the native driver) ·
-WEB-VERIFY OK with the dossier and merge journey steps (9 tabs, the psychology edit round-tripped,
-4 -> 3 characters merged with Undo offered) and two new axe scans · PWA-VERIFY OK · A11Y OK ·
-chaos and web chaos · no-network over 235 files · contrast · bundle app 271.0 KiB / 330, styles
-9.8 / 10, install 3.70 MiB / 4 · perf cold
-
-**Verified on S30's gates:** 350 tests · WEB-VERIFY OK with the settings-depth journey step
-(the editor toggle flipped, a status renamed to Spark, 8 keyboard rows, the privacy line
-rendered) and two new axe scans · PWA-VERIFY OK · A11Y OK · chaos and web chaos · no-network over
-235 files · contrast · bundle app 272.1 KiB / 330, styles 9.9 / 10 (tight), install 3.71 MiB / 4 ·
-perf cold start 284-344 ms / 1200, typing p95 16.0 ms / 16 standalone. start 345 ms / 1200, typing p95 16.0 ms / 16.ms / 1200; typing p95 measured 16.0 ms standalone with the machine
-quiet and 24.0 ms under this session's accumulated load — CI's documented 1.75x factor covers 
-
-**Verified on S31's gates:** 350 tests · WEB-VERIFY OK with the lore-depth journey step
-(2 cards, 2 map pins with one dragged, kind filter -> 0, untagged -> 2) and the world-views axe
-scan · PWA-VERIFY OK · A11Y OK · chaos and web chaos · no-network over 236 files · contrast ·
-bundle app 272.0 KiB / 330, styles 9.9 / 10 (tight), install 3.72 MiB / 4 · perf cold start
-279 ms / 1200, typing p95 16.0 ms / 16.it.uding the
-German switch step · PWA-VERIFY OK · A11Y OK · chaos and web chaos · no-network over 228 files ·
-contrast · bundle app 268.3 -> 269.6 KiB / 330 after the tour, styles 9.5 / 10, install
-3.66 MiB / 4 · the tour's own journey step (welcome -> a stop with a spotlight -> skip -> the
-choice remembered) and an axe scan while the tour is on screen.
-
-**Verified on S27's gates:** 345 tests · WEB-VERIFY OK · PWA-VERIFY OK · A11Y OK · chaos and web
-chaos · PERF OK (cold start 348 ms / 1200, typing p95 16.0 ms / 16) · no-network over 233 files ·
-contrast · bundle app 269.8 KiB / 330, styles 9.7 / 10, install 3.66 MiB / 4.
+| Screen | Primary reads | Writes (commands) |
+|---|---|---|
+| Plan dashboard | `snowflake_step`, counts, `meta.revision` | — |
+| Step 1–2 | `snowflake_step` | `saveStepContent`, `markStepComplete` |
+| Step 3 / People list | `character`, `snowflake_step` | character commands, extraction |
+| Dossier | `character`, `scene_character`, `character_relationship` | character/relationship commands |
+| Scenes list | `scene`, `chapter`, `part`, join tables | scene commands, moves (one-row) |
+| Scene editor | `scene` + joins | field updates (autosave) |
+| World tree / entry | `lore_category`, `lore_entry`, `custom_field_value`, `entity_link` | lore commands |
+| Backlinks / search | `mention`, FTS5 tables | mention mirroring on rich-text save |
+| Matrix / graph | `character_relationship`, `relationship_group` | relationship commands |
+| Timeline | `timeline_event`, `scene.story_time` | timeline commands |
+| Notes | `idea_note` | note commands, promote transactions |
+| Backups | `snapshot_record` + snapshot files | snapshot/restore operations |
+| Export / import | all tables | new-project creation only |
