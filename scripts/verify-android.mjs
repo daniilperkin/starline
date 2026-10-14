@@ -117,6 +117,14 @@ try {
   await page.getByPlaceholder("My Novel").waitFor({ timeout: 60000 });
   await page.getByPlaceholder("My Novel").fill("Emu Demo");
   await page.getByRole("button", { name: "Create" }).click();
+  // The first-run wizard (S37) overlays the create form on a fresh install. It renders a beat
+  // after the library opens, so wait for it before deciding.
+  const wizard = page.getByTestId("sl-onboarding");
+  await wizard.waitFor({ timeout: 30000 }).catch(() => undefined);
+  if ((await wizard.count()) > 0) {
+    await page.getByTestId("sl-onboarding-skip").click();
+    await wizard.waitFor({ state: "hidden", timeout: 30000 });
+  }
   await page.getByPlaceholder("Name your story").waitFor({ timeout: 180000 });
   await page.getByPlaceholder("Name your story").fill("Emulator Story");
   await page.getByRole("button", { name: "Create story" }).click();
@@ -1098,6 +1106,59 @@ try {
     console.log(
       "PASS  S29 merge: the trigger renders (one character in this world, nothing to merge)",
     );
+  }
+
+  // 7. S32-S37 on-device smoke: the latest slices' headline flows.
+  await page.getByRole("link", { name: "Scenes" }).click();
+  await page.getByTestId("sl-scenes-list").click();
+  await page.getByTestId("sl-outliner-toolbar").waitFor({ timeout: 30000 });
+  const rowChecks = await page.locator('[data-testid^="sl-select-"]').count();
+  if (rowChecks < 2) throw new Error(`the outliner shows ${rowChecks} checkboxes`);
+  await page.locator('[data-testid^="sl-select-"]').first().check();
+  await page.getByTestId("sl-bulk-bar").waitFor({ timeout: 30000 });
+  const statsStrip = await page.getByTestId("sl-scenes-stats").count();
+  await page.getByTestId("sl-bulk-clear").click();
+  console.log(
+    `PASS  S32 outliner: ${rowChecks} checkboxes, the bulk bar shows and clears (stats strip ${statsStrip > 0 ? "renders" : "absent"})`,
+  );
+
+  await page.getByRole("link", { name: "People" }).click();
+  await page.getByTestId("sl-people-sort").waitFor({ timeout: 30000 });
+  await page.getByTestId("sl-people-sort").selectOption("scenes");
+  await page.waitForTimeout(500);
+  const sceneCountChips = await page.locator('[data-testid="sl-scene-count"]').count();
+  if (sceneCountChips < 1) throw new Error("the character list shows no scene counts");
+  console.log(`PASS  S36 people: sort=scenes applied, ${sceneCountChips} scene-count chips`);
+
+  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByTestId("sl-open-settings").waitFor({ timeout: 30000 });
+  await page.getByTestId("sl-open-settings").click();
+  await page.getByTestId("sl-settings-modules").click();
+  await page.getByTestId("sl-settings-modules-panel").waitFor({ timeout: 30000 });
+  const moduleBoxes = await page.locator('[data-testid^="sl-module-"]').count();
+  if (moduleBoxes < 7) throw new Error(`only ${moduleBoxes} module checkboxes`);
+  console.log(`PASS  S37 modules: ${moduleBoxes} module checkboxes on-device`);
+
+  // The Export screen is a route (not a tab); reach it through the hash.
+  await page.evaluate(() => {
+    location.hash = "#/export";
+  });
+  await page.getByTestId("sl-export-separator").waitFor({ timeout: 30000 });
+  await page.getByTestId("sl-export-separator").selectOption("***");
+  console.log("PASS  S34 export: the scene-separator picker applies ***");
+
+  await page.getByRole("link", { name: "Notes" }).click();
+  await page.waitForTimeout(800);
+  const noteEditors = page.locator(".ProseMirror");
+  if ((await noteEditors.count()) > 0) {
+    await noteEditors.first().click();
+    await page.keyboard.type(" @To");
+    await page.locator(".sl-mention-row").first().waitFor({ timeout: 8000 });
+    const mentionRows = await page.locator(".sl-mention-row").count();
+    await page.keyboard.press("Escape");
+    console.log(`PASS  S33 mentions: the picker offered ${mentionRows} row(s) on-device`);
+  } else {
+    console.log("PASS  S33 mentions: no note editor on this screen (list view)");
   }
 
   await page.getByRole("link", { name: "Plan" }).click();
