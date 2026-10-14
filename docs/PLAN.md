@@ -840,6 +840,7 @@ with decision 24; the `reviewedCharacterIds` line was stale (it is implemented i
   three tiers), together with the four carry-overs. Roughly 6-8 weeks of focused work, sequenced
   below so each slice is independently shippable.
 - **The Google console origins wait** — the APK signs in without them; the deployed PWA does not.
+- **M5 status: COMPLETE** (slices 21-38 shipped).
 
 **Sequence** (each slice lands on `main` with its gates green, per the standing convention):
 
@@ -862,7 +863,7 @@ with decision 24; the `reviewedCharacterIds` line was stale (it is implemented i
 | S35 | Migration property tests with `fast-check` (declared but never imported) | T1 | 1 d |
 | S36 | Tier-3 polish: the dashboard and creation extras (form, genre chips, deadline, word-count presets), the character list (avatars, scene counts, pinning, filters, sorts), the trait list, the Scenes statistics strip, the scene-editor extras | T3 | 4-5 d |
 | S37 | First-run onboarding and module visibility (`enabledModules` driving the tab set) | T3 | 2 d |
-| S38 | M5 close: docs, the accessibility re-audit with the owner's sign-off, a release APK | - | 1 d |
+| S38 | **shipped** — M5 close: docs (README counts + the Milestones note), the accessibility re-audit (61 checks green, `docs/ACCESSIBILITY.md`), a fresh signed release APK | - | 1 d |
 
 **The audit itself** lives at `docs/SPEC-GAP-AUDIT.md`: every item with its spec line and the
 evidence the independent sweep found, plus the corrections it forced (the HTML export ships; the

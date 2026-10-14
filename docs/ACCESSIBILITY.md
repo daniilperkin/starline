@@ -134,3 +134,11 @@ pnpm verify-web        # includes 25 axe scans, both locales
 
 `check:a11y` is part of `pnpm ci:gates` and runs in the CI `web E2E` job, so these checks cannot
 silently regress.
+
+## M5 re-audit (S38)
+
+The harness (`scripts/check-a11y.mjs`) runs 61 scripted checks beyond axe: keyboard-only walks with a
+visible focus indicator at every stop on 9 screens, 24 px targets, 320 px reflow, WCAG 1.4.12 text
+spacing, reduced motion, the starfield stop control, page titles, `html lang`, Escape closing a sheet,
+and a live region for status messages. All green at the M5 close; the owner's sign-off is recorded in
+`DECISIONS.md`.
