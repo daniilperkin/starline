@@ -1,6 +1,6 @@
-import { chromium } from "playwright";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { chromium } from "playwright";
 
 const BASE = process.env.SHOT_BASE ?? "http://localhost:4175";
 const OUT = join(process.cwd(), "docs", "screenshots");
