@@ -8,8 +8,8 @@ PWA, wrapped as a sideloadable Android APK.
 
 ## The truth lives here, in this order
 
-1. `SPECIFICATION.md` — the implementation-ready spec (v1.0.0). `[Decision]` items are binding.
-2. `DECISIONS.md` — every owner decision and audit resolution, numbered, with rationale. **Owner
+1. `docs/SPECIFICATION.md` — the implementation-ready spec (v1.0.0). `[Decision]` items are binding.
+2. `docs/DECISIONS.md` — every owner decision and audit resolution, numbered, with rationale. **Owner
    overrides beat the spec.**
 3. `docs/PLAN.md` — the slice-by-slice build plan and the record of what each shipped slice
    actually measured.
@@ -29,8 +29,8 @@ decision explicitly overrides the spec, in which case the decision wins.
 - `scripts/` — every gate: `verify-web`, `verify-pwa`, `verify-android`, `check-a11y`,
   `check-bundle`, `check-contrast`, `check-no-network`, `chaos/`, plus `cargo.mjs` (Rust builds)
   and `launch-emulator.mjs`.
-- `docs/` — DESIGN, ARCHITECTURE, ACCESSIBILITY, ANDROID-RELEASE, CLOUD-BACKUP, HOSTING,
-  FABULA-PARITY, PLAN.
+- `docs/` — SPECIFICATION, DECISIONS, DESIGN, ARCHITECTURE, ACCESSIBILITY, ANDROID-RELEASE,
+  CLOUD-BACKUP, CLOUD-SETUP, HOSTING, FABULA-PARITY, PLAN, SPEC-GAP-AUDIT.
 
 ## Commands
 

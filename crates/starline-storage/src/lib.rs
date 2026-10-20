@@ -18,7 +18,7 @@ use lock::LockGuard;
 
 /// `PRAGMA application_id` for `*.starline` files: "STRL" (spec §5.4.1).
 pub const APPLICATION_ID: i64 = 0x5354_524C;
-/// Files up to this size default to `synchronous=FULL` (DECISIONS.md #1, spec §5.3).
+/// Files up to this size default to `synchronous=FULL` (docs/DECISIONS.md #1, spec §5.3).
 pub const SYNCHRONOUS_FULL_LIMIT_BYTES: u64 = 200 * 1024 * 1024;
 
 pub struct Store {

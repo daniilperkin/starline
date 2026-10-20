@@ -1,7 +1,7 @@
 # Architecture — StarLine
 
-Phone-first PWA over a single-file SQLite library. Product spec: `SPECIFICATION.md`; owner
-decisions: `DECISIONS.md`; visual identity: `docs/DESIGN.md`.
+Phone-first PWA over a single-file SQLite library. Product spec: `docs/SPECIFICATION.md`; owner
+decisions: `docs/DECISIONS.md`; visual identity: `docs/DESIGN.md`.
 
 ## Monorepo
 

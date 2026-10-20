@@ -16,9 +16,9 @@
 | S28 palette + export options | `eddada6` | (run at push) | The command palette (hand-rolled list semantics — cmdk rendered nothing; the real bug was the render line sitting in AppLayout's immersive return, a branch only /write/* renders) and the export dialog's four declared options (chapter scope, include-notes, a two-page preview, a stage-driven progress bar). A perf regression found by the gate: a window-level keydown listener for Ctrl+K cost +8 ms keystroke-to-paint (24.0 vs 16.0, bisected) — moved onto React's delegated handler. `ci:gates` now measures perf before chaos. Eight lint items cleared; cmdk dropped. |
 | S30 settings depth | `35112ac` | (run at push) | The four missing spec §4.6 sections: Editor (smart quotes via TipTap's typography, a hand-rolled auto-pair input rule — TipTap ships none — and the device's spellchecker via the DOM attribute), Statuses (per-project rename + recolour of the six statuses, `settings.statusLabels` with catalogue fallback), Keyboard (the §4.7 map as a reference) and Privacy (the offline statement with its verifiable line). The schema gains `editor` and `statusLabels`; `writeProjectSettings` joins the read as the write path. |
 
-> **Status: DRAFT for owner review.** Owner decisions 9–16 (`DECISIONS.md`) supersede the
+> **Status: DRAFT for owner review.** Owner decisions 9–16 (`docs/DECISIONS.md`) supersede the
 > spec's desktop-first framing wherever they differ. This document is the deep design pass
-> required by decision 13: it turns `SPECIFICATION.md` §3–§4 into a phone product, slice by
+> required by decision 13: it turns `docs/SPECIFICATION.md` §3–§4 into a phone product, slice by
 > slice, **before** feature build-out begins. Numbered open items for the owner are in §8.
 
 ---
@@ -878,6 +878,13 @@ styles 10.2 / 11 (decision 27), install 4.05 MiB / 4 (tight) · perf: cold start
 p95 16.0 ms / 16 standalone — 24.0 ms reads are the loaded machine, per the S34 bisect; CI applies its
 documented 1.75x factor. Per-slice readings from the M5 runs are in the revision table above; the
 M0-M4 readings stay in sections 2-5.
+
+### After M5
+
+- **Decision 30 (2026-10-14)** — the backdrop draws the twelve real northern constellations
+  (true shapes, real relative magnitudes), `4391cb6`, CI run 38573833320 green.
+- **v1.0.0 (2026-10-20)** — the docs consolidated under `docs/` (SPECIFICATION, DECISIONS,
+  DESIGN), the repository published, the first tagged release with a signed APK.
 
 ## 11. Appendix — screen → data map (abridged)
 

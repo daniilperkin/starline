@@ -1,5 +1,5 @@
 -- StarLine schema v1 — migration 0001_init.sql
--- Source of truth: SPECIFICATION.md §3 (v1.0.0) with the DECISIONS.md audit resolutions applied:
+-- Source of truth: docs/SPECIFICATION.md §3 (v1.0.0) with the docs/DECISIONS.md audit resolutions applied:
 --   * `series` table added (referenced by project.series_id but absent from the spec's SQL).
 --   * custom_field_def uniqueness enforced via two partial indexes (NULL lore_kind safe).
 -- Conventions (spec §3.1): UUIDv7 TEXT ids, epoch-millisecond INTEGER timestamps,
@@ -263,7 +263,7 @@ CREATE TABLE custom_field_def (
   required INTEGER NOT NULL DEFAULT 0, order_key TEXT NOT NULL, section TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER
 ) STRICT;
--- DECISIONS.md #4: label unique per (project, target, lore_kind); two partial indexes because
+-- docs/DECISIONS.md #4: label unique per (project, target, lore_kind); two partial indexes because
 -- SQLite treats NULLs as distinct in a plain UNIQUE, which would let duplicate unscoped labels in.
 CREATE UNIQUE INDEX uq_custom_field_def_scoped   ON custom_field_def(project_id, target, lore_kind, label) WHERE lore_kind IS NOT NULL AND deleted_at IS NULL;
 CREATE UNIQUE INDEX uq_custom_field_def_unscoped ON custom_field_def(project_id, target, label)            WHERE lore_kind IS NULL     AND deleted_at IS NULL;

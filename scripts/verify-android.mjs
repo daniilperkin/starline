@@ -18,7 +18,11 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const shotDir = join(tmpdir(), "starline-shots");
 mkdirSync(shotDir, { recursive: true });
 const apk = process.argv[2] ?? join(repoRoot, "artifacts", "starline-debug.apk");
-const ADB = process.env.ADB ?? "C:/Users/danyo/AppData/Local/Android/Sdk/platform-tools/adb.exe";
+const SDK_ROOT =
+  process.env.ANDROID_HOME ??
+  process.env.ANDROID_SDK_ROOT ??
+  (process.env.LOCALAPPDATA ? `${process.env.LOCALAPPDATA}/Android/Sdk` : "Android/Sdk");
+const ADB = process.env.ADB ?? `${SDK_ROOT}/platform-tools/adb.exe`;
 const PACKAGE = "app.starline";
 
 if (!existsSync(apk)) {

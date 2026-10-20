@@ -1,6 +1,6 @@
 # StarLine — Decision Record
 
-Companion to `SPECIFICATION.md`. Every entry here was explicitly decided by the owner or is a
+Companion to `docs/SPECIFICATION.md`. Every entry here was explicitly decided by the owner or is a
 pre-build audit resolution of an internal spec conflict. The spec remains the source of truth for
 everything not listed here; entries are folded back into the spec on owner request.
 

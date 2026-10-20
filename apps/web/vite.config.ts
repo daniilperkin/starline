@@ -7,7 +7,7 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // The Capacitor (APK) build ships inside a local app container where updates arrive via the
 // APK itself — a service worker there only risks serving stale assets after an app update.
-// Field builds set STARLINE_CAP=1 (see DECISIONS.md 12); the PWA build stays the default.
+// Field builds set STARLINE_CAP=1 (see docs/DECISIONS.md 12); the PWA build stays the default.
 const isCapacitorBuild = process.env.STARLINE_CAP === "1";
 
 // Hosting at a subpath (GitHub Pages project site = /starline/) sets STARLINE_BASE; the
