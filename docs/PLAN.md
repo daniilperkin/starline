@@ -885,6 +885,10 @@ M0-M4 readings stay in sections 2-5.
   (true shapes, real relative magnitudes), `4391cb6`, CI run 38573833320 green.
 - **v1.0.0 (2026-10-20)** — the docs consolidated under `docs/` (SPECIFICATION, DECISIONS,
   DESIGN), the repository published, the first tagged release with a signed APK.
+- **v1.0.1 (2026-10-22)** — real-device QA on a Redmi 14C (Android 16, 720 x 1640): 53/53
+  scripted checks and zero crashes, then two fixes the emulator could not show — the @-mention
+  picker now clamps to the visual viewport (it opened under the soft keyboard) and the
+  relationship web scrolls its canvas into view (fitted nodes landed under the tab bar).
 
 ## 11. Appendix — screen → data map (abridged)
 

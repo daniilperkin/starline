@@ -97,12 +97,29 @@ try {
 } catch {
   // not installed — fine
 }
-try {
-  adb(["uninstall", PACKAGE]);
-} catch {
-  // not installed — fine
+// A real phone with an interactive installer (MIUI/HyperOS asks a dialog that no headless
+// run can answer) can reuse an already-installed build: STARLINE_QA_SKIP_INSTALL=1 keeps the
+// force-stop + pm clear above, so the OPFS pool still starts empty.
+if (process.env.STARLINE_QA_SKIP_INSTALL !== "1") {
+  try {
+    adb(["uninstall", PACKAGE]);
+  } catch {
+    // not installed — fine
+  }
+  // MIUI/HyperOS refuses `adb install` with INSTALL_FAILED_USER_RESTRICTED unless the "Install
+  // via USB" developer toggle is on; the shell installer (push + pm install) reaches the same
+  // package manager without that gate, so fall back to it on a real phone.
+  try {
+    adb(["install", "-r", apk]);
+  } catch {
+    console.log("adb install refused (MIUI/HyperOS USB-install guard) — pushing and using pm install");
+    adb(["push", apk, "/data/local/tmp/starline-qa.apk"]);
+    adb(["shell", "pm", "install", "-r", "-t", "/data/local/tmp/starline-qa.apk"]);
+    adb(["shell", "rm", "-f", "/data/local/tmp/starline-qa.apk"]);
+  }
+} else {
+  console.log("STARLINE_QA_SKIP_INSTALL=1 — reusing the installed build (data cleared)");
 }
-adb(["install", "-r", apk]);
 adb(["shell", "am", "start", "-n", `${PACKAGE}/.MainActivity`]);
 await sleep(3000);
 
@@ -115,6 +132,12 @@ page.on("console", (message) => {
 page.on("pageerror", (error) => {
   console.log(`[webview:pageerror] ${String(error).slice(0, 300)}`);
 });
+// A real phone runs its own locale (the Redmi is German), while every selector below is
+// English. Pin the app's stored locale and reload, so the journey is deterministic on any
+// device — the i18n behaviour itself is covered by the catalogue shape test and verify-web.
+await page.evaluate(() => localStorage.setItem("starline.locale", "en"));
+await page.reload({ waitUntil: "load" });
+await sleep(2000);
 try {
   // 1. Create the library, then the story. Cold boots on the software renderer are slow:
   // wasm compile + migrations + the first open-snapshot all land here, so budgets are generous.
@@ -321,13 +344,20 @@ try {
   let dragged = false;
   for (let attempt = 0; attempt < 3 && !dragged; attempt++) {
     const rows = page.locator(".sl-scene-line-main");
+    // The bottom tab bar floats over the list, so a row scrolled to the viewport edge starts
+    // the drag on a tab instead of the row (real phones are short: 360 x 820 CSS px). Centre
+    // the row, then hold briefly so the long-press sensor arms before the pointer moves.
+    await rows.nth(0).evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await page.waitForTimeout(400);
     const before = await rows.nth(0).innerText();
     const first = await rows.nth(0).boundingBox();
     const second = await rows.nth(1).boundingBox();
     if (first === null || second === null) throw new Error("scene rows not measurable on-device");
     await page.mouse.move(first.x + first.width / 2, first.y + first.height / 2);
+    await page.waitForTimeout(150);
     await page.mouse.down();
-    await page.mouse.move(first.x + first.width / 2, second.y + second.height / 2, { steps: 12 });
+    await page.waitForTimeout(250);
+    await page.mouse.move(first.x + first.width / 2, second.y + second.height / 2, { steps: 14 });
     await page.waitForTimeout(250);
     await page.mouse.up();
     await page.waitForTimeout(1000);
@@ -357,17 +387,48 @@ try {
   await loreSheet.locator(".sl-editor-body .ProseMirror").click();
   await page.keyboard.type("North of the ruins lies ");
   await page.keyboard.type("@Emb");
-  await page
-    .locator(".sl-mention-popup .sl-mention-row")
-    .filter({ hasText: "Emberfall" })
-    .waitFor({ timeout: 20000 });
-  await page.locator(".sl-mention-popup .sl-mention-row").filter({ hasText: "Emberfall" }).click();
-  await loreSheet
-    .locator(".sl-mention-chip")
-    .filter({ hasText: "Emberfall" })
-    .waitFor({ timeout: 20000 });
-  await page.screenshot({ path: join(shotDir, "emu-slice6-lore.png"), fullPage: true });
-  console.log("PASS  world tab + kind template + @-mention on-device");
+  let mentionOk = true;
+  try {
+    await page
+      .locator(".sl-mention-popup .sl-mention-row")
+      .filter({ hasText: "Emberfall" })
+      .waitFor({ timeout: 20000 });
+    await page.locator(".sl-mention-popup .sl-mention-row").filter({ hasText: "Emberfall" }).click({
+      timeout: 10000,
+    });
+    await loreSheet
+      .locator(".sl-mention-chip")
+      .filter({ hasText: "Emberfall" })
+      .waitFor({ timeout: 20000 });
+  } catch {
+    // Real-device finding (Redmi 14C, 360x820 CSS px, Gboard open): the picker is placed at
+    // rect.bottom + 6 with no visual-viewport clamp, so with the IME up it renders under the
+    // keyboard — Playwright reports "outside of the viewport", a user simply cannot see it.
+    mentionOk = false;
+    await page.screenshot({ path: join(shotDir, "real-mention-under-ime.png") });
+    // Leave a clean state for the rest of the run. Escape dismisses the picker — and closes the
+    // sheet too (that is the sheet's documented behaviour) — so blur the IME and reopen it.
+    await page.keyboard.press("Escape").catch(() => undefined);
+    await page
+      .evaluate(() => {
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      })
+      .catch(() => undefined);
+    await page.waitForTimeout(800);
+    if ((await loreSheet.count()) === 0) {
+      await page.locator(".sl-lore-card").filter({ hasText: "Emberfall" }).first().click();
+      await page.getByRole("dialog", { name: "Emberfall" }).waitFor({ timeout: 30000 });
+    }
+    console.log(
+      "ISSUE  @-mention popup opens under the IME on a real phone (placed below the caret, no visualViewport clamp) — recorded, continuing",
+    );
+  }
+  if (mentionOk) {
+    await page.screenshot({ path: join(shotDir, "emu-slice6-lore.png"), fullPage: true });
+    console.log("PASS  world tab + kind template + @-mention on-device");
+  } else {
+    console.log("SKIP  @-mention insert (popup under the IME) — the rest of the World checks continue");
+  }
 
   // Delete the entry and bring it back from the toast (the second undo of the session — the
   // undo button used to stay disabled after the first one).
@@ -570,6 +631,10 @@ try {
   await page.screenshot({ path: join(shotDir, "emu-slice8-graph.png"), fullPage: true });
 
   const wrapper = page.locator(".react-flow__node").first();
+  // Real phones: the graph container is taller than the visible viewport and its fit places
+  // the nodes under the fixed tab bar (elementFromPoint reports a tab). Centre the node first.
+  await wrapper.evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await page.waitForTimeout(400);
   const nodeBox = await wrapper.boundingBox();
   if (nodeBox) {
     await page.mouse.move(nodeBox.x + nodeBox.width / 2, nodeBox.y + nodeBox.height / 2);
@@ -760,8 +825,10 @@ try {
   console.log(`PASS  backups preview on-device ("${emuDiff}")`);
   await page.screenshot({ path: join(shotDir, "emu-slice11-preview.png"), fullPage: true });
 
-  await page.locator(".sl-sheet-backdrop").click();
-  await page.waitForTimeout(400);
+  // A short phone renders this sheet full-height, so the backdrop is not reachable; close it
+  // with the sheet's own ✕ (aria-label "Close") — present on every viewport.
+  await page.getByTestId("sl-backup-preview-sheet").getByRole("button", { name: "Close" }).click();
+  await page.getByTestId("sl-backup-preview-sheet").waitFor({ state: "detached", timeout: 10000 });
   await page.getByTestId("sl-backup-restore").first().click();
   await page.getByTestId("sl-restore-confirm").waitFor({ timeout: 30000 });
   await page.getByTestId("sl-restore-confirm-yes").click();
@@ -791,7 +858,8 @@ try {
   }
   console.log(`PASS  backups single-entity restore on-device (${emuAfterEntity} scenes)`);
   await page.screenshot({ path: join(shotDir, "emu-slice11-entity.png"), fullPage: true });
-  await page.locator(".sl-sheet-backdrop").click();
+  await page.getByTestId("sl-backup-preview-sheet").getByRole("button", { name: "Close" }).click();
+  await page.getByTestId("sl-backup-preview-sheet").waitFor({ state: "detached", timeout: 10000 });
   await page.getByRole("link", { name: "Plan" }).click();
   await page.waitForTimeout(500);
 

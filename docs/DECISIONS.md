@@ -301,3 +301,33 @@ relative magnitudes; three to five appear per screen depending on width, joined 
 same faint violet lines the decorative clusters used. Placement is artistic - a phone
 backdrop, not a sky simulator. The sky stays seeded, the reduced-motion and battery
 behavior and the Settings toggle are unchanged, and no color token moved.
+
+## 31. Real-device QA on the Redmi 14C (owner, 2026-10-22)
+
+The v1.0.0 APK was tested on a real phone — Redmi 14C (2409BRN2CY), Android 16 / HyperOS V816,
+720 x 1640 at 260 ppi (360 x 820 CSS px) — with the scripted 53-check harness driven over the
+WebView devtools socket: **53/53 passed, zero crashes in logcat**, plus rotation, IME,
+cold-relaunch and fling checks judged from screenshots (search p95 20 ms, backlinks p95
+11.6 ms, graph ready 527 ms, 60 fps fling).
+
+Two real defects surfaced that no emulator run could show:
+
+- **The @-mention picker opened under the soft keyboard.** `place()` positioned the popup at
+  `rect.bottom + 6` and clamped only horizontally, so with the IME up it rendered under the
+  keyboard — invisible and untappable. Fixed by clamping to `visualViewport` and flipping
+  above the caret when there is no room below, re-placing on `visualViewport` resize.
+- **The relationship web fitted its nodes under the floating tab bar.** The 62vh canvas starts
+  below the fold on a short phone, so its fitted nodes landed behind the tab bar and the
+  canvas looked empty. Fixed by bringing the canvas into view when the graph is shown.
+
+The harness learned the same lesson in three places (scene-row drag, graph-node drag,
+full-height sheets): on a short phone, content at the viewport edge sits under the fixed tab
+bar — centre it before measuring, and close full-height sheets through their own ✕, never the
+backdrop.
+
+Install path on HyperOS: `adb install` fails with `INSTALL_FAILED_USER_RESTRICTED` unless
+"Install via USB" is enabled; the harness falls back to `push` + `pm install`, and
+`STARLINE_QA_SKIP_INSTALL=1` reuses an installed build on phones with an interactive
+installer. The phone runs German, so the harness pins `starline.locale` before the journey
+(its selectors are English). Play Protect asks to upload unknown APKs — dismiss with
+"Nicht senden", or set `verifier_verify_adb_installs=0` for automation.

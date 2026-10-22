@@ -80,3 +80,12 @@ GitHub runners get no keystore (by design) and no Android emulator (decision 22)
 web gates and the durability suites; the Android QA journey and the release build stay on the
 laptop. `scripts/verify-android.mjs` drives the **debug** APK — it needs the DEV hook to seed
 fixtures quickly.
+
+## Sideloading on MIUI / HyperOS
+
+HyperOS (and MIUI before it) refuses `adb install` with `INSTALL_FAILED_USER_RESTRICTED` unless
+the developer option "Install via USB" is on. The scripted QA falls back to `adb push` +
+`pm install`. For a manual sideload, open the APK from the phone's file manager; when Play
+Protect asks whether to send the app for a security scan, choose **Don't send** — the APK is
+signed by the StarLine release key, which Play Protect simply does not know.
+

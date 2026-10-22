@@ -140,10 +140,32 @@ function mentionSuggestion() {
     });
   };
 
+  let lastRect: DOMRect | null = null;
+
   const place = (rect: DOMRect | null | undefined) => {
     if (!popup || !rect) return;
-    popup.style.left = `${Math.min(rect.left, window.innerWidth - 260)}px`;
-    popup.style.top = `${rect.bottom + 6}px`;
+    lastRect = rect;
+    // The picker must sit inside the VISUAL viewport. With the soft keyboard up a popup placed
+    // at rect.bottom + 6 runs under the IME — invisible and untappable (real-device finding on
+    // the Redmi 14C, decision 31). Flip above the caret when there is no room below it.
+    const vv = window.visualViewport;
+    const viewLeft = vv?.offsetLeft ?? 0;
+    const viewTop = vv?.offsetTop ?? 0;
+    const viewRight = viewLeft + (vv?.width ?? window.innerWidth);
+    const viewBottom = viewTop + (vv?.height ?? window.innerHeight);
+    const width = popup.offsetWidth || 260;
+    const height = popup.offsetHeight || 200;
+    popup.style.left = `${Math.max(viewLeft + 8, Math.min(rect.left, viewRight - width - 8))}px`;
+    const below = rect.bottom + 6;
+    popup.style.top =
+      below + height <= viewBottom - 8
+        ? `${below}px`
+        : `${Math.max(viewTop + 8, rect.top - height - 6)}px`;
+  };
+
+  // The keyboard can open or close while the picker is up; re-place against the new viewport.
+  const reposition = () => {
+    if (lastRect) place(lastRect);
   };
 
   // The suggestion option wants a RENDERER here — an object with onStart/onUpdate/onKeyDown/
@@ -163,6 +185,7 @@ function mentionSuggestion() {
       popup.setAttribute("role", "listbox");
       popup.setAttribute("aria-label", messages.world.mentionsTitle);
       document.body.append(popup);
+      window.visualViewport?.addEventListener("resize", reposition);
       draw();
       place(props.clientRect?.());
     },
@@ -179,6 +202,7 @@ function mentionSuggestion() {
     },
     onKeyDown: (props: { event: KeyboardEvent }) => {
       if (props.event.key === "Escape") {
+        window.visualViewport?.removeEventListener("resize", reposition);
         popup?.remove();
         popup = null;
         return true;
@@ -202,6 +226,7 @@ function mentionSuggestion() {
       return false;
     },
     onExit: () => {
+      window.visualViewport?.removeEventListener("resize", reposition);
       popup?.remove();
       popup = null;
     },

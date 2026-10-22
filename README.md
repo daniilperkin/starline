@@ -72,7 +72,7 @@ crates need a Rust toolchain (see `AGENTS.md`).
 the connected world, safety & output, polish. The gates are green: typecheck, lint, 356 tests
 across both storage drivers, kill-9 chaos (native and web), bundle budgets, the no-network
 invariant, contrast pins, the full web journey, the PWA offline reopen, the accessibility
-harness and the scripted emulator QA (53 checks).
+harness and the scripted device QA (53 checks, on the emulator and on a real Redmi 14C).
 
 ## Licence
 

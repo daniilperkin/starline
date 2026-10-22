@@ -124,6 +124,19 @@ function GraphCanvas({
   const { fitView } = useReactFlow();
   const paneRef = useRef<HTMLDivElement>(null);
 
+  // On a short phone the 62vh canvas starts below the fold and its fitted nodes land under the
+  // floating tab bar (real-device finding: elementFromPoint at a node returned a tab). Bring
+  // the canvas into view when the graph is shown, so the nodes are actually on screen. Instant,
+  // not smooth: a scroll still animating when the next click measures its target makes the
+  // click land on whatever moved under the pointer instead.
+  useEffect(() => {
+    if (listView) return;
+    const id = window.setTimeout(() => {
+      paneRef.current?.scrollIntoView({ block: "center" });
+    }, 120);
+    return () => window.clearTimeout(id);
+  }, [listView]);
+
   const sceneOrder = useMemo(
     () => new Map(scenes.map((scene, index) => [scene.id, index])),
     [scenes],

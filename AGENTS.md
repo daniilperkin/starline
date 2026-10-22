@@ -91,6 +91,20 @@ ports.
 - In Hermes/git-bash background shells, `node` is an alias that dies without a TTY — call
   `env node …` (or an absolute path) after putting the project Node on `PATH`.
 
+- Real phones break assumptions the emulator cannot: the device locale is not `en` (the Redmi
+  runs German — the QA pins `starline.locale` before the journey), the soft keyboard actually
+  opens (the emulator never shows an IME, so anything placed at the caret's bottom edge lands
+  under it), and the floating tab bar covers the bottom ~56 px of the viewport (content scrolled
+  to the edge is *behind* it — centre it before measuring).
+- On HyperOS `adb install` fails with `INSTALL_FAILED_USER_RESTRICTED` unless "Install via USB"
+  is on: fall back to `adb push` + `pm install`, and `STARLINE_QA_SKIP_INSTALL=1` reuses an
+  installed build when the installer is interactive. Play Protect may ask to upload the APK —
+  dismiss it (or `settings put global verifier_verify_adb_installs 0` for automation).
+- In this Hermes shell `PLAYWRIGHT_BROWSERS_PATH` points at the agent's tools directory, which
+  lacks the browser build the vitest browser project needs — export
+  `PLAYWRIGHT_BROWSERS_PATH=$LOCALAPPDATA/ms-playwright` before `pnpm test` and the verify
+  scripts, or the browser project dies before running a single test.
+
 ## Shipping a slice
 
 1. Make the change; keep the catalogue, the budgets and the docs in step.
