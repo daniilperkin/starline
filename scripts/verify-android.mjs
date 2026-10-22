@@ -112,7 +112,9 @@ if (process.env.STARLINE_QA_SKIP_INSTALL !== "1") {
   try {
     adb(["install", "-r", apk]);
   } catch {
-    console.log("adb install refused (MIUI/HyperOS USB-install guard) — pushing and using pm install");
+    console.log(
+      "adb install refused (MIUI/HyperOS USB-install guard) — pushing and using pm install",
+    );
     adb(["push", apk, "/data/local/tmp/starline-qa.apk"]);
     adb(["shell", "pm", "install", "-r", "-t", "/data/local/tmp/starline-qa.apk"]);
     adb(["shell", "rm", "-f", "/data/local/tmp/starline-qa.apk"]);
@@ -427,7 +429,9 @@ try {
     await page.screenshot({ path: join(shotDir, "emu-slice6-lore.png"), fullPage: true });
     console.log("PASS  world tab + kind template + @-mention on-device");
   } else {
-    console.log("SKIP  @-mention insert (popup under the IME) — the rest of the World checks continue");
+    console.log(
+      "SKIP  @-mention insert (popup under the IME) — the rest of the World checks continue",
+    );
   }
 
   // Delete the entry and bring it back from the toast (the second undo of the session — the
