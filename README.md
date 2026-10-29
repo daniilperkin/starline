@@ -10,9 +10,7 @@ SQLite library file (`*.starline`). No accounts, no telemetry, no network.
 [![Licence: MPL-2.0](https://img.shields.io/badge/licence-MPL--2.0-blue.svg)](LICENSE)
 [![PWA](https://img.shields.io/badge/PWA-live-f6c760.svg)](https://daniilperkin.github.io/starline/)
 
-| Start | Plan | Scenes |
-|---|---|---|
-| ![Start screen](docs/screenshots/start.png) | ![Plan dashboard](docs/screenshots/plan.png) | ![Outliner](docs/screenshots/scenes.png) |
+[![StarLine — start screen, plan dashboard and outliner](docs/screenshots/hero.png)](https://daniilperkin.github.io/starline/)
 
 ## Highlights
 

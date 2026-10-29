@@ -5,6 +5,8 @@ import { chromium } from "playwright";
 const BASE = process.env.SHOT_BASE ?? "http://localhost:4175";
 const OUT = join(process.cwd(), "docs", "screenshots");
 mkdirSync(OUT, { recursive: true });
+// Regenerate: build + preview (see package docs), run this, then `node scripts/make-hero.mjs`
+// which composes the profile/README hero from the three shots.
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({
@@ -21,7 +23,13 @@ await page.getByPlaceholder("My Novel").waitFor({ timeout: 60_000 });
 await page.evaluate(() => document.fonts.ready);
 await page.waitForTimeout(2500); // starfield + first paint settle
 
-// 1. Start screen (empty input shows the placeholder).
+// 1. Start screen (empty input shows the placeholder). Dismiss the first-run tour offer:
+//    the card covers the create form and reads as a nag in a static image.
+const tourDismiss = page.getByTestId("sl-tour-offer-dismiss");
+if (await tourDismiss.count()) {
+  await tourDismiss.click();
+  await page.waitForTimeout(600);
+}
 await page.screenshot({ path: join(OUT, "start.png") });
 console.log("start.png");
 
@@ -39,7 +47,11 @@ await page.getByPlaceholder("Name your story").waitFor({ timeout: 60_000 });
 await page.getByPlaceholder("Name your story").fill("The Ferry at Dusk");
 await page.getByRole("button", { name: "Create story" }).click();
 await page.getByText("0 of 9 steps complete").waitFor({ timeout: 20_000 });
-await page.waitForTimeout(1200);
+await page.waitForTimeout(1400);
+// Shot at the top of the page: the "Pick up where you left off" card sits at the fold under
+// the floating tab bar. Scrolling to reveal it cuts the Plan header, which is worse.
+// Shot in the creating session: a reload/re-open makes the previous session look unclean
+// and the crash-recovery banner lands on the plan screen.
 await page.screenshot({ path: join(OUT, "plan.png") });
 console.log("plan.png");
 
@@ -53,7 +65,8 @@ await page.locator('[data-testid="sl-template-apply"]').click();
 await page.locator('[data-testid="sl-template-report"]').waitFor({ timeout: 20_000 });
 await page.waitForTimeout(800);
 
-// 5. Scenes tab (hash navigation: the template's role="status" notice overlaps the tab bar).
+// 6. Scenes tab, list view (hash navigation: the template's role="status" notice overlaps
+//    the tab bar). The board clips its right-hand column in a still image.
 await page.evaluate(() => {
   window.location.hash = "#/scenes";
 });
