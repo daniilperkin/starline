@@ -25,9 +25,8 @@ serves it from `https://localhost` inside the WebView).
   `start_url` and the service-worker `scope` all sit under the subpath.
 - Deploy is automatic: push to `main` → Actions builds `apps/web/dist` → Pages publishes.
 - Manual build: `cd apps/web && STARLINE_BASE=/starline/ node node_modules/vite/bin/vite.js build`.
-- Note: a Pages site served from a private repo is itself **public** (the URL is
-  unlisted, but anyone with the link can load the app shell — the shell contains no user
-  data, which stays on-device).
+- Note: the repository is **public** (MPL-2.0) and Pages serves the same shell to anyone — the
+  shell contains no user data, which never leaves the device.
 
 ## Alternatives (any static host works)
 

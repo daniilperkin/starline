@@ -889,6 +889,10 @@ M0-M4 readings stay in sections 2-5.
   scripted checks and zero crashes, then two fixes the emulator could not show — the @-mention
   picker now clamps to the visual viewport (it opened under the soft keyboard) and the
   relationship web scrolls its canvas into view (fitted nodes landed under the tab bar).
+- **v1.0.2 (2026-10-22)** — a documentation truth pass: the gate list (356 tests, 37 axe scans,
+  53 device checks), the a11y counts, the Fabula matrix (cloud, German, the outliner and the daily
+  card are shipped), the hosting and APK-publishing notes, the repo-visibility line and the spec
+  header now describe the shipped state. The app is unchanged; the APK is the v1.0.1 binary.
 
 ## 11. Appendix — screen → data map (abridged)
 

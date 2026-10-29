@@ -4,7 +4,7 @@
 what remains open is listed honestly at the bottom. This checklist is the artifact for the owner's
 sign-off.
 
-**Signed off by the owner, 2026-10-13.** The five open items at the bottom are accepted as
+**Signed off by the owner, 2026-10-14.** The five open items at the bottom are accepted as
 documented; the timeline wide-zoom clustering is scheduled as slice 24 (M5).
 
 Scope: the phone PWA (`apps/web`). The same DOM runs inside the Android WebView, so one audit
@@ -17,8 +17,8 @@ Three layers, because no single tool covers AA:
 
 | Layer | What it proves | Where |
 | --- | --- | --- |
-| **axe-core** scans (25 in the web journey, both locales) | structural rules: names, roles, labels, contrast, landmarks, headings | `scripts/verify-web.mjs` (step 7) |
-| **`scripts/check-a11y.mjs`** — 55 scripted checks | the things axe cannot see: keyboard-only walks with a visible indicator at every stop, 24 px targets, reflow at 320 px, WCAG 1.4.12 text spacing, reduced motion, the starfield stop control, page titles, `html lang`, Escape closing a sheet, a live region for status messages | run it any time: `pnpm check:a11y` |
+| **axe-core** scans (37 in the web journey, both locales) | structural rules: names, roles, labels, contrast, landmarks, headings | `scripts/verify-web.mjs` (step 7) |
+| **`scripts/check-a11y.mjs`** — 61 scripted checks | the things axe cannot see: keyboard-only walks with a visible indicator at every stop, 24 px targets, reflow at 320 px, WCAG 1.4.12 text spacing, reduced motion, the starfield stop control, page titles, `html lang`, Escape closing a sheet, a live region for status messages | run it any time: `pnpm check:a11y` |
 | **`scripts/check-contrast.mjs`** | the palette contract: every token pair meets its stated ratio in both themes | CI (budgets job) |
 
 The keyboard walks are real: the script presses Tab up to 25 times per screen and asks the
@@ -39,7 +39,7 @@ Legend: ✅ met · ⚠️ met with a documented limitation · ➖ not applicable
 | 1.3.2 Meaningful Sequence | A | ✅ | DOM order equals visual order on every audited screen |
 | 1.3.4 Orientation | AA | ✅ | No orientation lock; the layout is fluid and was checked at 390×844 and 320×640 |
 | 1.3.5 Identify Input Purpose | AA | ✅ | Inputs carry visible labels or `aria-label`; no free-text field collects personal data |
-| 1.4.3 Contrast (Minimum) | AA | ✅ | `check-contrast.mjs` (contract) + axe `color-contrast` on 25 scans in both locales |
+| 1.4.3 Contrast (Minimum) | AA | ✅ | `check-contrast.mjs` (contract) + axe `color-contrast` on 37 scans in both locales |
 | 1.4.4 Resize Text | AA | ✅ | `rem`-based type, no `maximum-scale` in the viewport meta, no text locked into images |
 | 1.4.10 Reflow | AA | ✅ | No horizontal overflow at a 320 px viewport (checked on every audited screen) |
 | 1.4.11 Non-text Contrast | AA | ✅ | Control borders, focus rings and status colours come from tokens that meet 3:1 in both themes (palette contract) |
@@ -88,7 +88,7 @@ Legend: ✅ met · ⚠️ met with a documented limitation · ➖ not applicable
 
 | Criterion | Level | Status | Evidence |
 | --- | --- | --- | --- |
-| 4.1.2 Name, Role, Value | A | ✅ | Native elements everywhere it matters (buttons, inputs, fieldsets, dialogs via Radix); axe `aria-*` rules clean on 25 scans |
+| 4.1.2 Name, Role, Value | A | ✅ | Native elements everywhere it matters (buttons, inputs, fieldsets, dialogs via Radix); axe `aria-*` rules clean on 37 scans |
 | 4.1.3 Status Messages | AA | ✅ | The undo toast is `role="status" aria-live="polite"`; the integrity banner is `role="alert"`; import results use `role="status"` — asserted by the audit script |
 
 ## What slice 19 found and fixed
@@ -129,7 +129,7 @@ argued away:
 ```bash
 pnpm check:a11y        # the scripted manual checks (starts its own dev server)
 pnpm check:contrast    # the palette contract
-pnpm verify-web        # includes 25 axe scans, both locales
+pnpm verify-web        # includes 37 axe scans, both locales
 ```
 
 `check:a11y` is part of `pnpm ci:gates` and runs in the CI `web E2E` job, so these checks cannot

@@ -42,7 +42,7 @@ pnpm test            # vitest: node project (contract + domain) and browser proj
 pnpm chaos           # kill-9 durability, native driver
 pnpm chaos:web       # crash harness through the wasm driver
 pnpm check:bundle    # spec §5.1 gzip budgets
-pnpm check:a11y      # WCAG 2.2 AA audit harness (55 scripted checks)
+pnpm check:a11y      # WCAG 2.2 AA audit harness (61 scripted checks)
 node scripts/verify-web.mjs      # the full web journey, axe scans included
 node scripts/verify-pwa.mjs      # service worker + offline reopen
 node scripts/verify-android.mjs  # emulator QA against the debug APK (local only)

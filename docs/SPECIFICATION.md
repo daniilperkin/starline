@@ -1,7 +1,7 @@
 # StarLine — Technical & Product Specification
 
 > **Product name:** StarLine (a local-first Snowflake-method novel planner and writer workstation; renamed 2026-10-07 from working title "Plotflake")
-> **Spec version:** 1.0.0 · **Date:** 2026-10-07 · **Status:** Implementation-ready draft
+> **Spec version:** 1.0.0 · **Date:** 2026-10-07 · **Status:** implemented — M0-M5 shipped (slices 1-38); see `docs/PLAN.md` for what each measured
 > **Scope:** Functional clone of the *concept set* of "Fabula. Romanplaner / Story Planner" (Fabula Apps, `com.fabula.app`) plus the local-first, desktop-first, open-format features Fabula lacks. No Fabula code, assets, copy or branding are reused.
 
 ---

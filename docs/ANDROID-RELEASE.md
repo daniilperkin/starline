@@ -9,8 +9,10 @@ StarLine ships two APKs, and they are not interchangeable (decision 22):
 | Signing | Android's debug key | the StarLine release key |
 | Where it is built | laptop or CI | **laptop only** — the keystore never leaves this machine |
 
-Both are gitignored. Neither is uploaded anywhere; they travel to a phone by cable or by the
-owner's own file transfer.
+Both are gitignored in the repository. The **release** APK is published as an asset on every
+GitHub Release (`gh release create vX.Y.Z artifacts/starline-release.apk`); the debug APK never
+leaves this machine — it travels to the phone by cable. A phone can also install the release APK
+straight from the release page.
 
 ## The release key
 
@@ -64,6 +66,18 @@ On the phone without a cable: copy the file across, open it, and allow installin
 source when Android asks. Android refuses to install a release APK **over** a debug-signed
 installation (different key): uninstall the debug build first, or install the release build on a
 phone that never had the debug one.
+
+## Publishing a release
+
+```bash
+git tag -a vX.Y.Z -m "StarLine vX.Y.Z" && git push origin vX.Y.Z
+gh release create vX.Y.Z artifacts/starline-release.apk \
+  --title "StarLine vX.Y.Z" --notes-file release-notes.md
+```
+
+The releases page is the download path the README points at, so attach the APK to every
+release that changes the app. A documentation-only release can reuse the previous APK and
+say so in the notes.
 
 ## Version bumps
 

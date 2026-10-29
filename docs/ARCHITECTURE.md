@@ -22,7 +22,8 @@ capabilities (`locking`, `externalChange`, `multiInstance`), never by forking te
 
 ## Library storage (web target)
 
-A library is a SQLite file in the origin’s OPFS pool (`starline-sahpool`, capacity 64). One
+A library is a SQLite file in the origin’s OPFS pool (`starline-sahpool`, initial capacity 16,
+reserved on demand — one slot per file SQLite creates, journals and WAL included). One
 worker owns the pool while a library is open; closing disposes it. Pool names are
 percent-encoded (the UI decodes for display, opens by the stored name).
 `navigator.storage.persist()` is requested on first creation (§5.4.1).
@@ -42,13 +43,26 @@ refused with a clear error.
 ## Gates (all green means shippable)
 
 - `pnpm typecheck` · `pnpm lint`
-- `pnpm test` — the same contract suite on both drivers + core domain unit tests (202, incl. slice-5 trash/undo, slice-6 lore, slice-7 search/backlink/perf, slice-8 relationship and slice-9 tag/field/grid integration on rusqlite)
+- `pnpm test` — the same contract suite on both drivers + core domain unit tests (**356**, incl.
+  trash/undo, lore, search/backlink/perf, relationships, tags/fields/grid, timeline,
+  snapshots/restore, interchange, writing mode, notes/attachments and the migration property
+  tests, on rusqlite and on the wasm driver)
 - `pnpm chaos` — kill-9 chaos harness (durability of acknowledged writes, native driver)
 - `pnpm chaos:web` — web crash harness (random writes killed mid-flight + reopen assertions: crash banner, integrity, FK sanity)
-- `node scripts/verify-web.mjs` — wizard E2E: library + story + steps 1–6 (character card, extraction, dossier edit, step-4 seed, storylines, sections, Stale badge) + step 8 (paste 40 scenes, merge re-import) + Scenes tab (reorder, reassign, editor round-trip) + slice 5 (step 9, dashboard, trash, undo, drag) + slice 6 (World taxonomy, entry + kind-template fields, `@`-mentions, delete → undo) + slice 7 (backlinks, possible mention → Link, search sheet, checks screen, §5.1 budgets on the wasm path) + slice 8 (matrix cell → edge sheet, group, web nodes + pin, list twin) + slice 9 (grid attach → beat → balance, tag manager, custom field on an existing scene) + axe scans (12) + pool no-leak assertion + persistence across reload/reopen (serves its own dev build)
+- `node scripts/verify-web.mjs` — the whole journey: library + story → wizard steps 1-9 (validators,
+  extraction, staleness) → the outliner (list, corkboard, grid, bulk edits) → World + relationships
+  (taxonomy, kind templates, `@`-mentions, backlinks, matrix, graph pinning) → backups (preview,
+  restore, single entity) → export/import round-trip → writing mode → notes and attachments →
+  settings, palette, tour; **37 axe scans** (both locales), the pool no-leak assertion and
+  persistence across reload/reopen (serves its own dev build)
 - `node scripts/verify-pwa.mjs` — service-worker + offline reopen keeping the plan (serves its own preview build)
 - `node scripts/check-contrast.mjs` — WCAG pin for the star-library palette (accent-is-decoration rule)
 - `node scripts/check-no-network.mjs` — offline-complete invariant (no network primitives in apps/*/src or packages/*/src)
-- `pnpm check:bundle` — gzip budgets (spec §5.1: app 330 KiB, css 8, worker 72, payload 4 MiB, per-route chunk 150 KiB; fails beyond +5 %)
-- `node scripts/verify-android.mjs` — scripted emulator QA: fresh APK install → wizard steps 1–4 (character card, step-4 seed, rich-text editors) → step-8 paste import → Scenes tab + scene-sheet round-trip → slice 5 on-device (step 9, dashboard + snapshot, trash, undo, drag) → slice 6 on-device (World, kind template, `@`-mention, delete → undo) → slice 7 on-device (backlinks, possible mention → Link, search sheet, checks, budgets on the emulator wasm path) → slice 8 on-device (matrix, edge from a cell, web + pin, list twin) → slice 9 on-device (grid + beat, tag manager) → back-button/minimise → cold relaunch (booted emulator required)
+- `pnpm check:bundle` — gzip budgets (spec §5.1: app 330 KiB, css **11** (decision 27), worker 72,
+  export worker 40, payload 4 MiB, per-route chunk 150 KiB; fails beyond +5 %)
+- `node scripts/verify-android.mjs` — scripted device QA (**53 checks**) over the WebView devtools
+  socket: the full journey on the APK — wizard, scenes, World, relationships, grid, timeline,
+  backups + restore drill, export to the app-scoped folder + share sheet, writing mode, notes and
+  attachments, hardware back, cold relaunch and the S21-S37 smoke. Runs on the emulator **and on a
+  real phone** (Redmi 14C, Android 16 — see the MIUI note in `docs/ANDROID-RELEASE.md`)
 - `node scripts/cargo.mjs build` — native storage crate

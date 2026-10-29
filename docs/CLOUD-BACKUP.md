@@ -2,7 +2,7 @@
 
 > **Owner request 2026-10-08:** "can we do firebase (as the catreader [CatBookTracker]) and
 > local if no firebase." This document analyses that option and proposes a design.
-> **Status: being built as slice 15.** The owner gave the go-ahead and settled the shape in
+> **Status: shipped as slice 15 (decision 23).** The owner gave the go-ahead and settled the shape in
 > decision 23 (no client-side encryption; APK *and* PWA; retention mirrors the local thinning;
 > a separate `STARLINE_CLOUD=1` flavour). S15a and S15b are shipped — see the slice-15 section in
 > `docs/PLAN.md` — and the one-time console setup is written up in `docs/CLOUD-SETUP.md`.

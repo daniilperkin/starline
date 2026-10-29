@@ -1,7 +1,7 @@
 {
   "name": "starline",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "license": "MPL-2.0",
   "type": "module",
   "packageManager": "pnpm@11.22.0",

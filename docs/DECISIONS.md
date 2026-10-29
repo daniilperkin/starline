@@ -7,7 +7,8 @@ everything not listed here; entries are folded back into the spec on owner reque
 ## Owner decisions (2026-10-07, before M0)
 
 1. **Licence:** MPL-2.0 (file-level copyleft; a future paid/closed edition stays possible).
-2. **Repository:** private GitHub repo `daniilperkin/starline`, created and pushed when M0 is green.
+2. **Repository:** GitHub repo `daniilperkin/starline` — private while it was built, **public
+   since v1.0.0** (2026-10-20, MPL-2.0).
 3. **Sequencing:** M0 Foundation is a hard gate (report, then continue); M1→M4 follow milestone by
    milestone per §5.7.
 4. **Toolchain:** install VS 2022 Build Tools (C++ workload) so the MSVC Rust toolchain and Tauri

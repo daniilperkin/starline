@@ -68,7 +68,7 @@ crates need a Rust toolchain (see `AGENTS.md`).
 
 ## Status
 
-**v1.0.0** — all planned milestones shipped (M0–M5, slices 1–38): foundation, planning core,
+**v1.0.1** — all planned milestones shipped (M0–M5, slices 1–38): foundation, planning core,
 the connected world, safety & output, polish. The gates are green: typecheck, lint, 356 tests
 across both storage drivers, kill-9 chaos (native and web), bundle budgets, the no-network
 invariant, contrast pins, the full web journey, the PWA offline reopen, the accessibility

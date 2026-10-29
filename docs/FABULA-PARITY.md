@@ -38,16 +38,16 @@
 | World building (rules, magic, culture, economy…) | Yes | S6 — lore wiki, seeded taxonomy, kind templates, child entries | **better** |
 | Notes | Yes | Basic shipped; S14 — incubator board, promote-to, attachments | **better** |
 | Timeline | Yes | S10 — swimlanes, drag storyTime, conflict warnings | **better** |
-| "See the whole book at a glance" | Yes | Dashboard shipped; corkboard/outline views planned | parity+ |
+| "See the whole book at a glance" | Yes | Dashboard + outliner: list, corkboard and plotline grid (S21, S32) | **better** |
 | Images / visual materials | Yes | S14 — attachments per character/lore (≤ 20 MB, dedupe) | parity |
 | Export | **Pro only** | S12 — MD zip, JSON, HTML, DOCX, CSV, plain text; round-trip gate | **better** (free) |
-| Cross-device / cloud | Unfinished | **Planned, not built** — S15 opt-in snapshot mirroring (immutable, conflict-free); awaiting the owner's go-ahead | behind until built |
-| Inspiration content | Pro extra | Bundled static prompt library (free); daily-card candidate in Slice 16 | parity → better |
+| Cross-device / cloud | Unfinished | S15 — opt-in immutable snapshot mirroring to the user's own Google Drive `appDataFolder`, off by default, absent from the default build | **better** (when enabled) |
+| Inspiration content | Pro extra | Bundled static prompt library + a daily card (S16), all offline | **better** |
 | Ads | Yes | None, ever (decision 10) | **better** |
 | Limits (worlds/characters) | Free tier capped | Unlimited everything, free | **better** |
 | Privacy | Ads + tracking, contact/device IDs | Offline-complete, no accounts, no telemetry | **better** |
 | Data safety | Loss reports, no recovery | Snapshots, trash, undo, crash recovery, integrity checks (shipped); restore drill (S11) | **better** |
-| Languages | 19 | English + Ukrainian shipped (M4 slice 18, real plural rules); adding a locale is one catalogue file | behind on count, equal in quality |
+| Languages | 19 | English, Ukrainian and German at full parity (real plural rules); adding a locale is one catalogue file | behind on count, equal in quality |
 | Accessibility | None declared | WCAG 2.2 AA target, axe scans in CI | **better** |
 
 ## 3. Where we already win (by design, not by accident)
@@ -63,16 +63,19 @@
 
 | Candidate | Why | Where it could land |
 |---|---|---|
-| Story-structure templates (3-act, Hero's Journey, Save the Cat beat sheet, story circle → generate a scene skeleton) | Not in Fabula; a natural "more and better" for outline building — reuses `createScenesFromList` | Slice 16 (post-M3) |
-| Daily inspiration card (offline, from the bundled prompt library) | Matches Fabula's paid "inspiration content" with zero network | Slice 16 (post-M3) |
+| Story-structure templates (3-act, Hero's Journey, Save the Cat beat sheet, story circle → generate a scene skeleton) | Not in Fabula; a natural "more and better" for outline building | **Shipped in S16** (builds on `createScenesFromList`) |
+| Daily inspiration card (offline, from the bundled prompt library) | Matches Fabula's paid "inspiration content" with zero network | **Shipped in S16** |
 | Series container (several books per library, schema-ready) | Fabula is per-book; we already allow multiple books in one `.starline` file | v1.1 (already in spec) |
 | iOS packaging | Fabula ships iOS; our PWA already runs on iPhone browsers; a native iOS build needs a Mac + signing | Only if asked |
 
 ## 5. Sequencing
+
+All four steps below shipped; the list is kept as the original order.
 
 1. **M2 (S6–S10)** as planned — covers Fabula's core loop (world, relationships, plotlines,
    timeline) and adds search/backlinks Fabula does not have.
 2. **M3 (S11–S14)** — safety and output: restore UI, export/import, writing mode, notes.
 3. **Slice 15** — opt-in cloud backup (snapshot mirroring; the safe version of Fabula's
    unfinished sync).
-4. **Slice 16 (candidate)** — the §4 extras, if wanted.
+4. **Slice 16** — the §4 extras (shipped: story-structure templates, the daily card and the
+   extras surface).
