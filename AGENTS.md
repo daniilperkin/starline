@@ -21,13 +21,12 @@ decision explicitly overrides the spec, in which case the decision wins.
 
 - `packages/core` — domain logic: schema, migrations, commands, the change bus, i18n catalogues,
   interchange (JSON / Markdown folder / DOCX / CSV), snapshots, search, notes, attachments.
-- `packages/driver-rusqlite` — the native driver (a stdio NDJSON CLI used by the Rust side and
-  the tests) · `packages/driver-wasm` — the sqlite-wasm OPFS driver (the web app) · one contract
+- `packages/db` (`@starline/db`) — SQLite schema/query utilities · `packages/driver-tauri` (`@starline/driver-tauri`, backed by `crates/starline-storage` + `crates/starline-storage-cli` via stdio NDJSON) · `packages/driver-wasm` — the sqlite-wasm OPFS driver (the web app) · one contract
   suite runs against both.
 - `apps/web` — the PWA (React 19 + Vite + Tailwind 4 + TanStack). `apps/web/android` — the
-  Capacitor wrap. `apps/web/src-tauri` — the Tauri shell (later native path).
+  Capacitor wrap.
 - `scripts/` — every gate: `verify-web`, `verify-pwa`, `verify-android`, `check-a11y`,
-  `check-bundle`, `check-contrast`, `check-no-network`, `chaos/`, plus `cargo.mjs` (Rust builds)
+  `check-bundle`, `check-contrast`, `check-no-network`, `check-perf`, `chaos/`, plus `cargo.mjs` (Rust builds)
   and `launch-emulator.mjs`.
 - `docs/` — SPECIFICATION, DECISIONS, DESIGN, ARCHITECTURE, ACCESSIBILITY, ANDROID-RELEASE,
   CLOUD-BACKUP, CLOUD-SETUP, HOSTING, FABULA-PARITY, PLAN, SPEC-GAP-AUDIT.
@@ -38,11 +37,15 @@ decision explicitly overrides the spec, in which case the decision wins.
 pnpm ci:gates        # the whole local suite, the same sequence CI runs
 pnpm typecheck       # tsc -b  (emits into apps/web/dist-types, never into dist/)
 pnpm lint            # biome check .
-pnpm test            # vitest: node project (contract + domain) and browser project
+pnpm test            # vitest: node project (contract + domain) and browser project (356 tests, 34 files)
+pnpm --filter @starline/web build  # production Vite build
+pnpm check:bundle    # spec §5.1 gzip budgets
+pnpm check:perf      # cold-start dashboard budget
 pnpm chaos           # kill-9 durability, native driver
 pnpm chaos:web       # crash harness through the wasm driver
-pnpm check:bundle    # spec §5.1 gzip budgets
-pnpm check:a11y      # WCAG 2.2 AA audit harness (61 scripted checks)
+pnpm check:a11y      # WCAG 2.2 AA audit harness (60 scripted checks)
+node scripts/check-no-network.mjs
+node scripts/check-contrast.mjs
 node scripts/verify-web.mjs      # the full web journey, axe scans included
 node scripts/verify-pwa.mjs      # service worker + offline reopen
 node scripts/verify-android.mjs  # emulator QA against the debug APK (local only)
@@ -57,9 +60,9 @@ ports.
   `scripts/check-no-network.mjs`. Do not add a fetch, a CDN link, a web font, or a telemetry call
   without an owner decision; the optional cloud backup (decision 18) is the single, explicitly
   gated exception and is off by default.
-- **Every user-facing string lives in the catalogue** (`packages/core/src/i18n/en.ts` + `uk.ts`)
+- **Every user-facing string lives in the catalogue** (`packages/core/src/i18n/en.ts`, `uk.ts`, `de.ts`)
   and is read through the live `messages` proxy. Never hardcode text in a component — the
-  catalogue shape test fails if the two locales drift apart.
+  catalogue shape test fails if locales drift apart.
 - **Bundle budgets are gates**, not targets: app 330 KiB gz, CSS **11 KiB** gz (decision 27), storage worker 72 KiB, export worker 40 KiB, install payload
   4 MiB, per-route lazy chunk 150 KiB.
 - **Stage specific files, never `git add -A`.** Commit messages are plain-English imperatives
